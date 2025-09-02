@@ -90,9 +90,10 @@ class GeneticAlgorithm {
 
     /// Run genetic algorithm on the given problem
     template <Problem P>
-    requires SelectionOperator<Selection, P> && CrossoverOperator<Crossover, P> && MutationOperator<Mutation, P> &&
-             (std::same_as<LocalSearch, void*> || LocalSearchOperator<LocalSearch, P>) &&
-             (std::same_as<Repair, void*> || RepairOperator<Repair, P>)
+        requires SelectionOperator<Selection, P> && CrossoverOperator<Crossover, P> &&
+                 MutationOperator<Mutation, P> &&
+                 (std::same_as<LocalSearch, void*> || LocalSearchOperator<LocalSearch, P>) &&
+                 (std::same_as<Repair, void*> || RepairOperator<Repair, P>)
     GAResult<typename P::GenomeT> run(const P& problem, const GAConfig& config = {}) {
         using GenomeT = typename P::GenomeT;
 
