@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   BUILD_TYPE: Release
@@ -19,43 +19,43 @@ jobs:
     name: Format Check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install clang-format
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang-format-15
-        
-    - name: Check formatting
-      run: |
-        find include apps tests -name "*.hpp" -o -name "*.cpp" | \
-        xargs clang-format-15 --dry-run --Werror
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-15
+
+      - name: Check formatting
+        run: |
+          find include apps tests -name "*.hpp" -o -name "*.cpp" | \
+          xargs clang-format-15 --dry-run --Werror
 
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang-tidy-15 cmake ninja-build
-        
-    - name: Configure CMake
-      run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-          -DCMAKE_C_COMPILER=clang-15 \
-          -DCMAKE_CXX_COMPILER=clang++-15 \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DEVOLAB_BUILD_TESTS=ON
-          
-    - name: Run clang-tidy
-      run: |
-        clang-tidy-15 --config-file=.clang-tidy \
-          $(find include -name "*.hpp") \
-          -p build/
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-15 cmake ninja-build
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_C_COMPILER=clang-15 \
+            -DCMAKE_CXX_COMPILER=clang++-15 \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DEVOLAB_BUILD_TESTS=ON
+
+      - name: Run clang-tidy
+        run: |
+          clang-tidy-15 --config-file=.clang-tidy \
+            $(find include -name "*.hpp") \
+            -p build/
 
   build-and-test:
     name: Build and Test
@@ -80,76 +80,76 @@ jobs:
           - os: windows-latest
             cc: cl
             cxx: cl
-            
+
     runs-on: ${{ matrix.os }}
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up ccache (Linux/macOS)
-      if: runner.os != 'Windows'
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: ${{ matrix.os }}-${{ matrix.build-type }}-${{ matrix.cxx }}
-        
-    - name: Install dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build ${{ matrix.cc }} ${{ matrix.cxx }}
-        # Install TBB
-        sudo apt-get install -y libtbb-dev
-        
-    - name: Install dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install cmake ninja tbb
-        
-    - name: Install dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        choco install ninja
-        # TBB will be handled by vcpkg or manual installation if needed
-        
-    - name: Configure CMake (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
-          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-          -DEVOLAB_BUILD_TESTS=ON \
-          -DEVOLAB_BUILD_BENCHMARKS=ON \
-          -DEVOLAB_USE_TBB=ON
-          
-    - name: Configure CMake (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        cmake -B build -G "Visual Studio 17 2022" -A x64 `
-          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} `
-          -DEVOLAB_BUILD_TESTS=ON `
-          -DEVOLAB_BUILD_BENCHMARKS=ON `
-          -DEVOLAB_USE_TBB=OFF
-          
-    - name: Build
-      run: |
-        cmake --build build --config ${{ matrix.build-type }} --parallel
-        
-    - name: Test
-      working-directory: build
-      run: |
-        ctest --output-on-failure --parallel --build-config ${{ matrix.build-type }}
-        
-    - name: Upload build artifacts
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs-${{ matrix.os }}-${{ matrix.build-type }}-${{ matrix.cxx }}
-        path: |
-          build/CMakeFiles/CMakeOutput.log
-          build/CMakeFiles/CMakeError.log
+      - uses: actions/checkout@v4
+
+      - name: Set up ccache (Linux/macOS)
+        if: runner.os != 'Windows'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.build-type }}-${{ matrix.cxx }}
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ${{ matrix.cc }} ${{ matrix.cxx }}
+          # Install TBB
+          sudo apt-get install -y libtbb-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja tbb
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja
+          # TBB will be handled by vcpkg or manual installation if needed
+
+      - name: Configure CMake (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DEVOLAB_BUILD_TESTS=ON \
+            -DEVOLAB_BUILD_BENCHMARKS=ON \
+            -DEVOLAB_USE_TBB=ON
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} `
+            -DEVOLAB_BUILD_TESTS=ON `
+            -DEVOLAB_BUILD_BENCHMARKS=ON `
+            -DEVOLAB_USE_TBB=OFF
+
+      - name: Build
+        run: |
+          cmake --build build --config ${{ matrix.build-type }} --parallel
+
+      - name: Test
+        working-directory: build
+        run: |
+          ctest --output-on-failure --parallel --build-config ${{ matrix.build-type }}
+
+      - name: Upload build artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.os }}-${{ matrix.build-type }}-${{ matrix.cxx }}
+          path: |
+            build/CMakeFiles/CMakeOutput.log
+            build/CMakeFiles/CMakeError.log
 
   sanitizer-builds:
     name: Sanitizer Builds
@@ -157,68 +157,68 @@ jobs:
     strategy:
       matrix:
         sanitizer: [address, undefined]
-        
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build clang-15 libtbb-dev
-        
-    - name: Configure CMake
-      run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_C_COMPILER=clang-15 \
-          -DCMAKE_CXX_COMPILER=clang++-15 \
-          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
-          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=${{ matrix.sanitizer }}" \
-          -DEVOLAB_BUILD_TESTS=ON \
-          -DEVOLAB_USE_TBB=ON
-          
-    - name: Build
-      run: |
-        cmake --build build --parallel
-        
-    - name: Test with sanitizer
-      working-directory: build
-      run: |
-        export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1"
-        export UBSAN_OPTIONS="print_stacktrace=1:abort_on_error=1"
-        ctest --output-on-failure --parallel
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang-15 libtbb-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-15 \
+            -DCMAKE_CXX_COMPILER=clang++-15 \
+            -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=${{ matrix.sanitizer }}" \
+            -DEVOLAB_BUILD_TESTS=ON \
+            -DEVOLAB_USE_TBB=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+      - name: Test with sanitizer
+        working-directory: build
+        run: |
+          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1"
+          export UBSAN_OPTIONS="print_stacktrace=1:abort_on_error=1"
+          ctest --output-on-failure --parallel
 
   performance-check:
     name: Performance Check
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build g++-12 libtbb-dev
-        
-    - name: Configure CMake
-      run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_COMPILER=gcc-12 \
-          -DCMAKE_CXX_COMPILER=g++-12 \
-          -DEVOLAB_BUILD_BENCHMARKS=ON \
-          -DEVOLAB_USE_TBB=ON
-          
-    - name: Build benchmarks
-      run: |
-        cmake --build build --target benchmarks --parallel
-        
-    - name: Run performance benchmarks
-      run: |
-        # Run lightweight benchmarks for CI
-        # Actual benchmark execution would depend on implementation
-        echo "Performance benchmarks would run here"
-        # ./build/benchmarks/bench_tsp --quick
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++-12 libtbb-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-12 \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DEVOLAB_BUILD_BENCHMARKS=ON \
+            -DEVOLAB_USE_TBB=ON
+
+      - name: Build benchmarks
+        run: |
+          cmake --build build --target benchmarks --parallel
+
+      - name: Run performance benchmarks
+        run: |
+          # Run lightweight benchmarks for CI
+          # Actual benchmark execution would depend on implementation
+          echo "Performance benchmarks would run here"
+          # ./build/benchmarks/bench_tsp --quick
