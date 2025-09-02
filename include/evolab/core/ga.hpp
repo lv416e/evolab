@@ -315,17 +315,20 @@ class GeneticAlgorithm {
             std::uniform_int_distribution<std::size_t> dist(0, pop_size - 1);
             for (std::size_t sample = 0; sample < max_samples; ++sample) {
                 std::size_t i = dist(rng);
-                std::size_t j = dist(rng);
-                if (i != j) {
-                    double distance = 0.0;
-                    for (std::size_t k = 0; k < genome_size; ++k) {
-                        if (population[i][k] != population[j][k]) {
-                            distance += 1.0;
-                        }
+                std::size_t j;
+                // Ensure distinct pair by re-sampling j if it equals i
+                do {
+                    j = dist(rng);
+                } while (j == i);
+
+                double distance = 0.0;
+                for (std::size_t k = 0; k < genome_size; ++k) {
+                    if (population[i][k] != population[j][k]) {
+                        distance += 1.0;
                     }
-                    total_distance += distance / genome_size; // Normalize by genome size
-                    pairs++;
                 }
+                total_distance += distance / genome_size; // Normalize by genome size
+                pairs++;
             }
         }
 

@@ -162,7 +162,7 @@ int main() {
     std::cout << "\nTesting GA Configuration...\n";
     test_ga_config();
 
-    // TODO: Temporarily disabled GA test due to performance issues
+    // TODO: GA test timing out - investigating issue
     // std::cout << "\nTesting Basic GA...\n";
     // test_basic_ga();
 

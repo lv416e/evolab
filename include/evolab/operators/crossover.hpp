@@ -294,7 +294,13 @@ class EdgeRecombinationCrossover {
 
 /// Edge Assembly Crossover (EAX) for TSP - high performance
 class EAXCrossover {
+  private:
+    double parent1_prob_;
+    double parent2_prob_;
+
   public:
+    explicit EAXCrossover(double parent1_prob = 0.7, double parent2_prob = 0.3)
+        : parent1_prob_(parent1_prob), parent2_prob_(parent2_prob) {}
     struct Edge {
         int from, to;
 
@@ -367,19 +373,19 @@ class EAXCrossover {
 
         // Combine edges from both parents with probability selection
         for (const auto& edge : edges1) {
-            if (prob_dist(rng) < 0.7) { // Favor parent1 edges
+            if (prob_dist(rng) < parent1_prob_) {
                 offspring_edges.insert(edge);
             }
         }
 
         for (const auto& edge : edges2) {
-            if (edges1.find(edge) == edges1.end() && prob_dist(rng) < 0.3) {
+            if (edges1.find(edge) == edges1.end() && prob_dist(rng) < parent2_prob_) {
                 offspring_edges.insert(edge);
             }
         }
 
         // If we have too few edges, add some from parent1
-        if (offspring_edges.size() < n - 1) {
+        if (offspring_edges.size() < n) {
             for (const auto& edge : edges1) {
                 offspring_edges.insert(edge);
                 if (offspring_edges.size() >= n)
