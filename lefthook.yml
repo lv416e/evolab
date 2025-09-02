@@ -3,13 +3,13 @@ pre-commit:
   commands:
     format:
       run: |
-        printf '%s\0' {staged_files} \
-        | xargs -0 -I{} sh -c 'test -f "{}" && echo "{}"' \
-        | grep -E -z '\.(c|cc|cpp|cxx|h|hpp)$' || true
-        printf '%s\0' {staged_files} \
-        | xargs -0 -I{} sh -c 'test -f "{}" && echo "{}"' \
-        | grep -E -z '\.(c|cc|cpp|cxx|h|hpp)$' \
-        | xargs -0 -r clang-format -i --style=file
+        FILES=$(printf '%s\0' {staged_files} \
+          | xargs -0 -I{} sh -c 'test -f "{}" && printf "%s\0" "{}"' \
+          | grep -E -z '\.(c|cc|cpp|cxx|h|hpp)$' || true)
+        if command -v git-clang-format >/dev/null 2>&1; then
+          git clang-format --style=file --staged || true
+        fi
+        printf '%s' "$FILES" | xargs -0 -r clang-format -i --style=file
       stage_fixed: true
       fail_text: "clang-format has been applied. Please stage the changes and commit again."
 
@@ -19,7 +19,9 @@ pre-commit:
           echo "⚠️  No compile_commands.json. Hint: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
           exit 0
         fi
-        CHANGED=$(printf '%s\n' {staged_files} | grep -E '\.(cc|cpp|cxx)$' || true)
+        CHANGED=$(printf '%s\0' {staged_files} \
+          | xargs -0 -I{} sh -c 'test -f "{}" && printf "%s\n" "{}"' \
+          | grep -E '\.(cc|cpp|cxx)$' || true)
         if [ -n "$CHANGED" ]; then
           echo "$CHANGED" | xargs -r -n 1 clang-tidy -p build --quiet || true
         fi
@@ -39,7 +41,7 @@ pre-push:
       fail_text: "Build failed. Please fix the errors."
 
     test:
-      run: ctest --test-dir build --output-on-failure
+      run: ctest --test-dir build --output-on-failure --timeout 300
       fail_text: "Tests failed. Please fix the errors."
 
 skip_output:

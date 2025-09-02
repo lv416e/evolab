@@ -44,18 +44,16 @@ AllowShortCaseLabelsOnASingleLine: false
 SortIncludes: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  # Standard library headers
   - Regex: '<[[:alnum:]_]+>'
     Priority: 1
-  # System headers
   - Regex: '<.*>'
     Priority: 2
-  # Project headers
   - Regex: '"evolab/.*"'
     Priority: 3
-  # Local headers
-  - Regex: '".*"'
+  - Regex: '"third_party/.*"'
     Priority: 4
+  - Regex: '".*"'
+    Priority: 5
 
 # Namespaces
 NamespaceIndentation: None
@@ -64,5 +62,5 @@ CompactNamespaces: false
 # Comments
 ReflowComments: true
 
-# Language standard  
+# Language standard
 Standard: Latest
