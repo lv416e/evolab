@@ -1,7 +1,6 @@
 ## Summary
-
 <!-- Provide a brief description of the changes made -->
-
+- 
 
 ## Type of Change
 <!-- Check the relevant option -->
@@ -78,9 +77,3 @@
 
 ## Additional Notes
 <!-- Any additional information, context, or notes for reviewers -->
-
-
----
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
