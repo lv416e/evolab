@@ -292,6 +292,216 @@ class EdgeRecombinationCrossover {
     }
 };
 
+/// Edge Assembly Crossover (EAX) for TSP - high performance
+class EAXCrossover {
+  public:
+    struct Edge {
+        int from, to;
+
+        Edge(int f, int t) : from(std::min(f, t)), to(std::max(f, t)) {}
+
+        bool operator==(const Edge& other) const { return from == other.from && to == other.to; }
+    };
+
+    struct EdgeHash {
+        std::size_t operator()(const Edge& e) const {
+            return std::hash<int>{}(e.from) ^ (std::hash<int>{}(e.to) << 1);
+        }
+    };
+
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
+
+        using GenomeT = typename P::GenomeT;
+
+        if (parent1.size() != parent2.size() || parent1.empty()) {
+            return {parent1, parent2};
+        }
+
+        [[maybe_unused]] const std::size_t n = parent1.size();
+
+        // Build edge sets for both parents
+        auto edges1 = build_edge_set(parent1);
+        auto edges2 = build_edge_set(parent2);
+
+        // Generate offspring using EAX algorithm
+        auto offspring1 = generate_offspring(parent1, parent2, edges1, edges2, rng);
+        auto offspring2 = generate_offspring(parent2, parent1, edges2, edges1, rng);
+
+        return {offspring1, offspring2};
+    }
+
+  private:
+    template <typename GenomeT>
+    std::unordered_set<Edge, EdgeHash> build_edge_set(const GenomeT& tour) const {
+        std::unordered_set<Edge, EdgeHash> edges;
+        const std::size_t n = tour.size();
+
+        for (std::size_t i = 0; i < n; ++i) {
+            edges.insert(Edge(tour[i], tour[(i + 1) % n]));
+        }
+
+        return edges;
+    }
+
+    template <typename GenomeT>
+    GenomeT generate_offspring(const GenomeT& parent1, const GenomeT& parent2,
+                               const std::unordered_set<Edge, EdgeHash>& edges1,
+                               const std::unordered_set<Edge, EdgeHash>& edges2,
+                               std::mt19937& rng) const {
+        const std::size_t n = parent1.size();
+
+        // Build adjacency lists for both parents
+        std::vector<std::vector<int>> adj1(n), adj2(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            int curr = parent1[i];
+            int next = parent1[(i + 1) % n];
+            adj1[curr].push_back(next);
+            adj1[next].push_back(curr);
+
+            curr = parent2[i];
+            next = parent2[(i + 1) % n];
+            adj2[curr].push_back(next);
+            adj2[next].push_back(curr);
+        }
+
+        // Find AB-cycles (cycles alternating between parent edges)
+        std::vector<std::vector<int>> cycles;
+        std::vector<bool> visited(n, false);
+
+        for (int start = 0; start < static_cast<int>(n); ++start) {
+            if (visited[start])
+                continue;
+
+            std::vector<int> cycle;
+            int current = start;
+            bool use_parent1 = true;
+
+            do {
+                if (visited[current])
+                    break;
+                visited[current] = true;
+                cycle.push_back(current);
+
+                // Find next node alternating between parent edges
+                int next = -1;
+                const auto& adj = use_parent1 ? adj1 : adj2;
+                const auto& other_edges = use_parent1 ? edges2 : edges1;
+
+                for (int neighbor : adj[current]) {
+                    Edge e(current, neighbor);
+                    if (other_edges.find(e) == other_edges.end() &&
+                        (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
+                        next = neighbor;
+                        break;
+                    }
+                }
+
+                if (next == -1 && !adj[current].empty()) {
+                    // Use any available edge
+                    for (int neighbor : adj[current]) {
+                        if (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2]) {
+                            next = neighbor;
+                            break;
+                        }
+                    }
+                }
+
+                if (next == -1 || next == start)
+                    break;
+
+                current = next;
+                use_parent1 = !use_parent1;
+
+            } while (cycle.size() < n);
+
+            if (cycle.size() > 2) {
+                cycles.push_back(cycle);
+            }
+        }
+
+        // If no valid cycles found, return parent1
+        if (cycles.empty()) {
+            return parent1;
+        }
+
+        // Select random subset of cycles to apply
+        std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+        std::unordered_set<Edge, EdgeHash> offspring_edges = edges1;
+
+        for (const auto& cycle : cycles) {
+            if (prob_dist(rng) < 0.5) { // 50% chance to apply each cycle
+                // Apply cycle transformation
+                for (std::size_t i = 0; i < cycle.size(); ++i) {
+                    int from = cycle[i];
+                    int to = cycle[(i + 1) % cycle.size()];
+                    Edge e(from, to);
+
+                    // Toggle edge: if it's from parent1, replace with parent2 edge
+                    if (edges1.find(e) != edges1.end()) {
+                        offspring_edges.erase(e);
+                        if (edges2.find(e) != edges2.end()) {
+                            offspring_edges.insert(e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Construct tour from edge set
+        return construct_tour_from_edges<GenomeT>(offspring_edges, n);
+    }
+
+    template <typename GenomeT>
+    GenomeT construct_tour_from_edges(const std::unordered_set<Edge, EdgeHash>& edges,
+                                      std::size_t n) const {
+        GenomeT tour;
+        tour.reserve(n);
+
+        // Build adjacency list
+        std::vector<std::vector<int>> adj(n);
+        for (const auto& edge : edges) {
+            adj[edge.from].push_back(edge.to);
+            adj[edge.to].push_back(edge.from);
+        }
+
+        // Follow path starting from node 0
+        std::vector<bool> visited(n, false);
+        int current = 0;
+
+        while (tour.size() < n) {
+            tour.push_back(current);
+            visited[current] = true;
+
+            // Find unvisited neighbor
+            int next = -1;
+            for (int neighbor : adj[current]) {
+                if (!visited[neighbor]) {
+                    next = neighbor;
+                    break;
+                }
+            }
+
+            if (next == -1) {
+                // Repair: add missing cities in order
+                for (int i = 0; i < static_cast<int>(n); ++i) {
+                    if (!visited[i]) {
+                        tour.push_back(i);
+                        visited[i] = true;
+                    }
+                }
+                break;
+            }
+
+            current = next;
+        }
+
+        return tour;
+    }
+};
+
 /// Uniform Crossover for any representation
 class UniformCrossover {
     double probability_;

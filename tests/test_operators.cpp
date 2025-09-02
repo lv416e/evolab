@@ -158,6 +158,41 @@ void test_crossover_operators() {
     result.assert_true(tsp.is_valid_tour(child1_erx), "ERX child1 is valid tour");
     result.assert_true(tsp.is_valid_tour(child2_erx), "ERX child2 is valid tour");
 
+    // Test EAX crossover
+    operators::EAXCrossover eax;
+    auto [child1_eax, child2_eax] = eax.cross(tsp, parent1, parent2, rng);
+
+    result.assert_true(is_valid_permutation(child1_eax, 6), "EAX child1 is valid permutation");
+    result.assert_true(is_valid_permutation(child2_eax, 6), "EAX child2 is valid permutation");
+    result.assert_true(tsp.is_valid_tour(child1_eax), "EAX child1 is valid tour");
+    result.assert_true(tsp.is_valid_tour(child2_eax), "EAX child2 is valid tour");
+
+    // Test EAX with identical parents
+    auto [child1_same, child2_same] = eax.cross(tsp, parent1, parent1, rng);
+    result.assert_true(child1_same == parent1, "EAX with identical parents returns same parent");
+
+    // Test EAX preserves edges (at least some should come from parents)
+    auto has_edge = [](const std::vector<int>& tour, int from, int to) {
+        size_t n = tour.size();
+        for (size_t i = 0; i < n; ++i) {
+            if ((tour[i] == from && tour[(i + 1) % n] == to) ||
+                (tour[i] == to && tour[(i + 1) % n] == from)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int edges_from_parents = 0;
+    for (size_t i = 0; i < 6; ++i) {
+        int from = child1_eax[i];
+        int to = child1_eax[(i + 1) % 6];
+        if (has_edge(parent1, from, to) || has_edge(parent2, from, to)) {
+            edges_from_parents++;
+        }
+    }
+    result.assert_true(edges_from_parents > 0, "EAX preserves some edges from parents");
+
     result.print_summary();
 }
 
