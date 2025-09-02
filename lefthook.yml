@@ -10,11 +10,11 @@ pre-commit:
       run: find {staged_files} -name "*.hpp" -o -name "*.cpp" | xargs clang-format -i --style=file
       stage_fixed: true
       fail_text: "Code formatting failed. Files have been auto-formatted, please stage and commit again."
-    
+
     build-check:
       run: cmake --build build --parallel 4 --config Release 2>/dev/null || (echo "Build failed! Fix compilation errors before committing." && exit 1)
       fail_text: "Build failed! Please fix compilation errors."
-    
+
     lint:
       glob: "*.{hpp,h}"
       run: |
