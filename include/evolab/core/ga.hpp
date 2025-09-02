@@ -293,6 +293,16 @@ class GeneticAlgorithm {
         if (genome_size == 0)
             return 0.0;
 
+        auto calculate_normalized_distance = [&](std::size_t idx1, std::size_t idx2) {
+            double distance = 0.0;
+            for (std::size_t k = 0; k < genome_size; ++k) {
+                if (population[idx1][k] != population[idx2][k]) {
+                    distance += 1.0;
+                }
+            }
+            return distance / genome_size;
+        };
+
         double total_distance = 0.0;
         std::size_t pairs = 0;
 
@@ -300,13 +310,7 @@ class GeneticAlgorithm {
             // Small populations: use all pairwise comparisons
             for (std::size_t i = 0; i < pop_size; ++i) {
                 for (std::size_t j = i + 1; j < pop_size; ++j) {
-                    double distance = 0.0;
-                    for (std::size_t k = 0; k < genome_size; ++k) {
-                        if (population[i][k] != population[j][k]) {
-                            distance += 1.0;
-                        }
-                    }
-                    total_distance += distance / genome_size; // Normalize by genome size
+                    total_distance += calculate_normalized_distance(i, j);
                     pairs++;
                 }
             }
@@ -321,13 +325,7 @@ class GeneticAlgorithm {
                     j = dist(rng);
                 } while (j == i);
 
-                double distance = 0.0;
-                for (std::size_t k = 0; k < genome_size; ++k) {
-                    if (population[i][k] != population[j][k]) {
-                        distance += 1.0;
-                    }
-                }
-                total_distance += distance / genome_size; // Normalize by genome size
+                total_distance += calculate_normalized_distance(i, j);
                 pairs++;
             }
         }

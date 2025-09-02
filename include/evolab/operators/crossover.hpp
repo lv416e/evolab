@@ -56,11 +56,21 @@ class PMXCrossover {
 
         // Fix conflicts outside crossover segment
         auto fix_conflicts =
-            [](GenomeT& child,
-               const std::unordered_map<typename P::Gene, typename P::Gene>& mapping) {
+            [point1,
+             point2](GenomeT& child,
+                     const std::unordered_map<typename P::Gene, typename P::Gene>& mapping) {
                 for (std::size_t i = 0; i < child.size(); ++i) {
+                    // Skip crossover segment - already set correctly
+                    if (i >= point1 && i <= point2)
+                        continue;
+
                     auto current = child[i];
-                    while (mapping.find(current) != mapping.end()) {
+                    std::unordered_set<typename P::Gene> visited;
+
+                    // Follow the mapping chain while detecting cycles
+                    while (mapping.find(current) != mapping.end() &&
+                           visited.find(current) == visited.end()) {
+                        visited.insert(current);
                         current = mapping.at(current);
                     }
                     child[i] = current;

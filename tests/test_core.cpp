@@ -162,9 +162,8 @@ int main() {
     std::cout << "\nTesting GA Configuration...\n";
     test_ga_config();
 
-    // TODO: GA test timing out - investigating issue
-    // std::cout << "\nTesting Basic GA...\n";
-    // test_basic_ga();
+    std::cout << "\nTesting Basic GA...\n";
+    test_basic_ga();
 
     std::cout << "\n" << std::string(30, '=') << "\n";
     std::cout << "Core tests completed.\n";
