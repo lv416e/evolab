@@ -15,6 +15,9 @@
 // Local search
 #include "local_search/two_opt.hpp"
 
+// Utilities
+#include "utils/candidate_list.hpp"
+
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform

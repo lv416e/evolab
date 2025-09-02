@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <memory>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <vector>
 
 #include "../core/concepts.hpp"
+#include "../utils/candidate_list.hpp"
 
 namespace evolab::problems {
 
@@ -20,6 +23,8 @@ class TSP {
   private:
     int n_;                         // Number of cities
     std::vector<double> distances_; // Distance matrix (row-major: dist[i*n + j])
+    mutable std::optional<utils::CandidateList>
+        candidate_list_; // Optional candidate list for optimization
 
   public:
     TSP() = default;
@@ -133,7 +138,41 @@ class TSP {
             std::swap(i, j);
         std::reverse(tour.begin() + i + 1, tour.begin() + j + 1);
     }
+
+    /// Create candidate list for efficient local search
+    /// @param k Number of nearest neighbors to maintain per city
+    void create_candidate_list(int k = 20) const;
+
+    /// Get candidate list (creates it if needed)
+    const utils::CandidateList* get_candidate_list(int k = 20) const;
+
+    /// Check if candidate list exists
+    bool has_candidate_list() const { return candidate_list_.has_value(); }
+
+    /// Convert distance matrix to 2D format for candidate list creation
+    std::vector<std::vector<double>> get_distance_matrix_2d() const {
+        std::vector<std::vector<double>> matrix_2d(n_, std::vector<double>(n_));
+        for (int i = 0; i < n_; ++i) {
+            for (int j = 0; j < n_; ++j) {
+                matrix_2d[i][j] = distances_[i * n_ + j];
+            }
+        }
+        return matrix_2d;
+    }
 };
+
+// Implementations for candidate list methods
+inline void TSP::create_candidate_list(int k) const {
+    auto matrix_2d = get_distance_matrix_2d();
+    candidate_list_ = utils::CandidateList(matrix_2d, k);
+}
+
+inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
+    if (!candidate_list_.has_value()) {
+        create_candidate_list(k);
+    }
+    return &candidate_list_.value();
+}
 
 /// Create random TSP instance
 inline TSP create_random_tsp(int n, double max_coord = 1000.0, std::uint64_t seed = 1) {

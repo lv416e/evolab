@@ -135,14 +135,11 @@ class Random2Opt {
 
 /// Candidate list 2-opt (uses nearest neighbor lists for efficiency)
 class CandidateList2Opt {
-    std::size_t k_nearest_;
+    int k_nearest_;
     bool first_improvement_;
 
-    mutable std::vector<std::vector<int>> candidate_lists_;
-    mutable bool lists_built_ = false;
-
   public:
-    explicit CandidateList2Opt(std::size_t k_nearest = 20, bool first_improvement = true)
+    explicit CandidateList2Opt(int k_nearest = 20, bool first_improvement = true)
         : k_nearest_(k_nearest), first_improvement_(first_improvement) {}
 
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
@@ -151,30 +148,42 @@ class CandidateList2Opt {
         if (n < 4)
             return problem.evaluate(tour);
 
-        build_candidate_lists(problem);
+        // Get or create candidate list
+        const auto* candidate_list = problem.get_candidate_list(k_nearest_);
 
         bool improved = true;
         core::Fitness current_fitness = problem.evaluate(tour);
+        std::size_t iterations = 0;
+        const std::size_t max_iterations = n * 10; // Prevent infinite loops
 
-        while (improved) {
+        while (improved && iterations < max_iterations) {
             improved = false;
+            iterations++;
 
-            for (int i = 0; i < n - 1 && !improved; ++i) {
-                // Try edges to candidate cities
-                for (int candidate_city : candidate_lists_[tour[i]]) {
-                    // Find position of candidate city in tour
-                    auto it = std::find(tour.begin(), tour.end(), candidate_city);
-                    if (it == tour.end())
+            // Build position mapping for O(1) city position lookup
+            std::vector<int> position(n);
+            for (int i = 0; i < n; ++i) {
+                position[tour[i]] = i;
+            }
+
+            // For each edge (i, i+1) in tour, try 2-opt with candidate edges
+            for (int i = 0; i < n && !improved; ++i) {
+                int city_i = tour[i];
+
+                // Get candidates for city at position i
+                const auto& candidates = candidate_list->get_candidates(city_i);
+
+                for (int candidate : candidates) {
+                    int j = position[candidate];
+
+                    // Ensure we have a valid 2-opt move (i < j and not adjacent)
+                    if (j <= i || j == i + 1 || (i == 0 && j == n - 1)) {
                         continue;
+                    }
 
-                    int j = static_cast<int>(it - tour.begin());
-
-                    // Check if this is a valid 2-opt move
-                    if (std::abs(i - j) <= 1 || (i == 0 && j == n - 1) || (j == 0 && i == n - 1))
-                        continue;
-
+                    // Ensure i < j for consistent 2-opt convention
                     if (i > j)
-                        std::swap(i, j);
+                        continue;
 
                     double gain = problem.two_opt_gain(tour, i, j);
 
@@ -202,40 +211,8 @@ class CandidateList2Opt {
         }
     }
 
-  private:
-    void build_candidate_lists(const problems::TSP& problem) const {
-        if (lists_built_)
-            return;
-
-        const int n = problem.num_cities();
-        candidate_lists_.assign(n, std::vector<int>());
-
-        for (int i = 0; i < n; ++i) {
-            // Create list of all other cities with distances
-            std::vector<std::pair<double, int>> distances;
-            distances.reserve(n - 1);
-
-            for (int j = 0; j < n; ++j) {
-                if (i != j) {
-                    distances.emplace_back(problem.distance(i, j), j);
-                }
-            }
-
-            // Sort by distance and take k nearest
-            std::sort(distances.begin(), distances.end());
-            std::size_t k = std::min(k_nearest_, distances.size());
-
-            candidate_lists_[i].reserve(k);
-            for (std::size_t idx = 0; idx < k; ++idx) {
-                candidate_lists_[i].push_back(distances[idx].second);
-            }
-        }
-
-        lists_built_ = true;
-    }
-
   public:
-    std::size_t k_nearest() const { return k_nearest_; }
+    int k_nearest() const { return k_nearest_; }
     bool first_improvement() const { return first_improvement_; }
 };
 
