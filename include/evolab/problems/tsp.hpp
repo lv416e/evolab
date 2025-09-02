@@ -168,7 +168,7 @@ inline void TSP::create_candidate_list(int k) const {
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
-    if (!candidate_list_.has_value()) {
+    if (!candidate_list_.has_value() || candidate_list_->k() != k) {
         create_candidate_list(k);
     }
     return &candidate_list_.value();

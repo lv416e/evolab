@@ -181,10 +181,6 @@ class CandidateList2Opt {
                         continue;
                     }
 
-                    // Ensure i < j for consistent 2-opt convention
-                    if (i > j)
-                        continue;
-
                     double gain = problem.two_opt_gain(tour, i, j);
 
                     if (gain > 1e-9) {
