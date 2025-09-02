@@ -1,0 +1,47 @@
+# EvoLab Git Hooks Configuration with Lefthook
+# Fast, parallel git hooks for C++23 development
+
+# Pre-commit hooks - run before each commit
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{cpp,hpp,cc,cxx,h}"
+      run: find {staged_files} -name "*.hpp" -o -name "*.cpp" | xargs clang-format -i --style=file
+      stage_fixed: true
+      fail_text: "Code formatting failed. Files have been auto-formatted, please stage and commit again."
+    
+    build-check:
+      run: cmake --build build --parallel 4 --config Release 2>/dev/null || (echo "Build failed! Fix compilation errors before committing." && exit 1)
+      fail_text: "Build failed! Please fix compilation errors."
+    
+    lint:
+      glob: "*.{hpp,h}"
+      run: |
+        if [ -f build/compile_commands.json ]; then
+          find {staged_files} -name "*.hpp" | head -10 | xargs clang-tidy --config-file=.clang-tidy -p build --quiet || true
+        else
+          echo "⚠️  No compilation database found. Run: cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+        fi
+      fail_text: "Static analysis found issues (non-blocking)."
+
+# Pre-push hooks - run before pushing to remote
+pre-push:
+  commands:
+    tests:
+      run: |
+        if [ -d build ] && [ -f build/tests/test_core ]; then
+          echo "Running tests..."
+          cd build/tests && ./test_core && ./test_tsp && ./test_operators
+        else
+          echo "⚠️  Tests not found. Run: cmake --build build --parallel 4"
+        fi
+      fail_text: "Tests failed! Fix failing tests before pushing."
+
+# Skip hooks for specific scenarios
+skip_output:
+  - meta
+  - execution
+
+# Colors for output
+colors: true

@@ -28,10 +28,24 @@ EvoLab is a high-performance genetic algorithm framework designed for research-g
 ```bash
 git clone https://github.com/yourusername/evolab.git
 cd evolab
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
 ```
+
+### Git Hooks (Development)
+
+This project uses [lefthook](https://github.com/evilmartians/lefthook) for fast, automated code quality checks:
+
+```bash
+# Install hooks (one-time setup)
+lefthook install
+
+# Hooks now run automatically:
+# - Pre-commit: Auto-format code, build check, static analysis
+# - Pre-push: Full test suite execution
+```
+
+No manual formatting or linting needed - everything is automated!
 
 ### Basic Usage
 
