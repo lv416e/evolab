@@ -30,7 +30,7 @@ struct GAConfig {
     // Logging and checkpoint
     std::size_t log_interval = 10;
     bool enable_checkpoints = false;
-    std::string checkpoint_path;
+    std::string checkpoint_path = "";
 };
 
 /// Statistics for a single generation

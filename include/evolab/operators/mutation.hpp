@@ -12,7 +12,8 @@ namespace evolab::operators {
 class SwapMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 2)
             return;
 
@@ -33,7 +34,8 @@ class SwapMutation {
 class InversionMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 2)
             return;
 
@@ -52,7 +54,8 @@ class InversionMutation {
 class ScrambleMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 2)
             return;
 
@@ -71,7 +74,8 @@ class ScrambleMutation {
 class InsertionMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 2)
             return;
 
@@ -100,7 +104,8 @@ class InsertionMutation {
 class DisplacementMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 3)
             return;
 
@@ -157,7 +162,8 @@ class AdaptiveMutation {
     }
 
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         double rand_val = dist(rng);
 
@@ -195,7 +201,8 @@ class MultiSwapMutation {
     explicit MultiSwapMutation(std::size_t num_swaps = 2) : num_swaps_(num_swaps) {}
 
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 2)
             return;
 
@@ -212,7 +219,8 @@ class MultiSwapMutation {
 class TwoOptMutation {
   public:
     template <core::Problem P>
-    void mutate(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    void mutate([[maybe_unused]] const P& problem, typename P::GenomeT& genome,
+                std::mt19937& rng) const {
         if (genome.size() < 4)
             return; // Need at least 4 cities for 2-opt
 

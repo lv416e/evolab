@@ -21,7 +21,7 @@ class TwoOpt {
 
     /// Improve TSP tour using 2-opt
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
-                          std::mt19937& rng) const {
+                          [[maybe_unused]] std::mt19937& rng) const {
         const int n = static_cast<int>(tour.size());
         if (n < 4)
             return problem.evaluate(tour);
@@ -146,7 +146,7 @@ class CandidateList2Opt {
         : k_nearest_(k_nearest), first_improvement_(first_improvement) {}
 
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
-                          std::mt19937& rng) const {
+                          [[maybe_unused]] std::mt19937& rng) const {
         const int n = problem.num_cities();
         if (n < 4)
             return problem.evaluate(tour);
@@ -243,7 +243,8 @@ class CandidateList2Opt {
 class NoLocalSearch {
   public:
     template <core::Problem P>
-    core::Fitness improve(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
+    core::Fitness improve(const P& problem, typename P::GenomeT& genome,
+                          [[maybe_unused]] std::mt19937& rng) const {
         return problem.evaluate(genome);
     }
 };

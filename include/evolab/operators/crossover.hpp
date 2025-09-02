@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <climits>
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
@@ -15,8 +16,8 @@ class PMXCrossover {
   public:
     template <core::Problem P>
     std::pair<typename P::GenomeT, typename P::GenomeT>
-    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
-          std::mt19937& rng) const {
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
 
@@ -78,8 +79,8 @@ class OrderCrossover {
   public:
     template <core::Problem P>
     std::pair<typename P::GenomeT, typename P::GenomeT>
-    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
-          std::mt19937& rng) const {
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -132,8 +133,8 @@ class CycleCrossover {
   public:
     template <core::Problem P>
     std::pair<typename P::GenomeT, typename P::GenomeT>
-    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
-          std::mt19937& rng) const {
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -185,8 +186,8 @@ class EdgeRecombinationCrossover {
   public:
     template <core::Problem P>
     std::pair<typename P::GenomeT, typename P::GenomeT>
-    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
-          std::mt19937& rng) const {
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -302,8 +303,8 @@ class UniformCrossover {
 
     template <core::Problem P>
     std::pair<typename P::GenomeT, typename P::GenomeT>
-    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
-          std::mt19937& rng) const {
+    cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
+          const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
 
