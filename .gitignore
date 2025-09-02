@@ -1,5 +1,6 @@
 .claude/commands/kiro/**
 .serena/**
+.mcp.json
 
 # Build directories
 build/
