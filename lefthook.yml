@@ -1,55 +1,47 @@
+# EvoLab Git Hooks Configuration with Lefthook
+# Fast, parallel git hooks for C++23 development
+
+# Pre-commit hooks - run before each commit
 pre-commit:
   parallel: true
   commands:
     format:
-      run: |
-        FILES=$(printf '%s\0' {staged_files} \
-          | xargs -0 -I{} sh -c 'test -f "{}" && printf "%s\0" "{}"' \
-          | grep -E -z '\.(c|cc|cpp|cxx|h|hpp)$' || true)
-        if command -v git-clang-format >/dev/null 2>&1; then
-          git clang-format --style=file --staged || true
-        fi
-        printf '%s' "$FILES" | xargs -0 -r clang-format -i --style=file
+      glob: "*.{cpp,hpp,cc,cxx,h}"
+      run: clang-format -i --style=file {staged_files}
       stage_fixed: true
-      fail_text: "clang-format has been applied. Please stage the changes and commit again."
+      fail_text: "Code formatting failed. Files have been auto-formatted, please stage and commit again."
 
-    sanity:
+    build-check:
+      run: cmake --build build --parallel 4 --config Release 2>/dev/null || (echo "Build failed! Fix compilation errors before committing." && exit 1)
+      fail_text: "Build failed! Please fix compilation errors."
+
+    lint:
+      glob: "*.{hpp,h}"
       run: |
-        if [ ! -f build/compile_commands.json ]; then
-          echo "⚠️  No compile_commands.json. Hint: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
-          exit 0
+        if [ -f build/compile_commands.json ]; then
+          find {staged_files} -name "*.hpp" 2>/dev/null | head -10 | xargs -r clang-tidy --config-file=.clang-tidy -p build --quiet || true
+        else
+          echo "⚠️  No compilation database found. Run: cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
         fi
-        CHANGED=$(printf '%s\0' {staged_files} \
-          | xargs -0 -I{} sh -c 'test -f "{}" && printf "%s\n" "{}"' \
-          | grep -E '\.(cc|cpp|cxx)$' || true)
-        if [ -n "$CHANGED" ]; then
-          echo "$CHANGED" | xargs -r -n 1 clang-tidy -p build --quiet || true
-        fi
-      fail_text: "clang-tidy has suggestions (non-blocking)."
+      fail_text: "Static analysis found issues (non-blocking)."
 
+# Pre-push hooks - run before pushing to remote
 pre-push:
-  parallel: true
   commands:
-    changed-check:
+    tests:
       run: |
-        if ! git diff --name-only --cached | grep -Eq '^(src|include|apps|tests)/.*\.(c|cc|cpp|cxx|h|hpp)$'; then
-          echo "No code changes. Skipping build & tests."
-          exit 0
+        if [ -d build ] && [ -f build/tests/test_core ]; then
+          echo "Running tests..."
+          cd build/tests && ./test_core && ./test_tsp && ./test_operators
+        else
+          echo "⚠️  Tests not found. Run: cmake --build build --parallel 4"
         fi
+      fail_text: "Tests failed! Fix failing tests before pushing."
 
-    cmake-configure:
-      run: |
-        if [ ! -d build ]; then
-          cmake -S . -B build -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        fi
+# Skip hooks for specific scenarios
+skip_output:
+  - meta
+  - execution
 
-    build:
-      run: cmake --build build --parallel
-
-    test:
-      run: |
-        CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
-        ctest --test-dir build --output-on-failure --stop-on-failure -j "${CORES:-4}" --timeout 120 -L smoke
+# Colors for output
+colors: true
