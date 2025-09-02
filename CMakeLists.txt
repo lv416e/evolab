@@ -4,7 +4,7 @@ project(EvoLab
     DESCRIPTION "A modern C++23 metaheuristics research platform for TSP/VRP/QAP problems"
     LANGUAGES CXX)
 
-# C++23 standard
+# C++23 standard (experimental support in GCC 12+ and Clang 15+)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

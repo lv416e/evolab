@@ -15,5 +15,5 @@ target_compile_features(test_operators PRIVATE cxx_std_23)
 
 # Register tests with CTest
 add_test(NAME CoreTests COMMAND test_core)
-add_test(NAME TSPTests COMMAND test_tsp)  
+add_test(NAME TSPTests COMMAND test_tsp)
 add_test(NAME OperatorTests COMMAND test_operators)

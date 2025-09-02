@@ -1,0 +1,66 @@
+# EvoLab C++ Code Formatting Configuration
+# Based on LLVM style with project-specific customizations
+
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# Line length and wrapping
+ColumnLimit: 100
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Attach
+BreakConstructorInitializers: BeforeColon
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+AlignTrailingComments: true
+
+# Pointers and references
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Functions and classes
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# Includes
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '<[[:alnum:]_]+>'
+    Priority: 1
+  - Regex: '<.*>'
+    Priority: 2
+  - Regex: '"evolab/.*"'
+    Priority: 3
+  - Regex: '"third_party/.*"'
+    Priority: 4
+  - Regex: '".*"'
+    Priority: 5
+
+# Namespaces
+NamespaceIndentation: None
+CompactNamespaces: false
+
+# Comments
+ReflowComments: true
+
+# Language standard
+Standard: Latest
