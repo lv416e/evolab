@@ -17,13 +17,15 @@ jobs:
 
       - name: Install clang-format
         run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main"
           sudo apt-get update
-          sudo apt-get install -y clang-format-15
+          sudo apt-get install -y clang-format-21
 
       - name: Check formatting
         run: |
           find include apps tests -name "*.hpp" -o -name "*.cpp" | \
-          xargs clang-format-15 --dry-run --Werror
+          xargs clang-format-21 --dry-run --Werror
 
   lint-check:
     name: Lint Check
@@ -35,13 +37,15 @@ jobs:
 
       - name: Install clang-tidy
         run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main"
           sudo apt-get update
-          sudo apt-get install -y clang-tidy-15
+          sudo apt-get install -y clang-tidy-21
 
       - name: Check linting (non-blocking)
         run: |
           # Run clang-tidy but don't fail the build - just informational
           find include -name "*.hpp" -o -name "*.cpp" | \
           head -5 | \
-          xargs clang-tidy-15 --config-file=.clang-tidy || true
+          xargs clang-tidy-21 --config-file=.clang-tidy || true
         continue-on-error: true
