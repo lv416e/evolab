@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../core/concepts.hpp"
-#include <vector>
-#include <random>
 #include <algorithm>
 #include <numeric>
+#include <random>
+#include <vector>
+
+#include "../core/concepts.hpp"
 
 namespace evolab::operators {
 
@@ -12,15 +13,13 @@ namespace evolab::operators {
 class TournamentSelection {
     std::size_t tournament_size_;
 
-public:
+  public:
     explicit TournamentSelection(std::size_t tournament_size = 4)
         : tournament_size_(tournament_size) {}
 
-    template<typename GenomeT>
-    std::size_t select(
-        const std::vector<GenomeT>& population,
-        const std::vector<core::Fitness>& fitnesses,
-        std::mt19937& rng) const {
+    template <typename GenomeT>
+    std::size_t select(const std::vector<GenomeT>& population,
+                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
 
         assert(!population.empty());
         assert(population.size() == fitnesses.size());
@@ -46,12 +45,10 @@ public:
 
 /// Roulette wheel selection (for maximization problems)
 class RouletteWheelSelection {
-public:
-    template<typename GenomeT>
-    std::size_t select(
-        const std::vector<GenomeT>& population,
-        const std::vector<core::Fitness>& fitnesses,
-        std::mt19937& rng) const {
+  public:
+    template <typename GenomeT>
+    std::size_t select(const std::vector<GenomeT>& population,
+                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
 
         assert(!population.empty());
         assert(population.size() == fitnesses.size());
@@ -83,25 +80,22 @@ public:
             }
         }
 
-        return population.size() - 1;  // Fallback
+        return population.size() - 1; // Fallback
     }
 };
 
 /// Ranking selection
 class RankSelection {
-    double selection_pressure_;  // 1.0 = no pressure, 2.0 = maximum pressure
+    double selection_pressure_; // 1.0 = no pressure, 2.0 = maximum pressure
 
-public:
-    explicit RankSelection(double pressure = 1.5)
-        : selection_pressure_(pressure) {
+  public:
+    explicit RankSelection(double pressure = 1.5) : selection_pressure_(pressure) {
         assert(pressure >= 1.0 && pressure <= 2.0);
     }
 
-    template<typename GenomeT>
-    std::size_t select(
-        const std::vector<GenomeT>& population,
-        const std::vector<core::Fitness>& fitnesses,
-        std::mt19937& rng) const {
+    template <typename GenomeT>
+    std::size_t select(const std::vector<GenomeT>& population,
+                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
 
         assert(!population.empty());
         assert(population.size() == fitnesses.size());
@@ -112,9 +106,7 @@ public:
 
         // Sort by fitness (best first for minimization)
         std::sort(indices.begin(), indices.end(),
-            [&](std::size_t a, std::size_t b) {
-                return fitnesses[a] < fitnesses[b];
-            });
+                  [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
         // Calculate rank-based probabilities
         std::vector<double> probabilities;
@@ -126,7 +118,7 @@ public:
         for (std::size_t rank = 0; rank < population.size(); ++rank) {
             // Rank 0 is best, rank n-1 is worst
             double prob = (2.0 - selection_pressure_) / n +
-                         (2.0 * selection_pressure_ * (n - rank - 1)) / (n * (n - 1));
+                          (2.0 * selection_pressure_ * (n - rank - 1)) / (n * (n - 1));
             probabilities.push_back(prob);
             total_prob += prob;
         }
@@ -143,7 +135,7 @@ public:
             }
         }
 
-        return indices[0];  // Return best as fallback
+        return indices[0]; // Return best as fallback
     }
 
     double selection_pressure() const { return selection_pressure_; }
@@ -153,15 +145,12 @@ public:
 class SteadyStateSelection {
     std::size_t num_best_;
 
-public:
-    explicit SteadyStateSelection(std::size_t num_best = 1)
-        : num_best_(num_best) {}
+  public:
+    explicit SteadyStateSelection(std::size_t num_best = 1) : num_best_(num_best) {}
 
-    template<typename GenomeT>
-    std::size_t select(
-        const std::vector<GenomeT>& population,
-        const std::vector<core::Fitness>& fitnesses,
-        std::mt19937& rng) const {
+    template <typename GenomeT>
+    std::size_t select(const std::vector<GenomeT>& population,
+                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
 
         assert(!population.empty());
         assert(population.size() == fitnesses.size());
@@ -171,10 +160,9 @@ public:
 
         // Partial sort to get the best individuals
         std::size_t k = std::min(num_best_, population.size());
-        std::partial_sort(indices.begin(), indices.begin() + k, indices.end(),
-            [&](std::size_t a, std::size_t b) {
-                return fitnesses[a] < fitnesses[b];
-            });
+        std::partial_sort(
+            indices.begin(), indices.begin() + k, indices.end(),
+            [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
         // Randomly select from the best k
         std::uniform_int_distribution<std::size_t> dist(0, k - 1);

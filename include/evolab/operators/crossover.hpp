@@ -1,23 +1,22 @@
 #pragma once
 
-#include "../core/concepts.hpp"
-#include <vector>
-#include <random>
 #include <algorithm>
-#include <unordered_set>
+#include <random>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "../core/concepts.hpp"
 
 namespace evolab::operators {
 
 /// Partially Mapped Crossover (PMX) for permutations
 class PMXCrossover {
-public:
-    template<core::Problem P>
-    std::pair<typename P::GenomeT, typename P::GenomeT> cross(
-        const P& problem,
-        const typename P::GenomeT& parent1,
-        const typename P::GenomeT& parent2,
-        std::mt19937& rng) const {
+  public:
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
+          std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
 
@@ -25,14 +24,15 @@ public:
         const std::size_t n = parent1.size();
 
         if (n <= 2) {
-            return {parent1, parent2};  // Too small for meaningful crossover
+            return {parent1, parent2}; // Too small for meaningful crossover
         }
 
         // Choose crossover points
         std::uniform_int_distribution<std::size_t> dist(0, n - 1);
         std::size_t point1 = dist(rng);
         std::size_t point2 = dist(rng);
-        if (point1 > point2) std::swap(point1, point2);
+        if (point1 > point2)
+            std::swap(point1, point2);
 
         GenomeT child1 = parent1;
         GenomeT child2 = parent2;
@@ -54,15 +54,17 @@ public:
         }
 
         // Fix conflicts outside crossover segment
-        auto fix_conflicts = [](GenomeT& child, const std::unordered_map<typename P::Gene, typename P::Gene>& mapping) {
-            for (std::size_t i = 0; i < child.size(); ++i) {
-                auto current = child[i];
-                while (mapping.find(current) != mapping.end()) {
-                    current = mapping.at(current);
+        auto fix_conflicts =
+            [](GenomeT& child,
+               const std::unordered_map<typename P::Gene, typename P::Gene>& mapping) {
+                for (std::size_t i = 0; i < child.size(); ++i) {
+                    auto current = child[i];
+                    while (mapping.find(current) != mapping.end()) {
+                        current = mapping.at(current);
+                    }
+                    child[i] = current;
                 }
-                child[i] = current;
-            }
-        };
+            };
 
         fix_conflicts(child1, mapping1);
         fix_conflicts(child2, mapping2);
@@ -73,13 +75,11 @@ public:
 
 /// Order Crossover (OX) for permutations
 class OrderCrossover {
-public:
-    template<core::Problem P>
-    std::pair<typename P::GenomeT, typename P::GenomeT> cross(
-        const P& problem,
-        const typename P::GenomeT& parent1,
-        const typename P::GenomeT& parent2,
-        std::mt19937& rng) const {
+  public:
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
+          std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -95,7 +95,8 @@ public:
         std::uniform_int_distribution<std::size_t> dist(0, n - 1);
         std::size_t point1 = dist(rng);
         std::size_t point2 = dist(rng);
-        if (point1 > point2) std::swap(point1, point2);
+        if (point1 > point2)
+            std::swap(point1, point2);
 
         auto create_child = [&](const GenomeT& p1, const GenomeT& p2) {
             GenomeT child(n);
@@ -128,13 +129,11 @@ public:
 
 /// Cycle Crossover (CX) for permutations
 class CycleCrossover {
-public:
-    template<core::Problem P>
-    std::pair<typename P::GenomeT, typename P::GenomeT> cross(
-        const P& problem,
-        const typename P::GenomeT& parent1,
-        const typename P::GenomeT& parent2,
-        std::mt19937& rng) const {
+  public:
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
+          std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -146,13 +145,14 @@ public:
             return {parent1, parent2};
         }
 
-        GenomeT child1 = parent2;  // Start with parent2
-        GenomeT child2 = parent1;  // Start with parent1
+        GenomeT child1 = parent2; // Start with parent2
+        GenomeT child2 = parent1; // Start with parent1
 
         std::vector<bool> visited(n, false);
 
         for (std::size_t start = 0; start < n; ++start) {
-            if (visited[start]) continue;
+            if (visited[start])
+                continue;
 
             // Trace cycle starting from position 'start'
             std::size_t pos = start;
@@ -182,13 +182,11 @@ public:
 
 /// Edge Recombination Crossover for TSP-like problems
 class EdgeRecombinationCrossover {
-public:
-    template<core::Problem P>
-    std::pair<typename P::GenomeT, typename P::GenomeT> cross(
-        const P& problem,
-        const typename P::GenomeT& parent1,
-        const typename P::GenomeT& parent2,
-        std::mt19937& rng) const {
+  public:
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
+          std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
         using Gene = typename P::Gene;
@@ -275,7 +273,8 @@ public:
                     }
 
                     if (!unused.empty()) {
-                        std::uniform_int_distribution<std::size_t> unused_dist(0, unused.size() - 1);
+                        std::uniform_int_distribution<std::size_t> unused_dist(0,
+                                                                               unused.size() - 1);
                         next = unused[unused_dist(rng)];
                     }
                 }
@@ -296,17 +295,15 @@ public:
 class UniformCrossover {
     double probability_;
 
-public:
+  public:
     explicit UniformCrossover(double prob = 0.5) : probability_(prob) {
         assert(prob >= 0.0 && prob <= 1.0);
     }
 
-    template<core::Problem P>
-    std::pair<typename P::GenomeT, typename P::GenomeT> cross(
-        const P& problem,
-        const typename P::GenomeT& parent1,
-        const typename P::GenomeT& parent2,
-        std::mt19937& rng) const {
+    template <core::Problem P>
+    std::pair<typename P::GenomeT, typename P::GenomeT>
+    cross(const P& problem, const typename P::GenomeT& parent1, const typename P::GenomeT& parent2,
+          std::mt19937& rng) const {
 
         using GenomeT = typename P::GenomeT;
 

@@ -8,9 +8,9 @@
 #include "problems/tsp.hpp"
 
 // Genetic operators
-#include "operators/selection.hpp"
 #include "operators/crossover.hpp"
 #include "operators/mutation.hpp"
+#include "operators/selection.hpp"
 
 // Local search
 #include "local_search/two_opt.hpp"
@@ -65,45 +65,35 @@ constexpr const char* VERSION = "0.1.0";
 
 /// Common type aliases
 namespace types {
-    using Fitness = core::Fitness;
+using Fitness = core::Fitness;
 
-    template<typename T>
-    using Genome = core::Genome<T>;
+template <typename T>
+using Genome = core::Genome<T>;
 
-    using TSP = problems::TSP;
-}
+using TSP = problems::TSP;
+} // namespace types
 
 /// Factory functions for common configurations
 namespace factory {
 
 /// Create a simple GA for TSP with tournament selection and 2-opt
 inline auto make_tsp_ga_basic() {
-    return core::make_ga(
-        operators::TournamentSelection{4},
-        operators::OrderCrossover{},
-        operators::SwapMutation{},
-        local_search::TwoOpt{true, 1000}  // First improvement, max 1000 iterations
+    return core::make_ga(operators::TournamentSelection{4}, operators::OrderCrossover{},
+                         operators::SwapMutation{},
+                         local_search::TwoOpt{true, 1000} // First improvement, max 1000 iterations
     );
 }
 
 /// Create a memetic GA for TSP with advanced operators
 inline auto make_tsp_ga_advanced() {
-    return core::make_ga(
-        operators::TournamentSelection{7},
-        operators::EdgeRecombinationCrossover{},
-        operators::AdaptiveMutation{},
-        local_search::CandidateList2Opt{20, true}
-    );
+    return core::make_ga(operators::TournamentSelection{7}, operators::EdgeRecombinationCrossover{},
+                         operators::AdaptiveMutation{}, local_search::CandidateList2Opt{20, true});
 }
 
 /// Create a basic GA without local search
 inline auto make_ga_basic() {
-    return core::make_ga(
-        operators::TournamentSelection{4},
-        operators::PMXCrossover{},
-        operators::InversionMutation{},
-        local_search::NoLocalSearch{}
-    );
+    return core::make_ga(operators::TournamentSelection{4}, operators::PMXCrossover{},
+                         operators::InversionMutation{}, local_search::NoLocalSearch{});
 }
 
 } // namespace factory

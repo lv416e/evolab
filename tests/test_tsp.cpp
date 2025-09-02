@@ -1,8 +1,9 @@
-#include <evolab/evolab.hpp>
-#include <iostream>
-#include <cassert>
 #include <algorithm>
+#include <cassert>
+#include <iostream>
 #include <numeric>
+
+#include <evolab/evolab.hpp>
 
 // Simple test framework
 struct TestResult {
@@ -19,11 +20,11 @@ struct TestResult {
         }
     }
 
-    void assert_equals(double expected, double actual, const std::string& message, double tolerance = 1e-9) {
+    void assert_equals(double expected, double actual, const std::string& message,
+                       double tolerance = 1e-9) {
         bool passed_test = std::abs(expected - actual) < tolerance;
-        assert_true(passed_test, message +
-            " (expected: " + std::to_string(expected) +
-            ", actual: " + std::to_string(actual) + ")");
+        assert_true(passed_test, message + " (expected: " + std::to_string(expected) +
+                                     ", actual: " + std::to_string(actual) + ")");
     }
 
     void print_summary() {
@@ -48,7 +49,8 @@ void test_tsp_creation() {
     // Test random TSP creation
     auto tsp = problems::create_random_tsp(10, 100.0, 42);
 
-    result.assert_equals(10, static_cast<double>(tsp.num_cities()), "TSP has correct number of cities");
+    result.assert_equals(10, static_cast<double>(tsp.num_cities()),
+                         "TSP has correct number of cities");
     result.assert_equals(10, static_cast<double>(tsp.size()), "TSP size matches num_cities");
 
     // Test distances are non-negative
@@ -56,8 +58,10 @@ void test_tsp_creation() {
     for (int i = 0; i < tsp.num_cities() && all_distances_valid; ++i) {
         for (int j = 0; j < tsp.num_cities(); ++j) {
             double dist = tsp.distance(i, j);
-            if (i == j && dist != 0.0) all_distances_valid = false;
-            if (i != j && dist <= 0.0) all_distances_valid = false;
+            if (i == j && dist != 0.0)
+                all_distances_valid = false;
+            if (i != j && dist <= 0.0)
+                all_distances_valid = false;
         }
     }
     result.assert_true(all_distances_valid, "All distances are valid");
@@ -81,16 +85,17 @@ void test_tsp_coordinates() {
 
     // Test TSP creation from coordinates
     std::vector<std::pair<double, double>> cities = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
-    };
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
 
     problems::TSP tsp(cities);
-    result.assert_equals(4, static_cast<double>(tsp.num_cities()), "Coordinate TSP has correct size");
+    result.assert_equals(4, static_cast<double>(tsp.num_cities()),
+                         "Coordinate TSP has correct size");
 
     // Test known distances
     result.assert_equals(0.0, tsp.distance(0, 0), "Distance to self is zero");
     result.assert_equals(1.0, tsp.distance(0, 1), "Distance (0,0) to (1,0) is 1");
-    result.assert_equals(std::sqrt(2.0), tsp.distance(0, 2), "Distance (0,0) to (1,1) is sqrt(2)", 1e-9);
+    result.assert_equals(std::sqrt(2.0), tsp.distance(0, 2), "Distance (0,0) to (1,1) is sqrt(2)",
+                         1e-9);
     result.assert_equals(1.0, tsp.distance(0, 3), "Distance (0,0) to (0,1) is 1");
 
     result.print_summary();
@@ -132,18 +137,20 @@ void test_genome_operations() {
 
     // Test identity genome
     auto identity = tsp.identity_genome();
-    result.assert_equals(6, static_cast<double>(identity.size()), "Identity genome has correct size");
+    result.assert_equals(6, static_cast<double>(identity.size()),
+                         "Identity genome has correct size");
     result.assert_true(tsp.is_valid_tour(identity), "Identity genome is valid tour");
 
     for (int i = 0; i < 6; ++i) {
         result.assert_equals(static_cast<double>(i), static_cast<double>(identity[i]),
-                           "Identity genome city " + std::to_string(i));
+                             "Identity genome city " + std::to_string(i));
     }
 
     // Test random genome
     std::mt19937 rng(42);
     auto random_genome = tsp.random_genome(rng);
-    result.assert_equals(6, static_cast<double>(random_genome.size()), "Random genome has correct size");
+    result.assert_equals(6, static_cast<double>(random_genome.size()),
+                         "Random genome has correct size");
     result.assert_true(tsp.is_valid_tour(random_genome), "Random genome is valid tour");
 
     // Test that random genome is actually randomized (not identity)
@@ -164,12 +171,11 @@ void test_two_opt_operations() {
 
     // Create simple TSP with known distances
     std::vector<std::pair<double, double>> cities = {
-        {0.0, 0.0}, {2.0, 0.0}, {2.0, 2.0}, {0.0, 2.0}
-    };
+        {0.0, 0.0}, {2.0, 0.0}, {2.0, 2.0}, {0.0, 2.0}};
     problems::TSP tsp(cities);
 
     // Test 2-opt gain calculation
-    std::vector<int> tour = {0, 1, 2, 3};  // Rectangle tour
+    std::vector<int> tour = {0, 1, 2, 3}; // Rectangle tour
 
     // This should be a good tour already (perimeter = 8.0)
     double current_fitness = tsp.evaluate(tour).value;
@@ -180,7 +186,7 @@ void test_two_opt_operations() {
     result.assert_true(gain <= 1e-9, "2-opt gain on optimal tour is non-positive");
 
     // Test bad tour
-    std::vector<int> bad_tour = {0, 2, 1, 3};  // Crossing edges
+    std::vector<int> bad_tour = {0, 2, 1, 3}; // Crossing edges
     double bad_fitness = tsp.evaluate(bad_tour).value;
     result.assert_true(bad_fitness > current_fitness, "Bad tour has worse fitness");
 
@@ -205,18 +211,16 @@ void test_tsp_with_ga() {
     auto tsp = problems::create_random_tsp(8, 100.0, 42);
     auto ga = factory::make_tsp_ga_basic();
 
-    core::GAConfig config{
-        .population_size = 50,
-        .max_generations = 100,
-        .seed = 42
-    };
+    core::GAConfig config{.population_size = 50, .max_generations = 100, .seed = 42};
 
     auto ga_result = ga.run(tsp, config);
 
     result.assert_true(tsp.is_valid_tour(ga_result.best_genome), "GA produces valid TSP tour");
-    result.assert_equals(8, static_cast<double>(ga_result.best_genome.size()), "GA tour has correct size");
+    result.assert_equals(8, static_cast<double>(ga_result.best_genome.size()),
+                         "GA tour has correct size");
     result.assert_true(ga_result.best_fitness.value > 0.0, "GA fitness is positive");
-    result.assert_true(ga_result.evaluations > config.population_size, "GA performed sufficient evaluations");
+    result.assert_true(ga_result.evaluations > config.population_size,
+                       "GA performed sufficient evaluations");
 
     result.print_summary();
 }
@@ -248,4 +252,3 @@ int main() {
 
     return 0;
 }
-

@@ -1,10 +1,11 @@
-#include <evolab/evolab.hpp>
-#include <iostream>
-#include <fstream>
 #include <chrono>
+#include <fstream>
 #include <iomanip>
-#include <string>
+#include <iostream>
 #include <sstream>
+#include <string>
+
+#include <evolab/evolab.hpp>
 
 using namespace evolab;
 
@@ -51,35 +52,25 @@ Config parse_args(int argc, char** argv) {
         if (arg == "-h" || arg == "--help") {
             print_usage(argv[0]);
             std::exit(0);
-        }
-        else if ((arg == "-i" || arg == "--instance") && i + 1 < argc) {
+        } else if ((arg == "-i" || arg == "--instance") && i + 1 < argc) {
             config.instance_file = argv[++i];
-        }
-        else if ((arg == "-a" || arg == "--algorithm") && i + 1 < argc) {
+        } else if ((arg == "-a" || arg == "--algorithm") && i + 1 < argc) {
             config.algorithm = argv[++i];
-        }
-        else if ((arg == "-p" || arg == "--population") && i + 1 < argc) {
+        } else if ((arg == "-p" || arg == "--population") && i + 1 < argc) {
             config.population = std::stoull(argv[++i]);
-        }
-        else if ((arg == "-g" || arg == "--generations") && i + 1 < argc) {
+        } else if ((arg == "-g" || arg == "--generations") && i + 1 < argc) {
             config.generations = std::stoull(argv[++i]);
-        }
-        else if ((arg == "-c" || arg == "--crossover") && i + 1 < argc) {
+        } else if ((arg == "-c" || arg == "--crossover") && i + 1 < argc) {
             config.crossover_prob = std::stod(argv[++i]);
-        }
-        else if ((arg == "-m" || arg == "--mutation") && i + 1 < argc) {
+        } else if ((arg == "-m" || arg == "--mutation") && i + 1 < argc) {
             config.mutation_prob = std::stod(argv[++i]);
-        }
-        else if ((arg == "-s" || arg == "--seed") && i + 1 < argc) {
+        } else if ((arg == "-s" || arg == "--seed") && i + 1 < argc) {
             config.seed = std::stoull(argv[++i]);
-        }
-        else if ((arg == "-o" || arg == "--output") && i + 1 < argc) {
+        } else if ((arg == "-o" || arg == "--output") && i + 1 < argc) {
             config.output_file = argv[++i];
-        }
-        else if (arg == "-v" || arg == "--verbose") {
+        } else if (arg == "-v" || arg == "--verbose") {
             config.verbose = true;
-        }
-        else {
+        } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             print_usage(argv[0]);
             std::exit(1);
@@ -115,7 +106,8 @@ void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour,
 
     for (std::size_t i = 0; i < tour.size(); ++i) {
         file << tour[i];
-        if (i < tour.size() - 1) file << " ";
+        if (i < tour.size() - 1)
+            file << " ";
     }
     file << "\n";
 
@@ -125,7 +117,8 @@ void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour,
 /// Print statistics
 void print_stats(const auto& result, const Config& config, double runtime) {
     std::cout << "\n=== Results ===\n";
-    std::cout << "Best fitness: " << std::fixed << std::setprecision(2) << result.best_fitness.value << "\n";
+    std::cout << "Best fitness: " << std::fixed << std::setprecision(2) << result.best_fitness.value
+              << "\n";
     std::cout << "Generations: " << result.generations << "\n";
     std::cout << "Evaluations: " << result.evaluations << "\n";
     std::cout << "Runtime: " << std::fixed << std::setprecision(3) << runtime << " seconds\n";
@@ -138,9 +131,9 @@ void print_stats(const auto& result, const Config& config, double runtime) {
         std::cout << std::string(67, '-') << "\n";
 
         for (const auto& stats : result.history) {
-            std::cout << std::setw(10) << stats.generation
-                      << std::setw(15) << std::fixed << std::setprecision(2) << stats.best_fitness.value
-                      << std::setw(15) << std::fixed << std::setprecision(2) << stats.mean_fitness.value
+            std::cout << std::setw(10) << stats.generation << std::setw(15) << std::fixed
+                      << std::setprecision(2) << stats.best_fitness.value << std::setw(15)
+                      << std::fixed << std::setprecision(2) << stats.mean_fitness.value
                       << std::setw(15) << std::fixed << std::setprecision(4) << stats.diversity
                       << std::setw(12) << stats.elapsed_time.count() << "\n";
         }
@@ -159,14 +152,12 @@ int main(int argc, char** argv) {
         std::cout << "Problem size: " << tsp.num_cities() << " cities\n";
 
         // Configure GA
-        core::GAConfig ga_config{
-            .population_size = config.population,
-            .max_generations = config.generations,
-            .crossover_prob = config.crossover_prob,
-            .mutation_prob = config.mutation_prob,
-            .seed = config.seed,
-            .log_interval = config.verbose ? 50 : 100
-        };
+        core::GAConfig ga_config{.population_size = config.population,
+                                 .max_generations = config.generations,
+                                 .crossover_prob = config.crossover_prob,
+                                 .mutation_prob = config.mutation_prob,
+                                 .seed = config.seed,
+                                 .log_interval = config.verbose ? 50 : 100};
 
         std::cout << "Population: " << ga_config.population_size << "\n";
         std::cout << "Generations: " << ga_config.max_generations << "\n";

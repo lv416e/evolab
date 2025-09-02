@@ -1,31 +1,31 @@
 #pragma once
 
-#include "../core/concepts.hpp"
-#include <vector>
-#include <numeric>
 #include <algorithm>
-#include <random>
-#include <cmath>
 #include <cassert>
+#include <cmath>
+#include <numeric>
+#include <random>
+#include <vector>
+
+#include "../core/concepts.hpp"
 
 namespace evolab::problems {
 
 /// Traveling Salesman Problem implementation
 class TSP {
-public:
+  public:
     using Gene = int;
-    using GenomeT = std::vector<int>;  // Permutation representation
+    using GenomeT = std::vector<int>; // Permutation representation
 
-private:
-    int n_;                           // Number of cities
-    std::vector<double> distances_;   // Distance matrix (row-major: dist[i*n + j])
+  private:
+    int n_;                         // Number of cities
+    std::vector<double> distances_; // Distance matrix (row-major: dist[i*n + j])
 
-public:
+  public:
     TSP() = default;
 
     /// Construct TSP with distance matrix
-    TSP(int n, std::vector<double> distances)
-        : n_(n), distances_(std::move(distances)) {
+    TSP(int n, std::vector<double> distances) : n_(n), distances_(std::move(distances)) {
         assert(distances_.size() == static_cast<std::size_t>(n * n));
     }
 
@@ -86,7 +86,8 @@ public:
 
     /// Check if a tour is valid (proper permutation)
     bool is_valid_tour(const GenomeT& tour) const {
-        if (static_cast<int>(tour.size()) != n_) return false;
+        if (static_cast<int>(tour.size()) != n_)
+            return false;
 
         std::vector<bool> visited(n_, false);
         for (int city : tour) {
@@ -109,7 +110,8 @@ public:
         assert(i >= 0 && i < n_ && j >= 0 && j < n_ && i != j);
 
         // Ensure i < j for consistency
-        if (i > j) std::swap(i, j);
+        if (i > j)
+            std::swap(i, j);
 
         // Current edges: (tour[i], tour[i+1]) and (tour[j], tour[(j+1)%n])
         // New edges after 2-opt: (tour[i], tour[j]) and (tour[i+1], tour[(j+1)%n])
@@ -122,12 +124,13 @@ public:
         double old_distance = distance(city_i, city_i_next) + distance(city_j, city_j_next);
         double new_distance = distance(city_i, city_j) + distance(city_i_next, city_j_next);
 
-        return old_distance - new_distance;  // Positive gain means improvement
+        return old_distance - new_distance; // Positive gain means improvement
     }
 
     /// Apply 2-opt move
     void apply_two_opt(GenomeT& tour, int i, int j) const {
-        if (i > j) std::swap(i, j);
+        if (i > j)
+            std::swap(i, j);
         std::reverse(tour.begin() + i + 1, tour.begin() + j + 1);
     }
 };

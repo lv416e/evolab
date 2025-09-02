@@ -1,7 +1,8 @@
-#include <evolab/evolab.hpp>
-#include <iostream>
 #include <cassert>
+#include <iostream>
 #include <sstream>
+
+#include <evolab/evolab.hpp>
 
 // Simple test framework - no external dependencies
 struct TestResult {
@@ -18,11 +19,11 @@ struct TestResult {
         }
     }
 
-    void assert_equals(double expected, double actual, const std::string& message, double tolerance = 1e-9) {
+    void assert_equals(double expected, double actual, const std::string& message,
+                       double tolerance = 1e-9) {
         bool passed_test = std::abs(expected - actual) < tolerance;
-        assert_true(passed_test, message +
-            " (expected: " + std::to_string(expected) +
-            ", actual: " + std::to_string(actual) + ")");
+        assert_true(passed_test, message + " (expected: " + std::to_string(expected) +
+                                     ", actual: " + std::to_string(actual) + ")");
     }
 
     void print_summary() {
@@ -72,7 +73,8 @@ void test_concepts() {
     problems::TSP tsp = problems::create_random_tsp(10, 100.0, 42);
 
     result.assert_true(std::same_as<problems::TSP::Gene, int>, "TSP gene type is int");
-    result.assert_true(std::same_as<problems::TSP::GenomeT, std::vector<int>>, "TSP genome type is vector<int>");
+    result.assert_true(std::same_as<problems::TSP::GenomeT, std::vector<int>>,
+                       "TSP genome type is vector<int>");
     result.assert_equals(10, static_cast<double>(tsp.size()), "TSP size");
 
     // Test genome generation and evaluation
@@ -93,23 +95,25 @@ void test_ga_config() {
 
     // Test default configuration
     core::GAConfig config;
-    result.assert_equals(256, static_cast<double>(config.population_size), "Default population size");
-    result.assert_equals(5000, static_cast<double>(config.max_generations), "Default max generations");
+    result.assert_equals(256, static_cast<double>(config.population_size),
+                         "Default population size");
+    result.assert_equals(5000, static_cast<double>(config.max_generations),
+                         "Default max generations");
     result.assert_equals(0.9, config.crossover_prob, "Default crossover probability");
     result.assert_equals(0.2, config.mutation_prob, "Default mutation probability");
     result.assert_equals(1, static_cast<double>(config.seed), "Default seed");
 
     // Test custom configuration
-    core::GAConfig custom{
-        .population_size = 100,
-        .max_generations = 500,
-        .crossover_prob = 0.8,
-        .mutation_prob = 0.1,
-        .seed = 12345
-    };
+    core::GAConfig custom{.population_size = 100,
+                          .max_generations = 500,
+                          .crossover_prob = 0.8,
+                          .mutation_prob = 0.1,
+                          .seed = 12345};
 
-    result.assert_equals(100, static_cast<double>(custom.population_size), "Custom population size");
-    result.assert_equals(500, static_cast<double>(custom.max_generations), "Custom max generations");
+    result.assert_equals(100, static_cast<double>(custom.population_size),
+                         "Custom population size");
+    result.assert_equals(500, static_cast<double>(custom.max_generations),
+                         "Custom max generations");
     result.assert_equals(0.8, custom.crossover_prob, "Custom crossover probability");
     result.assert_equals(0.1, custom.mutation_prob, "Custom mutation probability");
     result.assert_equals(12345, static_cast<double>(custom.seed), "Custom seed");
@@ -127,19 +131,17 @@ void test_basic_ga() {
     auto ga = factory::make_ga_basic();
 
     // Run for few generations
-    core::GAConfig config{
-        .population_size = 20,
-        .max_generations = 10,
-        .seed = 42
-    };
+    core::GAConfig config{.population_size = 20, .max_generations = 10, .seed = 42};
 
     auto ga_result = ga.run(tsp, config);
 
     result.assert_true(ga_result.generations <= 10, "GA terminated within generation limit");
     result.assert_true(ga_result.evaluations > 0, "GA performed evaluations");
-    result.assert_true(ga_result.best_fitness.value > 0.0, "GA found solution with positive fitness");
+    result.assert_true(ga_result.best_fitness.value > 0.0,
+                       "GA found solution with positive fitness");
     result.assert_true(tsp.is_valid_tour(ga_result.best_genome), "GA solution is valid tour");
-    result.assert_equals(5, static_cast<double>(ga_result.best_genome.size()), "Solution has correct size");
+    result.assert_equals(5, static_cast<double>(ga_result.best_genome.size()),
+                         "Solution has correct size");
 
     result.print_summary();
 }
@@ -165,4 +167,3 @@ int main() {
 
     return 0;
 }
-
