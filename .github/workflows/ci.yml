@@ -24,12 +24,12 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format-15
+          sudo apt-get install -y clang-format-17
 
       - name: Check formatting
         run: |
           find include apps tests -name "*.hpp" -o -name "*.cpp" | \
-          xargs clang-format-15 --dry-run --Werror
+          xargs clang-format-17 --dry-run --Werror
 
   static-analysis:
     name: Static Analysis
@@ -40,20 +40,20 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy-15 cmake ninja-build
+          sudo apt-get install -y clang-tidy-17 cmake ninja-build
 
       - name: Configure CMake
         run: |
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_C_COMPILER=clang-15 \
-            -DCMAKE_CXX_COMPILER=clang++-15 \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DEVOLAB_BUILD_TESTS=ON
 
       - name: Run clang-tidy
         run: |
-          clang-tidy-15 --config-file=.clang-tidy \
+          clang-tidy-17 --config-file=.clang-tidy \
             $(find include -name "*.hpp") \
             -p build/
 
@@ -72,15 +72,15 @@ jobs:
             build-type: Debug
             cc: gcc-12
             cxx: g++-12
-          # Linux with Clang 15 (both Release and Debug)
+          # Linux with Clang 17 (both Release and Debug)
           - os: ubuntu-latest
             build-type: Release
-            cc: clang-15
-            cxx: clang++-15
+            cc: clang-17
+            cxx: clang++-17
           - os: ubuntu-latest
             build-type: Debug
-            cc: clang-15
-            cxx: clang++-15
+            cc: clang-17
+            cxx: clang++-17
           # macOS with default compilers (both Release and Debug)
           - os: macos-latest
             build-type: Release
@@ -183,14 +183,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang-15 libtbb-dev
+          sudo apt-get install -y cmake ninja-build clang-17 libtbb-dev
 
       - name: Configure CMake
         run: |
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-15 \
-            -DCMAKE_CXX_COMPILER=clang++-15 \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=${{ matrix.sanitizer }}" \
             -DEVOLAB_BUILD_TESTS=ON \
