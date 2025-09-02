@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <climits>
 #include <random>
 #include <unordered_map>
@@ -310,7 +311,10 @@ class EAXCrossover {
 
   public:
     explicit EAXCrossover(double parent1_prob = 0.7, double parent2_prob = 0.3)
-        : parent1_prob_(parent1_prob), parent2_prob_(parent2_prob) {}
+        : parent1_prob_(parent1_prob), parent2_prob_(parent2_prob) {
+        assert(parent1_prob_ >= 0.0 && parent1_prob_ <= 1.0);
+        assert(parent2_prob_ >= 0.0 && parent2_prob_ <= 1.0);
+    }
     struct Edge {
         int from, to;
 

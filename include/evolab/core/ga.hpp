@@ -27,6 +27,7 @@ struct GAConfig {
     double diversity_threshold = 0.01;
     std::size_t stagnation_limit = 100;
     bool enable_diversity_tracking = true;
+    std::size_t diversity_max_samples = 50;
 
     // Logging and checkpoint
     std::size_t log_interval = 10;
@@ -247,8 +248,9 @@ class GeneticAlgorithm {
                                     [](double sum, const Fitness& f) { return sum + f.value; }) /
                     fitnesses.size());
                 stats.worst_fitness = *std::max_element(fitnesses.begin(), fitnesses.end());
-                stats.diversity =
-                    config.enable_diversity_tracking ? calculate_diversity(population, rng_) : 0.0;
+                stats.diversity = config.enable_diversity_tracking
+                                      ? calculate_diversity(population, rng_, config)
+                                      : 0.0;
                 stats.elapsed_time = elapsed;
 
                 result.history.push_back(stats);
@@ -282,11 +284,13 @@ class GeneticAlgorithm {
     }
 
     template <typename GenomeT>
-    double calculate_diversity(const std::vector<GenomeT>& population, std::mt19937& rng) {
+    double calculate_diversity(const std::vector<GenomeT>& population, std::mt19937& rng,
+                               const GAConfig& config) {
         if (population.size() < 2)
             return 0.0;
 
-        const std::size_t max_samples = 50; // Limit comparisons for performance
+        const std::size_t max_samples =
+            config.diversity_max_samples; // Configurable limit for performance
         const std::size_t pop_size = population.size();
         const std::size_t genome_size = population.empty() ? 0 : population[0].size();
 
