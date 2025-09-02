@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
                                  .crossover_prob = config.crossover_prob,
                                  .mutation_prob = config.mutation_prob,
                                  .seed = config.seed,
-                                 .log_interval = config.verbose ? 50 : 100};
+                                 .log_interval = static_cast<std::size_t>(config.verbose ? 50 : 100)};
 
         std::cout << "Population: " << ga_config.population_size << "\n";
         std::cout << "Generations: " << ga_config.max_generations << "\n";
