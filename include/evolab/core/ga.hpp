@@ -56,8 +56,8 @@ struct GAResult {
 };
 
 /// Main genetic algorithm implementation
-template <SelectionOperator Selection, CrossoverOperator Crossover, MutationOperator Mutation,
-          LocalSearchOperator LocalSearch = void*, RepairOperator Repair = void*>
+template <typename Selection, typename Crossover, typename Mutation, typename LocalSearch = void*,
+          typename Repair = void*>
 class GeneticAlgorithm {
   public:
     using SelectionT = Selection;
@@ -90,6 +90,9 @@ class GeneticAlgorithm {
 
     /// Run genetic algorithm on the given problem
     template <Problem P>
+    requires SelectionOperator<Selection, P> && CrossoverOperator<Crossover, P> && MutationOperator<Mutation, P> &&
+             (std::same_as<LocalSearch, void*> || LocalSearchOperator<LocalSearch, P>) &&
+             (std::same_as<Repair, void*> || RepairOperator<Repair, P>)
     GAResult<typename P::GenomeT> run(const P& problem, const GAConfig& config = {}) {
         using GenomeT = typename P::GenomeT;
 
@@ -304,14 +307,13 @@ class GeneticAlgorithm {
 };
 
 /// Factory function for creating genetic algorithms
-template <SelectionOperator Selection, CrossoverOperator Crossover, MutationOperator Mutation>
+template <typename Selection, typename Crossover, typename Mutation>
 auto make_ga(Selection sel, Crossover cross, Mutation mut) {
     return GeneticAlgorithm<Selection, Crossover, Mutation>(std::move(sel), std::move(cross),
                                                             std::move(mut));
 }
 
-template <SelectionOperator Selection, CrossoverOperator Crossover, MutationOperator Mutation,
-          LocalSearchOperator LocalSearch>
+template <typename Selection, typename Crossover, typename Mutation, typename LocalSearch>
 auto make_ga(Selection sel, Crossover cross, Mutation mut, LocalSearch ls) {
     return GeneticAlgorithm<Selection, Crossover, Mutation, LocalSearch>(
         std::move(sel), std::move(cross), std::move(mut), std::move(ls));
