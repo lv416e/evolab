@@ -398,9 +398,16 @@ class EAXCrossover {
             }
         }
 
-        // If we have too few edges, add some from parent1
+        // If we have too few edges, add some from parents to reach n
         if (offspring_edges.size() < n) {
             for (const auto& edge : edges1) {
+                offspring_edges.insert(edge);
+                if (offspring_edges.size() >= n)
+                    break;
+            }
+        }
+        if (offspring_edges.size() < n) {
+            for (const auto& edge : edges2) {
                 offspring_edges.insert(edge);
                 if (offspring_edges.size() >= n)
                     break;
