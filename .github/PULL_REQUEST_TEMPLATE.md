@@ -1,6 +1,6 @@
 ## Summary
 <!-- Provide a brief description of the changes made -->
-- 
+-
 
 ## Type of Change
 <!-- Check the relevant option -->
