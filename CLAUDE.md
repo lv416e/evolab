@@ -46,6 +46,29 @@ Note: Optional for new features or small additions. You can proceed directly to 
 5. **Update task status**: Mark tasks as completed when working on them
 6. **Keep steering current**: Run `/kiro:steering` after significant changes
 7. **Check spec compliance**: Use `/kiro:spec-status` to verify alignment
+8. **Follow PR conventions**: Use standardized PR title format and comprehensive PR template
+
+## Pull Request Guidelines
+
+### PR Title Format
+```
+<type>(<scope>): <description>
+```
+
+**Examples:**
+- `feat(operators): implement EAX crossover for TSP`
+- `fix(local-search): resolve infinite loop in 2-opt candidate list`
+- `perf(core): add candidate list optimization for large TSP instances`
+
+**Types:** feat, fix, perf, refactor, test, docs, style, build, ci, chore
+**Scopes:** core, operators, local-search, problems, parallel, utils, etc.
+
+### PR Process
+1. Create feature branch from appropriate base commit
+2. Follow PR title conventions (see `.kiro/steering/pr-conventions.md`)
+3. Use comprehensive PR template with all sections completed
+4. Reference related tasks from `.kiro/specs/evolab/tasks.md`
+5. Ensure all checks pass before requesting review
 
 ## Steering Configuration
 
