@@ -26,6 +26,7 @@ struct GAConfig {
     // Diversity and restart parameters
     double diversity_threshold = 0.01;
     std::size_t stagnation_limit = 100;
+    bool enable_diversity_tracking = true;
 
     // Logging and checkpoint
     std::size_t log_interval = 10;
@@ -246,7 +247,8 @@ class GeneticAlgorithm {
                                     [](double sum, const Fitness& f) { return sum + f.value; }) /
                     fitnesses.size());
                 stats.worst_fitness = *std::max_element(fitnesses.begin(), fitnesses.end());
-                stats.diversity = calculate_diversity(population);
+                stats.diversity =
+                    config.enable_diversity_tracking ? calculate_diversity(population, rng_) : 0.0;
                 stats.elapsed_time = elapsed;
 
                 result.history.push_back(stats);
@@ -280,26 +282,50 @@ class GeneticAlgorithm {
     }
 
     template <typename GenomeT>
-    double calculate_diversity(const std::vector<GenomeT>& population) {
-        // Simple diversity measure - can be specialized per problem type
+    double calculate_diversity(const std::vector<GenomeT>& population, std::mt19937& rng) {
         if (population.size() < 2)
+            return 0.0;
+
+        const std::size_t max_samples = 50; // Limit comparisons for performance
+        const std::size_t pop_size = population.size();
+        const std::size_t genome_size = population.empty() ? 0 : population[0].size();
+
+        if (genome_size == 0)
             return 0.0;
 
         double total_distance = 0.0;
         std::size_t pairs = 0;
 
-        for (std::size_t i = 0; i < population.size(); ++i) {
-            for (std::size_t j = i + 1; j < population.size(); ++j) {
-                // Hamming distance for now - should be specialized
-                double distance = 0.0;
-                for (std::size_t k = 0; k < std::min(population[i].size(), population[j].size());
-                     ++k) {
-                    if (population[i][k] != population[j][k]) {
-                        distance += 1.0;
+        if (pop_size <= max_samples) {
+            // Small populations: use all pairwise comparisons
+            for (std::size_t i = 0; i < pop_size; ++i) {
+                for (std::size_t j = i + 1; j < pop_size; ++j) {
+                    double distance = 0.0;
+                    for (std::size_t k = 0; k < genome_size; ++k) {
+                        if (population[i][k] != population[j][k]) {
+                            distance += 1.0;
+                        }
                     }
+                    total_distance += distance / genome_size; // Normalize by genome size
+                    pairs++;
                 }
-                total_distance += distance;
-                pairs++;
+            }
+        } else {
+            // Large populations: use sampling to maintain O(1) complexity
+            std::uniform_int_distribution<std::size_t> dist(0, pop_size - 1);
+            for (std::size_t sample = 0; sample < max_samples; ++sample) {
+                std::size_t i = dist(rng);
+                std::size_t j = dist(rng);
+                if (i != j) {
+                    double distance = 0.0;
+                    for (std::size_t k = 0; k < genome_size; ++k) {
+                        if (population[i][k] != population[j][k]) {
+                            distance += 1.0;
+                        }
+                    }
+                    total_distance += distance / genome_size; // Normalize by genome size
+                    pairs++;
+                }
             }
         }
 
