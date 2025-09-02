@@ -1,8 +1,6 @@
-# Pull Request
-
 ## Summary
 <!-- Provide a brief description of the changes made -->
-
+-
 
 ## Type of Change
 <!-- Check the relevant option -->
@@ -24,10 +22,10 @@
 
 ## Key Features/Changes
 <!-- List the main features or changes introduced -->
+-
 - 
 - 
 - 
-
 ## Technical Implementation
 <!-- Describe the technical approach and key implementation details -->
 
@@ -79,9 +77,3 @@
 
 ## Additional Notes
 <!-- Any additional information, context, or notes for reviewers -->
-
-
----
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
