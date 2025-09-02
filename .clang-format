@@ -65,4 +65,4 @@ CompactNamespaces: false
 ReflowComments: true
 
 # Language standard  
-Standard: Latest
+Standard: c++20

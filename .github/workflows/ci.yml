@@ -24,6 +24,9 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt-get update
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
+          sudo apt-get update
           sudo apt-get install -y clang-format-17
 
       - name: Check formatting
@@ -40,7 +43,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy-17 cmake ninja-build
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-17 clang-17 cmake ninja-build
 
       - name: Configure CMake
         run: |
@@ -115,6 +121,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
+          if [[ "${{ matrix.cxx }}" == "clang++-17" ]]; then
+            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+            sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
+            sudo apt-get update
+          fi
           sudo apt-get install -y cmake ninja-build ${{ matrix.cc }} ${{ matrix.cxx }}
           # Install TBB
           sudo apt-get install -y libtbb-dev
@@ -122,6 +133,8 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
+          # Remove any existing cmake to avoid tap conflicts
+          brew uninstall --ignore-dependencies cmake 2>/dev/null || true
           brew install cmake ninja tbb
 
       - name: Install dependencies (Windows)
@@ -182,6 +195,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build clang-17 libtbb-dev
 
