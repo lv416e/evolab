@@ -62,22 +62,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        build-type: [Release, Debug]
         include:
-          # Linux with GCC and Clang
+          # Linux with GCC 12 (both Release and Debug)
           - os: ubuntu-latest
+            build-type: Release
             cc: gcc-12
             cxx: g++-12
           - os: ubuntu-latest
+            build-type: Debug
+            cc: gcc-12
+            cxx: g++-12
+          # Linux with Clang 15 (both Release and Debug)
+          - os: ubuntu-latest
+            build-type: Release
             cc: clang-15
             cxx: clang++-15
-          # macOS with default compilers
+          - os: ubuntu-latest
+            build-type: Debug
+            cc: clang-15
+            cxx: clang++-15
+          # macOS with default compilers (both Release and Debug)
           - os: macos-latest
+            build-type: Release
             cc: clang
             cxx: clang++
-          # Windows with MSVC
+          - os: macos-latest
+            build-type: Debug
+            cc: clang
+            cxx: clang++
+          # Windows with MSVC (both Release and Debug)
           - os: windows-latest
+            build-type: Release
+            cc: cl
+            cxx: cl
+          - os: windows-latest
+            build-type: Debug
             cc: cl
             cxx: cl
 

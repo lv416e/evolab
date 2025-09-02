@@ -64,5 +64,5 @@ CompactNamespaces: false
 # Comments
 ReflowComments: true
 
-# Language standard
-Standard: c++23
+# Language standard  
+Standard: c++20
