@@ -18,10 +18,10 @@
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform
- * 
+ *
  * EvoLab is a high-performance, research-grade genetic algorithm framework designed
  * for solving complex optimization problems like TSP, VRP, and QAP.
- * 
+ *
  * Key features:
  * - Modern C++23 with concepts and ranges
  * - Template-based architecture for zero-cost abstractions
@@ -29,15 +29,15 @@
  * - Memetic algorithms with local search (2-opt, Lin-Kernighan)
  * - Parallel evaluation and Island Model
  * - Research-grade reproducibility and statistics
- * 
+ *
  * Basic usage:
  * @code
  * #include <evolab/evolab.hpp>
  * using namespace evolab;
- * 
+ *
  * // Create TSP problem
  * auto tsp = problems::create_random_tsp(100);
- * 
+ *
  * // Configure genetic algorithm
  * auto ga = core::make_ga(
  *     operators::TournamentSelection{4},
@@ -45,7 +45,7 @@
  *     operators::SwapMutation{},
  *     local_search::TwoOpt{}
  * );
- * 
+ *
  * // Run optimization
  * auto result = ga.run(tsp, core::GAConfig{
  *     .population_size = 256,
@@ -53,7 +53,7 @@
  *     .crossover_prob = 0.9,
  *     .mutation_prob = 0.1
  * });
- * 
+ *
  * std::cout << "Best fitness: " << result.best_fitness.value << std::endl;
  * @endcode
  */
@@ -66,10 +66,10 @@ constexpr const char* VERSION = "0.1.0";
 /// Common type aliases
 namespace types {
     using Fitness = core::Fitness;
-    
+
     template<typename T>
     using Genome = core::Genome<T>;
-    
+
     using TSP = problems::TSP;
 }
 

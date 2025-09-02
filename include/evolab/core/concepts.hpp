@@ -9,12 +9,12 @@ namespace evolab::core {
 /// Fitness value for optimization problems
 struct Fitness {
     double value;
-    
+
     Fitness() = default;
     explicit Fitness(double v) : value(v) {}
-    
+
     auto operator<=>(const Fitness&) const = default;
-    
+
     Fitness& operator+=(const Fitness& other) { value += other.value; return *this; }
     Fitness& operator*=(double factor) { value *= factor; return *this; }
 };
@@ -28,13 +28,13 @@ template<typename P>
 concept Problem = requires(const P& problem, const typename P::GenomeT& genome) {
     typename P::Gene;
     typename P::GenomeT;
-    
+
     // Must be able to evaluate a genome
     { problem.evaluate(genome) } -> std::convertible_to<Fitness>;
-    
+
     // Must be able to generate a random genome
     { problem.random_genome(std::declval<std::mt19937&>()) } -> std::same_as<typename P::GenomeT>;
-    
+
     // Must provide problem size/dimension
     { problem.size() } -> std::convertible_to<std::size_t>;
 };
@@ -47,13 +47,13 @@ concept GeneticOperator = Problem<P> && requires(
     const typename P::GenomeT& parent1,
     const typename P::GenomeT& parent2,
     std::mt19937& rng) {
-    
+
     // Selection operators
     typename Op::is_selection_operator;
-    
-    // Crossover operators  
+
+    // Crossover operators
     typename Op::is_crossover_operator;
-    
+
     // Mutation operators
     typename Op::is_mutation_operator;
 };
@@ -65,7 +65,7 @@ concept SelectionOperator = Problem<P> && requires(
     const std::vector<typename P::GenomeT>& population,
     const std::vector<Fitness>& fitnesses,
     std::mt19937& rng) {
-    
+
     // Select parents for reproduction
     { selector.select(population, fitnesses, rng) } -> std::same_as<std::size_t>;
 };
@@ -78,7 +78,7 @@ concept CrossoverOperator = Problem<P> && requires(
     const typename P::GenomeT& parent1,
     const typename P::GenomeT& parent2,
     std::mt19937& rng) {
-    
+
     // Produce offspring from two parents
     { crossover.cross(problem, parent1, parent2, rng) } -> std::same_as<std::pair<typename P::GenomeT, typename P::GenomeT>>;
 };
@@ -90,7 +90,7 @@ concept MutationOperator = Problem<P> && requires(
     const P& problem,
     typename P::GenomeT& genome,
     std::mt19937& rng) {
-    
+
     // Mutate a genome in place
     { mutator.mutate(problem, genome, rng) } -> std::same_as<void>;
 };
@@ -102,7 +102,7 @@ concept LocalSearchOperator = Problem<P> && requires(
     const P& problem,
     typename P::GenomeT& genome,
     std::mt19937& rng) {
-    
+
     // Improve a genome using local search
     { local_search.improve(problem, genome, rng) } -> std::same_as<Fitness>;
 };
@@ -113,7 +113,7 @@ concept RepairOperator = Problem<P> && requires(
     const R& repair,
     const P& problem,
     typename P::GenomeT& genome) {
-    
+
     // Repair an invalid genome to make it valid
     { repair.repair(problem, genome) } -> std::same_as<void>;
 };
