@@ -314,9 +314,12 @@ class EAXCrossover {
     cross([[maybe_unused]] const P& problem, const typename P::GenomeT& parent1,
           const typename P::GenomeT& parent2, std::mt19937& rng) const {
 
-        using GenomeT = typename P::GenomeT;
-
         if (parent1.size() != parent2.size() || parent1.empty()) {
+            return {parent1, parent2};
+        }
+
+        // If parents are identical, return them directly
+        if (parent1 == parent2) {
             return {parent1, parent2};
         }
 
@@ -379,11 +382,16 @@ class EAXCrossover {
             int current = start;
             bool use_parent1 = true;
 
+            int iterations = 0;
+            const int max_iterations = static_cast<int>(n * 2); // Prevent infinite loops
+
             do {
-                if (visited[current])
+                if (visited[current] || iterations >= max_iterations)
                     break;
+
                 visited[current] = true;
                 cycle.push_back(current);
+                iterations++;
 
                 // Find next node alternating between parent edges
                 int next = -1;
@@ -391,18 +399,21 @@ class EAXCrossover {
                 const auto& other_edges = use_parent1 ? edges2 : edges1;
 
                 for (int neighbor : adj[current]) {
-                    Edge e(current, neighbor);
-                    if (other_edges.find(e) == other_edges.end() &&
-                        (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
-                        next = neighbor;
-                        break;
+                    if (!visited[neighbor]) {
+                        Edge e(current, neighbor);
+                        if (other_edges.find(e) == other_edges.end() &&
+                            (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
+                            next = neighbor;
+                            break;
+                        }
                     }
                 }
 
                 if (next == -1 && !adj[current].empty()) {
-                    // Use any available edge
+                    // Use any available unvisited edge
                     for (int neighbor : adj[current]) {
-                        if (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2]) {
+                        if (!visited[neighbor] &&
+                            (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
                             next = neighbor;
                             break;
                         }
@@ -415,7 +426,7 @@ class EAXCrossover {
                 current = next;
                 use_parent1 = !use_parent1;
 
-            } while (cycle.size() < n);
+            } while (cycle.size() < n && current != start && iterations < max_iterations);
 
             if (cycle.size() > 2) {
                 cycles.push_back(cycle);
@@ -470,10 +481,13 @@ class EAXCrossover {
         // Follow path starting from node 0
         std::vector<bool> visited(n, false);
         int current = 0;
+        int path_iterations = 0;
+        const int max_path_iterations = static_cast<int>(n * 2);
 
-        while (tour.size() < n) {
+        while (tour.size() < n && path_iterations < max_path_iterations) {
             tour.push_back(current);
             visited[current] = true;
+            path_iterations++;
 
             // Find unvisited neighbor
             int next = -1;
@@ -485,7 +499,7 @@ class EAXCrossover {
             }
 
             if (next == -1) {
-                // Repair: add missing cities in order
+                // Path ended, repair by adding remaining cities in order
                 for (int i = 0; i < static_cast<int>(n); ++i) {
                     if (!visited[i]) {
                         tour.push_back(i);
@@ -496,6 +510,15 @@ class EAXCrossover {
             }
 
             current = next;
+        }
+
+        // Final safety check: ensure all cities are included
+        if (tour.size() < n) {
+            for (int i = 0; i < static_cast<int>(n); ++i) {
+                if (std::find(tour.begin(), tour.end(), i) == tour.end()) {
+                    tour.push_back(i);
+                }
+            }
         }
 
         return tour;
