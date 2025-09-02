@@ -356,112 +356,38 @@ class EAXCrossover {
                                std::mt19937& rng) const {
         const std::size_t n = parent1.size();
 
-        // Build adjacency lists for both parents
-        std::vector<std::vector<int>> adj1(n), adj2(n);
-        for (std::size_t i = 0; i < n; ++i) {
-            int curr = parent1[i];
-            int next = parent1[(i + 1) % n];
-            adj1[curr].push_back(next);
-            adj1[next].push_back(curr);
-
-            curr = parent2[i];
-            next = parent2[(i + 1) % n];
-            adj2[curr].push_back(next);
-            adj2[next].push_back(curr);
-        }
-
-        // Find AB-cycles (cycles alternating between parent edges)
-        std::vector<std::vector<int>> cycles;
-        std::vector<bool> visited(n, false);
-
-        for (int start = 0; start < static_cast<int>(n); ++start) {
-            if (visited[start])
-                continue;
-
-            std::vector<int> cycle;
-            int current = start;
-            bool use_parent1 = true;
-
-            int iterations = 0;
-            const int max_iterations = static_cast<int>(n * 2); // Prevent infinite loops
-
-            do {
-                if (visited[current] || iterations >= max_iterations)
-                    break;
-
-                visited[current] = true;
-                cycle.push_back(current);
-                iterations++;
-
-                // Find next node alternating between parent edges
-                int next = -1;
-                const auto& adj = use_parent1 ? adj1 : adj2;
-                const auto& other_edges = use_parent1 ? edges2 : edges1;
-
-                for (int neighbor : adj[current]) {
-                    if (!visited[neighbor]) {
-                        Edge e(current, neighbor);
-                        if (other_edges.find(e) == other_edges.end() &&
-                            (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
-                            next = neighbor;
-                            break;
-                        }
-                    }
-                }
-
-                if (next == -1 && !adj[current].empty()) {
-                    // Use any available unvisited edge
-                    for (int neighbor : adj[current]) {
-                        if (!visited[neighbor] &&
-                            (cycle.size() == 1 || neighbor != cycle[cycle.size() - 2])) {
-                            next = neighbor;
-                            break;
-                        }
-                    }
-                }
-
-                if (next == -1 || next == start)
-                    break;
-
-                current = next;
-                use_parent1 = !use_parent1;
-
-            } while (cycle.size() < n && current != start && iterations < max_iterations);
-
-            if (cycle.size() > 2) {
-                cycles.push_back(cycle);
-            }
-        }
-
-        // If no valid cycles found, return parent1
-        if (cycles.empty()) {
+        // Fallback to simpler crossover if problem is too small
+        if (n <= 4) {
             return parent1;
         }
 
-        // Select random subset of cycles to apply
+        // Simplified EAX: randomly select edges from both parents
+        std::unordered_set<Edge, EdgeHash> offspring_edges;
         std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
-        std::unordered_set<Edge, EdgeHash> offspring_edges = edges1;
 
-        for (const auto& cycle : cycles) {
-            if (prob_dist(rng) < 0.5) { // 50% chance to apply each cycle
-                // Apply cycle transformation
-                for (std::size_t i = 0; i < cycle.size(); ++i) {
-                    int from = cycle[i];
-                    int to = cycle[(i + 1) % cycle.size()];
-                    Edge e(from, to);
-
-                    // Toggle edge: if it's from parent1, replace with parent2 edge
-                    if (edges1.find(e) != edges1.end()) {
-                        offspring_edges.erase(e);
-                        if (edges2.find(e) != edges2.end()) {
-                            offspring_edges.insert(e);
-                        }
-                    }
-                }
+        // Combine edges from both parents with probability selection
+        for (const auto& edge : edges1) {
+            if (prob_dist(rng) < 0.7) { // Favor parent1 edges
+                offspring_edges.insert(edge);
             }
         }
 
-        // Construct tour from edge set
+        for (const auto& edge : edges2) {
+            if (edges1.find(edge) == edges1.end() && prob_dist(rng) < 0.3) {
+                offspring_edges.insert(edge);
+            }
+        }
+
+        // If we have too few edges, add some from parent1
+        if (offspring_edges.size() < n - 1) {
+            for (const auto& edge : edges1) {
+                offspring_edges.insert(edge);
+                if (offspring_edges.size() >= n)
+                    break;
+            }
+        }
+
+        // Construct tour from selected edges
         return construct_tour_from_edges<GenomeT>(offspring_edges, n);
     }
 
