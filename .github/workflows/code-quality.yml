@@ -1,0 +1,47 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ feat/* ]
+
+jobs:
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format-15
+        
+    - name: Check formatting
+      run: |
+        find include apps tests -name "*.hpp" -o -name "*.cpp" | \
+        xargs clang-format-15 --dry-run --Werror
+        
+  lint-check:
+    name: Lint Check  
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Install clang-tidy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy-15
+        
+    - name: Check linting (non-blocking)
+      run: |
+        # Run clang-tidy but don't fail the build - just informational
+        find include -name "*.hpp" -o -name "*.cpp" | \
+        head -5 | \
+        xargs clang-tidy-15 --config-file=.clang-tidy || true
+      continue-on-error: true
