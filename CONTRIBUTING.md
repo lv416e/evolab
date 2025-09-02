@@ -39,8 +39,8 @@ ctest --output-on-failure
 
 ### Development Tools
 Ensure you have the following tools installed:
-- `clang-format-17` for code formatting
-- `clang-tidy-17` for static analysis
+- `clang-format-15` for code formatting
+- `clang-tidy-15` for static analysis
 - `cmake` and `ninja-build` (recommended)
 
 ## Development Workflow
@@ -253,21 +253,21 @@ Include:
 ### Static Analysis
 ```bash
 # Run clang-tidy
-find include -name "*.hpp" | xargs clang-tidy-17
+find include -name "*.hpp" | xargs clang-tidy-15
 
 # Run with specific checks
-clang-tidy-17 --checks='modernize-*,performance-*' include/**/*.hpp
+clang-tidy-15 --checks='modernize-*,performance-*' include/**/*.hpp
 ```
 
 ### Formatting
 ```bash
 # Format all source files
 find include apps tests -name "*.hpp" -o -name "*.cpp" | \
-  xargs clang-format-17 -i
+  xargs clang-format-15 -i
 
 # Check formatting without changes
 find include apps tests -name "*.hpp" -o -name "*.cpp" | \
-  xargs clang-format-17 --dry-run --Werror
+  xargs clang-format-15 --dry-run --Werror
 ```
 
 ### Memory Safety
