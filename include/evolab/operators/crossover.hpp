@@ -514,8 +514,12 @@ class EAXCrossover {
 
         // Final safety check: ensure all cities are included
         if (tour.size() < n) {
+            std::vector<bool> in_tour(n, false);
+            for (int city : tour) {
+                in_tour[city] = true;
+            }
             for (int i = 0; i < static_cast<int>(n); ++i) {
-                if (std::find(tour.begin(), tour.end(), i) == tour.end()) {
+                if (!in_tour[i]) {
                     tour.push_back(i);
                 }
             }

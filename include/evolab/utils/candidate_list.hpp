@@ -77,8 +77,10 @@ class CandidateList {
                 }
             }
 
-            // Sort by distance (ascending)
-            std::sort(distances.begin(), distances.end());
+            // Partially sort by distance to get k nearest neighbors
+            auto kth_it = distances.begin() + std::min(k_, static_cast<int>(distances.size()));
+            std::nth_element(distances.begin(), kth_it, distances.end());
+            std::sort(distances.begin(), kth_it);
 
             // Take k nearest neighbors
             candidates_[i].reserve(k_);
