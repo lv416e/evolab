@@ -21,6 +21,9 @@
 // Utilities
 #include "utils/candidate_list.hpp"
 
+// IO
+#include "io/tsplib.hpp"
+
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform
