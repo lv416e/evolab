@@ -115,13 +115,15 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             int offset = i * dimension - (i * (i + 1)) / 2;
             return distance_matrix[offset + (j - i - 1)];
         }
-        case EdgeWeightFormat::LOWER_ROW: {
+        case EdgeWeightFormat::LOWER_ROW:
+        case EdgeWeightFormat::UPPER_COL: {
             if (i < j)
                 std::swap(i, j);
             int offset = i * (i - 1) / 2;
             return distance_matrix[offset + j];
         }
-        case EdgeWeightFormat::UPPER_DIAG_ROW: {
+        case EdgeWeightFormat::UPPER_DIAG_ROW:
+        case EdgeWeightFormat::LOWER_DIAG_COL: {
             if (i <= j) {
                 // For upper triangular with diagonal: row i has (dimension - i) elements
                 // Starting position for row i: sum of previous row lengths
@@ -133,24 +135,14 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 return distance_matrix[offset + (i - j)];
             }
         }
-        case EdgeWeightFormat::LOWER_DIAG_ROW: {
+        case EdgeWeightFormat::LOWER_DIAG_ROW:
+        case EdgeWeightFormat::UPPER_DIAG_COL: {
             if (i >= j) {
                 int offset = i * (i + 1) / 2;
                 return distance_matrix[offset + j];
             } else {
                 int offset = j * (j + 1) / 2;
                 return distance_matrix[offset + i];
-            }
-        }
-        case EdgeWeightFormat::UPPER_COL: {
-            // Upper triangular column-wise: column j has j elements (0 to j-1)
-            if (i < j) {
-                int offset = j * (j - 1) / 2;
-                return distance_matrix[offset + i];
-            } else {
-                // Symmetric matrix
-                int offset = i * (i - 1) / 2;
-                return distance_matrix[offset + j];
             }
         }
         case EdgeWeightFormat::LOWER_COL: {
@@ -162,28 +154,6 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 // Symmetric matrix
                 int offset = i * dimension - i - (i * (i + 1)) / 2;
                 return distance_matrix[offset + (j - i - 1)];
-            }
-        }
-        case EdgeWeightFormat::UPPER_DIAG_COL: {
-            // Upper triangular with diagonal column-wise: column j has j+1 elements (0 to j)
-            if (i <= j) {
-                int offset = j * (j + 1) / 2;
-                return distance_matrix[offset + i];
-            } else {
-                // Symmetric matrix
-                int offset = i * (i + 1) / 2;
-                return distance_matrix[offset + j];
-            }
-        }
-        case EdgeWeightFormat::LOWER_DIAG_COL: {
-            // Lower triangular with diagonal column-wise: column j has (dimension - j) elements
-            if (i >= j) {
-                int offset = j * dimension - (j * (j - 1)) / 2;
-                return distance_matrix[offset + (i - j)];
-            } else {
-                // Symmetric matrix
-                int offset = i * dimension - (i * (i - 1)) / 2;
-                return distance_matrix[offset + (j - i)];
             }
         }
         default:
