@@ -50,11 +50,11 @@ class UCBScheduler {
     std::vector<OperatorStats> stats_;
     double exploration_constant_;
     int total_selections_;
-    std::mt19937_64& rng_;
+    std::mt19937& rng_;
 
   public:
     explicit UCBScheduler(size_t num_operators, double exploration_constant = 2.0,
-                          std::mt19937_64& rng = get_thread_rng())
+                          std::mt19937& rng = get_thread_rng())
         : stats_(num_operators), exploration_constant_(exploration_constant), total_selections_(0),
           rng_(rng) {}
 
@@ -109,9 +109,9 @@ class UCBScheduler {
     }
 
   private:
-    static std::mt19937_64& get_thread_rng() {
+    static std::mt19937& get_thread_rng() {
         static thread_local std::random_device rd;
-        static thread_local std::mt19937_64 gen(rd());
+        static thread_local std::mt19937 gen(rd());
         return gen;
     }
 };
@@ -125,7 +125,7 @@ class ThompsonSamplingScheduler {
         void update_success() { alpha += 1.0; }
         void update_failure() { beta += 1.0; }
 
-        double sample(std::mt19937_64& rng) const {
+        double sample(std::mt19937& rng) const {
             std::gamma_distribution<double> gamma_alpha(alpha, 1.0);
             std::gamma_distribution<double> gamma_beta(beta, 1.0);
 
@@ -143,12 +143,12 @@ class ThompsonSamplingScheduler {
 
     std::vector<BetaDistribution> distributions_;
     std::vector<OperatorStats> stats_;
-    std::mt19937_64& rng_;
+    std::mt19937& rng_;
     double reward_threshold_;
 
   public:
     explicit ThompsonSamplingScheduler(size_t num_operators, double reward_threshold = 0.0,
-                                       std::mt19937_64& rng = get_thread_rng())
+                                       std::mt19937& rng = get_thread_rng())
         : distributions_(num_operators), stats_(num_operators), rng_(rng),
           reward_threshold_(reward_threshold) {}
 
@@ -200,9 +200,9 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 
   private:
-    static std::mt19937_64& get_thread_rng() {
+    static std::mt19937& get_thread_rng() {
         static thread_local std::random_device rd;
-        static thread_local std::mt19937_64 gen(rd());
+        static thread_local std::mt19937 gen(rd());
         return gen;
     }
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <numbers>
@@ -47,8 +48,8 @@ struct TSPInstance {
     EdgeWeightType edge_weight_type = EdgeWeightType::EUC_2D;
     EdgeWeightFormat edge_weight_format = EdgeWeightFormat::FUNCTION;
 
-    std::vector<std::pair<double, double>> node_coords;
-    std::vector<std::pair<double, double>> display_coords;
+    std::vector<std::array<double, 3>> node_coords;
+    std::vector<std::array<double, 3>> display_coords;
     std::vector<double> distance_matrix;
 
     double calculate_distance(int i, int j) const;
@@ -189,27 +190,24 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         throw std::runtime_error("No coordinate data available");
     }
 
-    double x1 = node_coords[i].first, y1 = node_coords[i].second;
-    double x2 = node_coords[j].first, y2 = node_coords[j].second;
+    double x1 = node_coords[i][0], y1 = node_coords[i][1], z1 = node_coords[i][2];
+    double x2 = node_coords[j][0], y2 = node_coords[j][1], z2 = node_coords[j][2];
 
     switch (edge_weight_type) {
     case EdgeWeightType::EUC_2D:
         return TSPLIBParser::euclidean_2d(x1, y1, x2, y2);
     case EdgeWeightType::EUC_3D:
-        // For 3D, assume z=0 if only 2D coordinates are available
-        return TSPLIBParser::euclidean_3d(x1, y1, 0.0, x2, y2, 0.0);
+        return TSPLIBParser::euclidean_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::CEIL_2D:
         return std::ceil(TSPLIBParser::euclidean_2d_raw(x1, y1, x2, y2));
     case EdgeWeightType::MAN_2D:
         return TSPLIBParser::manhattan_2d(x1, y1, x2, y2);
     case EdgeWeightType::MAN_3D:
-        // For 3D, assume z=0 if only 2D coordinates are available
-        return TSPLIBParser::manhattan_3d(x1, y1, 0.0, x2, y2, 0.0);
+        return TSPLIBParser::manhattan_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::MAX_2D:
         return TSPLIBParser::maximum_2d(x1, y1, x2, y2);
     case EdgeWeightType::MAX_3D:
-        // For 3D, assume z=0 if only 2D coordinates are available
-        return TSPLIBParser::maximum_3d(x1, y1, 0.0, x2, y2, 0.0);
+        return TSPLIBParser::maximum_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::GEO:
         return TSPLIBParser::geographical(x1, y1, x2, y2);
     case EdgeWeightType::ATT:
@@ -379,18 +377,22 @@ inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInst
 
         std::istringstream iss(line);
         int node_id;
-        double x, y;
+        double x, y, z = 0.0;
 
+        // Try to read node_id, x, y first
         if (!(iss >> node_id >> x >> y)) {
             throw std::runtime_error("Invalid node coordinate format at line: " + line);
         }
+
+        // Try to read z coordinate if available
+        iss >> z; // This will fail silently if z is not available, leaving z=0.0
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
             throw std::runtime_error("Invalid node ID: " + std::to_string(node_id));
         }
 
-        instance.node_coords[node_id - 1] = {x, y};
+        instance.node_coords[node_id - 1] = {x, y, z};
     }
 }
 
@@ -404,18 +406,22 @@ inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPIn
 
         std::istringstream iss(line);
         int node_id;
-        double x, y;
+        double x, y, z = 0.0;
 
+        // Try to read node_id, x, y first
         if (!(iss >> node_id >> x >> y)) {
             throw std::runtime_error("Invalid display coordinate format at line: " + line);
         }
+
+        // Try to read z coordinate if available
+        iss >> z; // This will fail silently if z is not available, leaving z=0.0
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
             throw std::runtime_error("Invalid display node ID: " + std::to_string(node_id));
         }
 
-        instance.display_coords[node_id - 1] = {x, y};
+        instance.display_coords[node_id - 1] = {x, y, z};
     }
 }
 

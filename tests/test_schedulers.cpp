@@ -66,7 +66,7 @@ struct TestResult {
 };
 
 void test_ucb_scheduler_initialization(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     UCBScheduler scheduler(3, 2.0, rng);
 
     result.assert_eq(scheduler.get_stats().size(), static_cast<size_t>(3),
@@ -81,7 +81,7 @@ void test_ucb_scheduler_initialization(TestResult& result) {
 }
 
 void test_ucb_scheduler_selection(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     UCBScheduler scheduler(3, 2.0, rng);
 
     std::vector<int> selections;
@@ -100,7 +100,7 @@ void test_ucb_scheduler_selection(TestResult& result) {
 }
 
 void test_ucb_scheduler_reward_update(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     UCBScheduler scheduler(2, 2.0, rng);
 
     scheduler.select_operator();
@@ -122,7 +122,7 @@ void test_ucb_scheduler_reward_update(TestResult& result) {
 }
 
 void test_thompson_sampling_initialization(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     ThompsonSamplingScheduler scheduler(3, 0.0, rng);
 
     result.assert_eq(scheduler.get_stats().size(), static_cast<size_t>(3),
@@ -136,7 +136,7 @@ void test_thompson_sampling_initialization(TestResult& result) {
 }
 
 void test_thompson_sampling_selection(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     ThompsonSamplingScheduler scheduler(3, 0.0, rng);
 
     std::vector<int> selections;
@@ -167,7 +167,7 @@ void test_thompson_sampling_selection(TestResult& result) {
 }
 
 void test_thompson_sampling_reward_threshold(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     ThompsonSamplingScheduler scheduler(2, 1.0, rng);
 
     scheduler.select_operator();
@@ -183,7 +183,7 @@ void test_thompson_sampling_reward_threshold(TestResult& result) {
 }
 
 void test_adaptive_operator_selector_basic(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     using TSP = evolab::problems::TSP;
     UCBOperatorSelector<TSP> selector(3, 2.0, rng);
 
@@ -205,7 +205,7 @@ void test_adaptive_operator_selector_basic(TestResult& result) {
 }
 
 void test_adaptive_operator_selector_crossover(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     using TSP = evolab::problems::TSP;
     UCBOperatorSelector<TSP> selector(2, 2.0, rng);
 
@@ -235,7 +235,7 @@ void test_adaptive_operator_selector_crossover(TestResult& result) {
 }
 
 void test_adaptive_operator_selector_reward_tracking(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     using TSP = evolab::problems::TSP;
     ThompsonOperatorSelector<TSP> selector(2, 0.0, rng);
 
@@ -269,7 +269,7 @@ void test_adaptive_operator_selector_reward_tracking(TestResult& result) {
 }
 
 void test_adaptive_operator_selector_fitness_change(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     using TSP = evolab::problems::TSP;
     UCBOperatorSelector<TSP> selector(1, 2.0, rng);
 
@@ -297,7 +297,7 @@ void test_adaptive_operator_selector_fitness_change(TestResult& result) {
 }
 
 void test_scheduler_reset(TestResult& result) {
-    std::mt19937_64 rng(42);
+    std::mt19937 rng(42);
     UCBScheduler scheduler(2, 2.0, rng);
 
     scheduler.select_operator();

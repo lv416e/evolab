@@ -87,10 +87,10 @@ EOF
     result.assert_eq(4, static_cast<int>(instance.node_coords.size()),
                      "Node coordinates count correct");
 
-    result.assert_eq(0.0, instance.node_coords[0].first, "First node x coordinate");
-    result.assert_eq(0.0, instance.node_coords[0].second, "First node y coordinate");
-    result.assert_eq(1.0, instance.node_coords[1].first, "Second node x coordinate");
-    result.assert_eq(0.0, instance.node_coords[1].second, "Second node y coordinate");
+    result.assert_eq(0.0, instance.node_coords[0][0], "First node x coordinate");
+    result.assert_eq(0.0, instance.node_coords[0][1], "First node y coordinate");
+    result.assert_eq(1.0, instance.node_coords[1][0], "Second node x coordinate");
+    result.assert_eq(0.0, instance.node_coords[1][1], "Second node y coordinate");
 }
 
 void test_distance_calculations(TestResult& result) {
