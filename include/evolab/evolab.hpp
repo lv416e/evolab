@@ -15,6 +15,9 @@
 // Local search
 #include "local_search/two_opt.hpp"
 
+// Schedulers
+#include "schedulers/mab.hpp"
+
 // Utilities
 #include "utils/candidate_list.hpp"
 
