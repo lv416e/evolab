@@ -448,7 +448,7 @@ inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double
     double dx = x1 - x2;
     double dy = y1 - y2;
     double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
-    return std::ceil(rij);
+    return std::round(rij);
 }
 
 } // namespace evolab::io
