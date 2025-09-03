@@ -126,7 +126,7 @@ PR titles are validated by GitHub Actions to ensure compliance:
 
 PR titles directly drive semantic versioning:
 - `feat` → Minor version bump (0.1.0 → 0.2.0)
-- `fix`/`perf`/`refactor` → Patch version bump (0.1.0 → 0.1.1)  
+- `fix`/`perf`/`refactor` → Patch version bump (0.1.0 → 0.1.1)
 - `BREAKING CHANGE` → Major version bump (0.1.0 → 1.0.0)
 - Other types → No version impact
 
