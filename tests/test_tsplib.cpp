@@ -190,6 +190,44 @@ EOF
     result.assert_eq(40.0, instance.calculate_distance(3, 2), "Symmetric distance (3,2)");
 }
 
+void test_explicit_matrix_lower_row(TestResult& result) {
+    std::string tsp_content = R"(
+NAME : test4_lower
+COMMENT : 4-city test with lower triangular matrix
+TYPE : TSP
+DIMENSION : 4
+EDGE_WEIGHT_TYPE : EXPLICIT
+EDGE_WEIGHT_FORMAT : LOWER_ROW
+EDGE_WEIGHT_SECTION
+10
+20 25
+30 35 40
+EOF
+)";
+
+    TSPInstance instance = TSPLIBParser::parse_string(tsp_content);
+
+    result.assert_eq(EdgeWeightFormat::LOWER_ROW, instance.edge_weight_format, "Lower row format");
+    result.assert_eq(6, static_cast<int>(instance.distance_matrix.size()),
+                     "Distance matrix size for lower triangular");
+
+    result.assert_eq(0.0, instance.calculate_distance(0, 0), "Self distance is zero");
+    result.assert_eq(10.0, instance.calculate_distance(1, 0), "Distance (1,0)");
+    result.assert_eq(20.0, instance.calculate_distance(2, 0), "Distance (2,0)");
+    result.assert_eq(25.0, instance.calculate_distance(2, 1), "Distance (2,1)");
+    result.assert_eq(30.0, instance.calculate_distance(3, 0), "Distance (3,0)");
+    result.assert_eq(35.0, instance.calculate_distance(3, 1), "Distance (3,1)");
+    result.assert_eq(40.0, instance.calculate_distance(3, 2), "Distance (3,2)");
+
+    // Test symmetry
+    result.assert_eq(10.0, instance.calculate_distance(0, 1), "Symmetric distance (0,1)");
+    result.assert_eq(20.0, instance.calculate_distance(0, 2), "Symmetric distance (0,2)");
+    result.assert_eq(25.0, instance.calculate_distance(1, 2), "Symmetric distance (1,2)");
+    result.assert_eq(30.0, instance.calculate_distance(0, 3), "Symmetric distance (0,3)");
+    result.assert_eq(35.0, instance.calculate_distance(1, 3), "Symmetric distance (1,3)");
+    result.assert_eq(40.0, instance.calculate_distance(2, 3), "Symmetric distance (2,3)");
+}
+
 void test_manhattan_distance(TestResult& result) {
     std::string tsp_content = R"(
 NAME : manhattan_test
@@ -420,6 +458,7 @@ int main() {
     test_distance_calculations(result);
     test_explicit_matrix_full(result);
     test_explicit_matrix_upper_row(result);
+    test_explicit_matrix_lower_row(result);
     test_manhattan_distance(result);
     test_maximum_distance(result);
     test_ceil_euclidean_distance(result);

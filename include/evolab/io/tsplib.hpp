@@ -59,6 +59,7 @@ class TSPLIBParser {
   public:
     static TSPInstance parse_file(const std::string& filename);
     static TSPInstance parse_string(const std::string& content);
+    static TSPInstance parse_stream(std::istream& stream);
 
     static void write_tour_file(const std::string& filename, const std::string& problem_name,
                                 const std::vector<int>& tour, double tour_length = -1.0);
@@ -164,14 +165,16 @@ inline TSPInstance TSPLIBParser::parse_file(const std::string& filename) {
         throw std::runtime_error("Cannot open file: " + filename);
     }
 
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return parse_string(buffer.str());
+    return parse_stream(file);
 }
 
 inline TSPInstance TSPLIBParser::parse_string(const std::string& content) {
-    TSPInstance instance;
     std::istringstream stream(content);
+    return parse_stream(stream);
+}
+
+inline TSPInstance TSPLIBParser::parse_stream(std::istream& stream) {
+    TSPInstance instance;
     std::string line;
 
     // Parse header

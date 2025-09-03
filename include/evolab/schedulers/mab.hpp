@@ -59,9 +59,6 @@ class UCBScheduler {
           rng_(rng) {}
 
     int select_operator() {
-        if (total_selections_ == 0) {
-            return rng_() % stats_.size();
-        }
 
         int best_operator = 0;
         double best_ucb = -std::numeric_limits<double>::infinity();
