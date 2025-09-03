@@ -83,6 +83,9 @@ class TSPLIBParser {
     static void parse_node_coord_section(std::istream& stream, TSPInstance& instance);
     static void parse_display_data_section(std::istream& stream, TSPInstance& instance);
     static void parse_edge_weight_section(std::istream& stream, TSPInstance& instance);
+
+    // Helper function to check if line starts with keyword after trimming
+    static bool line_starts_with(const std::string& line, const std::string& keyword);
 };
 
 // Implementation
@@ -98,26 +101,21 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         switch (edge_weight_format) {
         case EdgeWeightFormat::FULL_MATRIX:
             return distance_matrix[i * dimension + j];
-        case EdgeWeightFormat::UPPER_ROW:
-            if (i <= j) {
-                // For upper triangular: row i has (dimension - i - 1) elements
-                // Starting position for row i: sum of previous row lengths
-                int offset = i * dimension - (i * (i + 1)) / 2;
-                return distance_matrix[offset + (j - i - 1)];
-            } else {
-                // Symmetric matrix
-                int offset = j * dimension - (j * (j + 1)) / 2;
-                return distance_matrix[offset + (i - j - 1)];
-            }
-        case EdgeWeightFormat::LOWER_ROW:
-            if (i > j) {
-                int offset = i * (i - 1) / 2;
-                return distance_matrix[offset + j];
-            } else {
-                int offset = j * (j - 1) / 2;
-                return distance_matrix[offset + i];
-            }
-        case EdgeWeightFormat::UPPER_DIAG_ROW:
+        case EdgeWeightFormat::UPPER_ROW: {
+            if (i > j)
+                std::swap(i, j);
+            // For upper triangular: row i has (dimension - i - 1) elements
+            // Starting position for row i: sum of previous row lengths
+            int offset = i * dimension - (i * (i + 1)) / 2;
+            return distance_matrix[offset + (j - i - 1)];
+        }
+        case EdgeWeightFormat::LOWER_ROW: {
+            if (i < j)
+                std::swap(i, j);
+            int offset = i * (i - 1) / 2;
+            return distance_matrix[offset + j];
+        }
+        case EdgeWeightFormat::UPPER_DIAG_ROW: {
             if (i <= j) {
                 // For upper triangular with diagonal: row i has (dimension - i) elements
                 // Starting position for row i: sum of previous row lengths
@@ -128,7 +126,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = j * dimension - (j * (j - 1)) / 2;
                 return distance_matrix[offset + (i - j)];
             }
-        case EdgeWeightFormat::LOWER_DIAG_ROW:
+        }
+        case EdgeWeightFormat::LOWER_DIAG_ROW: {
             if (i >= j) {
                 int offset = i * (i + 1) / 2;
                 return distance_matrix[offset + j];
@@ -136,7 +135,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = j * (j + 1) / 2;
                 return distance_matrix[offset + i];
             }
-        case EdgeWeightFormat::UPPER_COL:
+        }
+        case EdgeWeightFormat::UPPER_COL: {
             // Upper triangular column-wise: column j has j+1 elements (0 to j)
             if (i <= j) {
                 int offset = j * (j + 1) / 2;
@@ -146,7 +146,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = i * (i + 1) / 2;
                 return distance_matrix[offset + j];
             }
-        case EdgeWeightFormat::LOWER_COL:
+        }
+        case EdgeWeightFormat::LOWER_COL: {
             // Lower triangular column-wise: column j has (dimension - j) elements
             if (i >= j) {
                 int offset = j * dimension - (j * (j - 1)) / 2;
@@ -156,7 +157,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = i * dimension - (i * (i - 1)) / 2;
                 return distance_matrix[offset + (j - i)];
             }
-        case EdgeWeightFormat::UPPER_DIAG_COL:
+        }
+        case EdgeWeightFormat::UPPER_DIAG_COL: {
             // Upper triangular with diagonal column-wise: column j has j+1 elements (0 to j)
             if (i <= j) {
                 int offset = j * (j + 1) / 2;
@@ -166,7 +168,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = i * (i + 1) / 2;
                 return distance_matrix[offset + j];
             }
-        case EdgeWeightFormat::LOWER_DIAG_COL:
+        }
+        case EdgeWeightFormat::LOWER_DIAG_COL: {
             // Lower triangular with diagonal column-wise: column j has (dimension - j) elements
             if (i >= j) {
                 int offset = j * dimension - (j * (j - 1)) / 2;
@@ -176,6 +179,7 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = i * dimension - (i * (i - 1)) / 2;
                 return distance_matrix[offset + (j - i)];
             }
+        }
         default:
             throw std::runtime_error("Unsupported edge weight format");
         }
@@ -250,9 +254,9 @@ inline TSPInstance TSPLIBParser::parse_stream(std::istream& stream) {
 
     // Parse header
     while (std::getline(stream, line)) {
-        if (line.find("NODE_COORD_SECTION") != std::string::npos ||
-            line.find("DISPLAY_DATA_SECTION") != std::string::npos ||
-            line.find("EDGE_WEIGHT_SECTION") != std::string::npos) {
+        if (line_starts_with(line, "NODE_COORD_SECTION") ||
+            line_starts_with(line, "DISPLAY_DATA_SECTION") ||
+            line_starts_with(line, "EDGE_WEIGHT_SECTION")) {
             break;
         }
         if (!line.empty()) {
@@ -266,14 +270,14 @@ inline TSPInstance TSPLIBParser::parse_stream(std::istream& stream) {
 
     // Parse sections
     do {
-        if (line.find("NODE_COORD_SECTION") != std::string::npos) {
+        if (line_starts_with(line, "NODE_COORD_SECTION")) {
             parse_node_coord_section(stream, instance);
-        } else if (line.find("DISPLAY_DATA_SECTION") != std::string::npos) {
+        } else if (line_starts_with(line, "DISPLAY_DATA_SECTION")) {
             parse_display_data_section(stream, instance);
-        } else if (line.find("EDGE_WEIGHT_SECTION") != std::string::npos) {
+        } else if (line_starts_with(line, "EDGE_WEIGHT_SECTION")) {
             parse_edge_weight_section(stream, instance);
         }
-    } while (std::getline(stream, line) && line.find("EOF") == std::string::npos);
+    } while (std::getline(stream, line) && line != "EOF");
 
     return instance;
 }
@@ -370,7 +374,7 @@ inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInst
 
     std::string line;
     for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
-        if (line.empty() || line.find("EOF") != std::string::npos)
+        if (line.empty() || line == "EOF")
             break;
 
         std::istringstream iss(line);
@@ -395,7 +399,7 @@ inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPIn
 
     std::string line;
     for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
-        if (line.empty() || line.find("EOF") != std::string::npos)
+        if (line.empty() || line == "EOF")
             break;
 
         std::istringstream iss(line);
@@ -444,7 +448,7 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
 
     std::string line;
     while (std::getline(stream, line) && instance.distance_matrix.size() < expected_size) {
-        if (line.empty() || line.find("EOF") != std::string::npos)
+        if (line.empty() || line == "EOF")
             break;
 
         std::istringstream iss(line);
@@ -520,6 +524,17 @@ inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double
     double dy = y1 - y2;
     double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
     return std::ceil(rij);
+}
+
+inline bool TSPLIBParser::line_starts_with(const std::string& line, const std::string& keyword) {
+    // Trim leading whitespace from line
+    size_t start = line.find_first_not_of(" \t");
+    if (start == std::string::npos) {
+        return false; // Empty line after trimming
+    }
+
+    // Check if the trimmed line starts with the keyword
+    return line.substr(start, keyword.length()) == keyword;
 }
 
 } // namespace evolab::io

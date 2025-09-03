@@ -59,11 +59,10 @@ class UCBScheduler {
           rng_(rng) {}
 
     int select_operator() {
-
-        int best_operator = 0;
+        std::vector<size_t> best_operators;
         double best_ucb = -std::numeric_limits<double>::infinity();
 
-        for (int i = 0; i < static_cast<int>(stats_.size()); ++i) {
+        for (size_t i = 0; i < stats_.size(); ++i) {
             double ucb_value;
             if (stats_[i].selection_count == 0) {
                 ucb_value = std::numeric_limits<double>::infinity();
@@ -76,12 +75,22 @@ class UCBScheduler {
 
             if (ucb_value > best_ucb) {
                 best_ucb = ucb_value;
-                best_operator = i;
+                best_operators.clear();
+                best_operators.push_back(i);
+            } else if (ucb_value == best_ucb) {
+                best_operators.push_back(i);
             }
         }
 
         total_selections_++;
-        return best_operator;
+
+        // Random tie-breaking
+        if (best_operators.size() > 1) {
+            std::uniform_int_distribution<size_t> dist(0, best_operators.size() - 1);
+            return static_cast<int>(best_operators[dist(rng_)]);
+        }
+
+        return static_cast<int>(best_operators[0]);
     }
 
     void update_reward(int operator_id, double reward) {
