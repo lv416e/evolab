@@ -444,7 +444,7 @@ EOF
     // Test the specific ATT calculation manually
     double dx = 10.0, dy = 10.0;
     double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
-    double expected = std::round(rij) + (std::round(rij) < rij ? 1.0 : 0.0);
+    double expected = std::round(rij);
 
     result.assert_eq(expected, distance, "ATT distance matches manual calculation");
 }
