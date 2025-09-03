@@ -148,14 +148,14 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             }
         }
         case EdgeWeightFormat::LOWER_COL: {
-            // Lower triangular column-wise: column j has (dimension - j) elements
-            if (i >= j) {
-                int offset = j * dimension - (j * (j - 1)) / 2;
-                return distance_matrix[offset + (i - j)];
+            // Lower triangular column-wise: column j has (dimension - 1 - j) elements
+            if (i > j) {
+                int offset = j * dimension - j - (j * (j + 1)) / 2;
+                return distance_matrix[offset + (i - j - 1)];
             } else {
                 // Symmetric matrix
-                int offset = i * dimension - (i * (i - 1)) / 2;
-                return distance_matrix[offset + (j - i)];
+                int offset = i * dimension - i - (i * (i + 1)) / 2;
+                return distance_matrix[offset + (j - i - 1)];
             }
         }
         case EdgeWeightFormat::UPPER_DIAG_COL: {
