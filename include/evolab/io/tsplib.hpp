@@ -117,6 +117,65 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 int offset = j * (j - 1) / 2;
                 return distance_matrix[offset + i];
             }
+        case EdgeWeightFormat::UPPER_DIAG_ROW:
+            if (i <= j) {
+                // For upper triangular with diagonal: row i has (dimension - i) elements
+                // Starting position for row i: sum of previous row lengths
+                int offset = i * dimension - (i * (i - 1)) / 2;
+                return distance_matrix[offset + (j - i)];
+            } else {
+                // Symmetric matrix
+                int offset = j * dimension - (j * (j - 1)) / 2;
+                return distance_matrix[offset + (i - j)];
+            }
+        case EdgeWeightFormat::LOWER_DIAG_ROW:
+            if (i >= j) {
+                int offset = i * (i + 1) / 2;
+                return distance_matrix[offset + j];
+            } else {
+                int offset = j * (j + 1) / 2;
+                return distance_matrix[offset + i];
+            }
+        case EdgeWeightFormat::UPPER_COL:
+            // Upper triangular column-wise: column j has j+1 elements (0 to j)
+            if (i <= j) {
+                int offset = j * (j + 1) / 2;
+                return distance_matrix[offset + i];
+            } else {
+                // Symmetric matrix
+                int offset = i * (i + 1) / 2;
+                return distance_matrix[offset + j];
+            }
+        case EdgeWeightFormat::LOWER_COL:
+            // Lower triangular column-wise: column j has (dimension - j) elements
+            if (i >= j) {
+                int offset = j * dimension - (j * (j - 1)) / 2;
+                return distance_matrix[offset + (i - j)];
+            } else {
+                // Symmetric matrix
+                int offset = i * dimension - (i * (i - 1)) / 2;
+                return distance_matrix[offset + (j - i)];
+            }
+        case EdgeWeightFormat::UPPER_DIAG_COL:
+            // Upper triangular with diagonal column-wise: column j has j+1 elements (0 to j)
+            if (i <= j) {
+                int offset = j * (j + 1) / 2;
+                return distance_matrix[offset + i];
+            } else {
+                // Symmetric matrix
+                int offset = i * (i + 1) / 2;
+                return distance_matrix[offset + j];
+            }
+        case EdgeWeightFormat::LOWER_DIAG_COL:
+            // Lower triangular with diagonal column-wise: column j has (dimension - j) elements
+            if (i >= j) {
+                int offset = j * dimension - (j * (j - 1)) / 2;
+                return distance_matrix[offset + (i - j)];
+            } else {
+                // Symmetric matrix
+                int offset = i * dimension - (i * (i - 1)) / 2;
+                return distance_matrix[offset + (j - i)];
+            }
         default:
             throw std::runtime_error("Unsupported edge weight format");
         }
@@ -307,7 +366,7 @@ inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& ins
 }
 
 inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInstance& instance) {
-    instance.node_coords.reserve(instance.dimension);
+    instance.node_coords.resize(instance.dimension);
 
     std::string line;
     for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
@@ -322,16 +381,17 @@ inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInst
             throw std::runtime_error("Invalid node coordinate format at line: " + line);
         }
 
-        instance.node_coords.emplace_back(x, y);
-    }
+        // Validate node_id and use it for proper indexing
+        if (node_id < 1 || node_id > instance.dimension) {
+            throw std::runtime_error("Invalid node ID: " + std::to_string(node_id));
+        }
 
-    if (instance.node_coords.size() != static_cast<size_t>(instance.dimension)) {
-        throw std::runtime_error("Coordinate count mismatch with dimension");
+        instance.node_coords[node_id - 1] = {x, y};
     }
 }
 
 inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPInstance& instance) {
-    instance.display_coords.reserve(instance.dimension);
+    instance.display_coords.resize(instance.dimension);
 
     std::string line;
     for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
@@ -346,7 +406,12 @@ inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPIn
             throw std::runtime_error("Invalid display coordinate format at line: " + line);
         }
 
-        instance.display_coords.emplace_back(x, y);
+        // Validate node_id and use it for proper indexing
+        if (node_id < 1 || node_id > instance.dimension) {
+            throw std::runtime_error("Invalid display node ID: " + std::to_string(node_id));
+        }
+
+        instance.display_coords[node_id - 1] = {x, y};
     }
 }
 
@@ -363,7 +428,13 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
         break;
     case EdgeWeightFormat::UPPER_DIAG_ROW:
     case EdgeWeightFormat::LOWER_DIAG_ROW:
+    case EdgeWeightFormat::UPPER_DIAG_COL:
+    case EdgeWeightFormat::LOWER_DIAG_COL:
         expected_size = (instance.dimension * (instance.dimension + 1)) / 2;
+        break;
+    case EdgeWeightFormat::UPPER_COL:
+    case EdgeWeightFormat::LOWER_COL:
+        expected_size = (instance.dimension * (instance.dimension - 1)) / 2;
         break;
     default:
         throw std::runtime_error("Unsupported edge weight format for parsing");
@@ -448,7 +519,7 @@ inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double
     double dx = x1 - x2;
     double dy = y1 - y2;
     double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
-    return std::round(rij);
+    return std::ceil(rij);
 }
 
 } // namespace evolab::io
