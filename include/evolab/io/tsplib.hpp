@@ -467,7 +467,7 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
 inline double TSPLIBParser::euclidean_2d(double x1, double y1, double x2, double y2) {
     double dx = x1 - x2;
     double dy = y1 - y2;
-    return std::round(std::sqrt(dx * dx + dy * dy));
+    return std::floor(std::sqrt(dx * dx + dy * dy) + 0.5);
 }
 
 inline double TSPLIBParser::euclidean_2d_raw(double x1, double y1, double x2, double y2) {
