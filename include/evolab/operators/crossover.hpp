@@ -400,17 +400,21 @@ class EAXCrossover {
 
         // If we have too few edges, add some from parents to reach n
         if (offspring_edges.size() < n) {
+            std::vector<Edge> candidate_edges;
+            candidate_edges.reserve(edges1.size() + edges2.size());
             for (const auto& edge : edges1) {
-                offspring_edges.insert(edge);
-                if (offspring_edges.size() >= n)
-                    break;
+                candidate_edges.push_back(edge);
             }
-        }
-        if (offspring_edges.size() < n) {
             for (const auto& edge : edges2) {
-                offspring_edges.insert(edge);
-                if (offspring_edges.size() >= n)
+                candidate_edges.push_back(edge);
+            }
+            std::shuffle(candidate_edges.begin(), candidate_edges.end(), rng);
+
+            for (const auto& edge : candidate_edges) {
+                if (offspring_edges.size() >= n) {
                     break;
+                }
+                offspring_edges.insert(edge);
             }
         }
 
