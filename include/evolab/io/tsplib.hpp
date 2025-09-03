@@ -87,6 +87,11 @@ class TSPLIBParser {
 
     // Helper function to check if line starts with keyword after trimming
     static bool line_starts_with(const std::string& line, const std::string& keyword);
+
+    // Helper function to parse coordinate sections
+    static void parse_coord_section(std::istream& stream, TSPInstance& instance,
+                                    std::vector<std::array<double, 3>>& coords,
+                                    const std::string& section_name);
 };
 
 // Implementation
@@ -372,70 +377,11 @@ inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& ins
 }
 
 inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInstance& instance) {
-    instance.node_coords.resize(instance.dimension);
-
-    std::string line;
-    for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
-        if (line.empty() || line == "EOF")
-            break;
-
-        std::istringstream iss(line);
-        int node_id;
-        double x, y, z = 0.0;
-
-        // Try to read node_id, x, y first
-        try {
-            if (!(iss >> node_id >> x >> y)) {
-                throw std::runtime_error("Invalid node coordinate format at line: " + line);
-            }
-
-            // Try to read z coordinate if available
-            iss >> z; // This will fail silently if z is not available, leaving z=0.0
-        } catch (const std::ios_base::failure&) {
-            throw std::runtime_error("Invalid numeric format in node coordinate at line: " + line);
-        }
-
-        // Validate node_id and use it for proper indexing
-        if (node_id < 1 || node_id > instance.dimension) {
-            throw std::runtime_error("Invalid node ID: " + std::to_string(node_id));
-        }
-
-        instance.node_coords[node_id - 1] = {x, y, z};
-    }
+    parse_coord_section(stream, instance, instance.node_coords, "node");
 }
 
 inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPInstance& instance) {
-    instance.display_coords.resize(instance.dimension);
-
-    std::string line;
-    for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
-        if (line.empty() || line == "EOF")
-            break;
-
-        std::istringstream iss(line);
-        int node_id;
-        double x, y, z = 0.0;
-
-        // Try to read node_id, x, y first
-        try {
-            if (!(iss >> node_id >> x >> y)) {
-                throw std::runtime_error("Invalid display coordinate format at line: " + line);
-            }
-
-            // Try to read z coordinate if available
-            iss >> z; // This will fail silently if z is not available, leaving z=0.0
-        } catch (const std::ios_base::failure&) {
-            throw std::runtime_error("Invalid numeric format in display coordinate at line: " +
-                                     line);
-        }
-
-        // Validate node_id and use it for proper indexing
-        if (node_id < 1 || node_id > instance.dimension) {
-            throw std::runtime_error("Invalid display node ID: " + std::to_string(node_id));
-        }
-
-        instance.display_coords[node_id - 1] = {x, y, z};
-    }
+    parse_coord_section(stream, instance, instance.display_coords, "display");
 }
 
 inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPInstance& instance) {
@@ -529,7 +475,7 @@ inline double TSPLIBParser::geographical(double lat1, double lon1, double lat2, 
     constexpr double RRR = 6378.388;
     constexpr double PI = std::numbers::pi;
 
-    auto deg_to_rad = [](double deg) {
+    static auto deg_to_rad = [](double deg) {
         int int_deg = static_cast<int>(deg);
         double min_part = deg - int_deg;
         return PI * (int_deg + 5.0 * min_part / 3.0) / 180.0;
@@ -547,6 +493,44 @@ inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double
     double dy = y1 - y2;
     double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
     return std::round(rij);
+}
+
+inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance& instance,
+                                              std::vector<std::array<double, 3>>& coords,
+                                              const std::string& section_name) {
+    coords.resize(instance.dimension);
+
+    std::string line;
+    for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
+        if (line.empty() || line == "EOF")
+            break;
+
+        std::istringstream iss(line);
+        int node_id;
+        double x, y, z = 0.0;
+
+        // Try to read node_id, x, y first
+        try {
+            if (!(iss >> node_id >> x >> y)) {
+                throw std::runtime_error("Invalid " + section_name +
+                                         " coordinate format at line: " + line);
+            }
+
+            // Try to read z coordinate if available
+            iss >> z; // This will fail silently if z is not available, leaving z=0.0
+        } catch (const std::ios_base::failure&) {
+            throw std::runtime_error("Invalid numeric format in " + section_name +
+                                     " coordinate at line: " + line);
+        }
+
+        // Validate node_id and use it for proper indexing
+        if (node_id < 1 || node_id > instance.dimension) {
+            throw std::runtime_error("Invalid " + section_name +
+                                     " node ID: " + std::to_string(node_id));
+        }
+
+        coords[node_id - 1] = {x, y, z};
+    }
 }
 
 inline bool TSPLIBParser::line_starts_with(const std::string& line, const std::string& keyword) {
