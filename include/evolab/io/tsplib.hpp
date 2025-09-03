@@ -137,13 +137,13 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             }
         }
         case EdgeWeightFormat::UPPER_COL: {
-            // Upper triangular column-wise: column j has j+1 elements (0 to j)
-            if (i <= j) {
-                int offset = j * (j + 1) / 2;
+            // Upper triangular column-wise: column j has j elements (0 to j-1)
+            if (i < j) {
+                int offset = j * (j - 1) / 2;
                 return distance_matrix[offset + i];
             } else {
                 // Symmetric matrix
-                int offset = i * (i + 1) / 2;
+                int offset = i * (i - 1) / 2;
                 return distance_matrix[offset + j];
             }
         }
