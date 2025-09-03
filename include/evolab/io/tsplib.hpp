@@ -359,7 +359,11 @@ inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& ins
     } else if (key == "COMMENT") {
         instance.comment = value;
     } else if (key == "DIMENSION") {
-        instance.dimension = std::stoi(value);
+        try {
+            instance.dimension = std::stoi(value);
+        } catch (const std::exception&) {
+            throw std::runtime_error("Invalid format for DIMENSION: " + value);
+        }
     } else if (key == "EDGE_WEIGHT_TYPE") {
         instance.edge_weight_type = parse_edge_weight_type(value);
     } else if (key == "EDGE_WEIGHT_FORMAT") {
@@ -380,12 +384,16 @@ inline void TSPLIBParser::parse_node_coord_section(std::istream& stream, TSPInst
         double x, y, z = 0.0;
 
         // Try to read node_id, x, y first
-        if (!(iss >> node_id >> x >> y)) {
-            throw std::runtime_error("Invalid node coordinate format at line: " + line);
-        }
+        try {
+            if (!(iss >> node_id >> x >> y)) {
+                throw std::runtime_error("Invalid node coordinate format at line: " + line);
+            }
 
-        // Try to read z coordinate if available
-        iss >> z; // This will fail silently if z is not available, leaving z=0.0
+            // Try to read z coordinate if available
+            iss >> z; // This will fail silently if z is not available, leaving z=0.0
+        } catch (const std::ios_base::failure&) {
+            throw std::runtime_error("Invalid numeric format in node coordinate at line: " + line);
+        }
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
@@ -409,12 +417,17 @@ inline void TSPLIBParser::parse_display_data_section(std::istream& stream, TSPIn
         double x, y, z = 0.0;
 
         // Try to read node_id, x, y first
-        if (!(iss >> node_id >> x >> y)) {
-            throw std::runtime_error("Invalid display coordinate format at line: " + line);
-        }
+        try {
+            if (!(iss >> node_id >> x >> y)) {
+                throw std::runtime_error("Invalid display coordinate format at line: " + line);
+            }
 
-        // Try to read z coordinate if available
-        iss >> z; // This will fail silently if z is not available, leaving z=0.0
+            // Try to read z coordinate if available
+            iss >> z; // This will fail silently if z is not available, leaving z=0.0
+        } catch (const std::ios_base::failure&) {
+            throw std::runtime_error("Invalid numeric format in display coordinate at line: " +
+                                     line);
+        }
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
@@ -460,8 +473,12 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
         std::istringstream iss(line);
         double distance;
 
-        while (iss >> distance && instance.distance_matrix.size() < expected_size) {
-            instance.distance_matrix.push_back(distance);
+        try {
+            while (iss >> distance && instance.distance_matrix.size() < expected_size) {
+                instance.distance_matrix.push_back(distance);
+            }
+        } catch (const std::ios_base::failure&) {
+            throw std::runtime_error("Invalid numeric format in distance matrix at line: " + line);
         }
     }
 
