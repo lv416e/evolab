@@ -402,11 +402,11 @@ class EAXCrossover {
         if (offspring_edges.size() < n) {
             std::vector<Edge> candidate_edges;
             candidate_edges.reserve(edges1.size() + edges2.size());
-            for (const auto& edge : edges1) {
-                candidate_edges.push_back(edge);
-            }
+            candidate_edges.insert(candidate_edges.end(), edges1.begin(), edges1.end());
             for (const auto& edge : edges2) {
-                candidate_edges.push_back(edge);
+                if (edges1.find(edge) == edges1.end()) {
+                    candidate_edges.push_back(edge);
+                }
             }
             std::shuffle(candidate_edges.begin(), candidate_edges.end(), rng);
 
