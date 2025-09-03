@@ -228,6 +228,166 @@ EOF
     result.assert_eq(40.0, instance.calculate_distance(2, 3), "Symmetric distance (2,3)");
 }
 
+void test_explicit_matrix_upper_col(TestResult& result) {
+    std::string tsp_content = R"(
+NAME : test4_upper_col
+COMMENT : 4-city test with upper triangular column-wise matrix
+TYPE : TSP
+DIMENSION : 4
+EDGE_WEIGHT_TYPE : EXPLICIT
+EDGE_WEIGHT_FORMAT : UPPER_COL
+EDGE_WEIGHT_SECTION
+10 20 30
+25 35
+40
+EOF
+)";
+
+    TSPInstance instance = TSPLIBParser::parse_string(tsp_content);
+
+    result.assert_eq(EdgeWeightFormat::UPPER_COL, instance.edge_weight_format, "Upper col format");
+    result.assert_eq(6, static_cast<int>(instance.distance_matrix.size()),
+                     "Distance matrix size for upper triangular");
+
+    result.assert_eq(0.0, instance.calculate_distance(0, 0), "Self distance is zero");
+    result.assert_eq(10.0, instance.calculate_distance(0, 1), "Distance (0,1)");
+    result.assert_eq(20.0, instance.calculate_distance(0, 2), "Distance (0,2)");
+    result.assert_eq(25.0, instance.calculate_distance(0, 3), "Distance (0,3)"); // Fixed: 30->25
+    result.assert_eq(30.0, instance.calculate_distance(1, 2), "Distance (1,2)"); // Fixed: 25->30
+    result.assert_eq(35.0, instance.calculate_distance(1, 3), "Distance (1,3)");
+    result.assert_eq(40.0, instance.calculate_distance(2, 3), "Distance (2,3)");
+
+    // Test symmetry
+    result.assert_eq(10.0, instance.calculate_distance(1, 0), "Symmetric distance (1,0)");
+    result.assert_eq(20.0, instance.calculate_distance(2, 0), "Symmetric distance (2,0)");
+    result.assert_eq(30.0, instance.calculate_distance(2, 1),
+                     "Symmetric distance (2,1)"); // Fixed: 25->30
+    result.assert_eq(25.0, instance.calculate_distance(3, 0),
+                     "Symmetric distance (3,0)"); // Fixed: 30->25
+    result.assert_eq(35.0, instance.calculate_distance(3, 1), "Symmetric distance (3,1)");
+    result.assert_eq(40.0, instance.calculate_distance(3, 2), "Symmetric distance (3,2)");
+}
+
+void test_explicit_matrix_lower_col(TestResult& result) {
+    std::string tsp_content = R"(
+NAME : test4_lower_col
+COMMENT : 4-city test with lower triangular column-wise matrix
+TYPE : TSP
+DIMENSION : 4
+EDGE_WEIGHT_TYPE : EXPLICIT
+EDGE_WEIGHT_FORMAT : LOWER_COL
+EDGE_WEIGHT_SECTION
+10
+20 25
+30 35 40
+EOF
+)";
+
+    TSPInstance instance = TSPLIBParser::parse_string(tsp_content);
+
+    result.assert_eq(EdgeWeightFormat::LOWER_COL, instance.edge_weight_format, "Lower col format");
+    result.assert_eq(6, static_cast<int>(instance.distance_matrix.size()),
+                     "Distance matrix size for lower triangular");
+
+    result.assert_eq(0.0, instance.calculate_distance(0, 0), "Self distance is zero");
+    result.assert_eq(10.0, instance.calculate_distance(1, 0), "Distance (1,0)");
+    result.assert_eq(20.0, instance.calculate_distance(2, 0), "Distance (2,0)");
+    result.assert_eq(30.0, instance.calculate_distance(2, 1), "Distance (2,1)"); // Fixed: 25->30
+    result.assert_eq(25.0, instance.calculate_distance(3, 0), "Distance (3,0)"); // Fixed: 30->25
+    result.assert_eq(35.0, instance.calculate_distance(3, 1), "Distance (3,1)");
+    result.assert_eq(40.0, instance.calculate_distance(3, 2), "Distance (3,2)");
+
+    // Test symmetry
+    result.assert_eq(10.0, instance.calculate_distance(0, 1), "Symmetric distance (0,1)");
+    result.assert_eq(20.0, instance.calculate_distance(0, 2), "Symmetric distance (0,2)");
+    result.assert_eq(30.0, instance.calculate_distance(1, 2),
+                     "Symmetric distance (1,2)"); // Fixed: 25->30
+    result.assert_eq(25.0, instance.calculate_distance(0, 3),
+                     "Symmetric distance (0,3)"); // Fixed: 30->25
+    result.assert_eq(35.0, instance.calculate_distance(1, 3), "Symmetric distance (1,3)");
+    result.assert_eq(40.0, instance.calculate_distance(2, 3), "Symmetric distance (2,3)");
+}
+
+void test_explicit_matrix_upper_diag_row(TestResult& result) {
+    std::string tsp_content = R"(
+NAME : test4_upper_diag_row
+COMMENT : 4-city test with upper diagonal row-wise matrix
+TYPE : TSP
+DIMENSION : 4
+EDGE_WEIGHT_TYPE : EXPLICIT
+EDGE_WEIGHT_FORMAT : UPPER_DIAG_ROW
+EDGE_WEIGHT_SECTION
+0 10 20 30
+0 25 35
+0 40
+0
+EOF
+)";
+
+    TSPInstance instance = TSPLIBParser::parse_string(tsp_content);
+
+    result.assert_eq(EdgeWeightFormat::UPPER_DIAG_ROW, instance.edge_weight_format,
+                     "Upper diag row format");
+    result.assert_eq(10, static_cast<int>(instance.distance_matrix.size()),
+                     "Distance matrix size for upper diagonal");
+
+    result.assert_eq(0.0, instance.calculate_distance(0, 0), "Self distance is zero");
+    result.assert_eq(10.0, instance.calculate_distance(0, 1), "Distance (0,1)");
+    result.assert_eq(20.0, instance.calculate_distance(0, 2), "Distance (0,2)");
+    result.assert_eq(30.0, instance.calculate_distance(0, 3), "Distance (0,3)");
+    result.assert_eq(25.0, instance.calculate_distance(1, 2), "Distance (1,2)");
+    result.assert_eq(35.0, instance.calculate_distance(1, 3), "Distance (1,3)");
+    result.assert_eq(40.0, instance.calculate_distance(2, 3), "Distance (2,3)");
+
+    // Test symmetry
+    result.assert_eq(10.0, instance.calculate_distance(1, 0), "Symmetric distance (1,0)");
+    result.assert_eq(20.0, instance.calculate_distance(2, 0), "Symmetric distance (2,0)");
+    result.assert_eq(25.0, instance.calculate_distance(2, 1), "Symmetric distance (2,1)");
+    result.assert_eq(30.0, instance.calculate_distance(3, 0), "Symmetric distance (3,0)");
+    result.assert_eq(35.0, instance.calculate_distance(3, 1), "Symmetric distance (3,1)");
+    result.assert_eq(40.0, instance.calculate_distance(3, 2), "Symmetric distance (3,2)");
+}
+
+void test_explicit_matrix_lower_diag_row(TestResult& result) {
+    std::string tsp_content = R"(
+NAME : test4_lower_diag_row
+COMMENT : 4-city test with lower diagonal row-wise matrix
+TYPE : TSP
+DIMENSION : 4
+EDGE_WEIGHT_TYPE : EXPLICIT
+EDGE_WEIGHT_FORMAT : LOWER_DIAG_ROW
+EDGE_WEIGHT_SECTION
+0
+10 0
+20 25 0
+30 35 40 0
+EOF
+)";
+
+    TSPInstance instance = TSPLIBParser::parse_string(tsp_content);
+
+    result.assert_eq(EdgeWeightFormat::LOWER_DIAG_ROW, instance.edge_weight_format,
+                     "Lower diag row format");
+    result.assert_eq(10, static_cast<int>(instance.distance_matrix.size()),
+                     "Distance matrix size for lower diagonal");
+
+    result.assert_eq(0.0, instance.calculate_distance(0, 0), "Self distance is zero");
+    result.assert_eq(10.0, instance.calculate_distance(1, 0), "Distance (1,0)");
+    result.assert_eq(20.0, instance.calculate_distance(2, 0), "Distance (2,0)");
+    result.assert_eq(25.0, instance.calculate_distance(2, 1), "Distance (2,1)");
+    result.assert_eq(30.0, instance.calculate_distance(3, 0), "Distance (3,0)");
+    result.assert_eq(35.0, instance.calculate_distance(3, 1), "Distance (3,1)");
+    result.assert_eq(40.0, instance.calculate_distance(3, 2), "Distance (3,2)");
+
+    // Test symmetry
+    result.assert_eq(10.0, instance.calculate_distance(0, 1), "Symmetric distance (0,1)");
+    result.assert_eq(20.0, instance.calculate_distance(0, 2), "Symmetric distance (0,2)");
+    result.assert_eq(25.0, instance.calculate_distance(1, 2), "Symmetric distance (1,2)");
+    result.assert_eq(30.0, instance.calculate_distance(0, 3), "Symmetric distance (0,3)");
+    result.assert_eq(35.0, instance.calculate_distance(1, 3), "Symmetric distance (1,3)");
+    result.assert_eq(40.0, instance.calculate_distance(2, 3), "Symmetric distance (2,3)");
+}
+
 void test_manhattan_distance(TestResult& result) {
     std::string tsp_content = R"(
 NAME : manhattan_test
@@ -459,6 +619,10 @@ int main() {
     test_explicit_matrix_full(result);
     test_explicit_matrix_upper_row(result);
     test_explicit_matrix_lower_row(result);
+    test_explicit_matrix_upper_col(result);
+    test_explicit_matrix_lower_col(result);
+    test_explicit_matrix_upper_diag_row(result);
+    test_explicit_matrix_lower_diag_row(result);
     test_manhattan_distance(result);
     test_maximum_distance(result);
     test_ceil_euclidean_distance(result);

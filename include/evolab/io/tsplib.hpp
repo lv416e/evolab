@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <charconv>
 #include <cmath>
 #include <fstream>
 #include <numbers>
@@ -115,12 +117,24 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             int offset = i * dimension - (i * (i + 1)) / 2;
             return distance_matrix[offset + (j - i - 1)];
         }
-        case EdgeWeightFormat::LOWER_ROW:
-        case EdgeWeightFormat::UPPER_COL: {
+        case EdgeWeightFormat::LOWER_ROW: {
             if (i < j)
                 std::swap(i, j);
             int offset = i * (i - 1) / 2;
             return distance_matrix[offset + j];
+        }
+        case EdgeWeightFormat::UPPER_COL: {
+            // Upper triangular column-wise: column j stores elements for rows 0 to j-1
+            if (i > j)
+                std::swap(i, j); // Now i <= j
+
+            if (i == j)
+                return 0.0; // Diagonal is 0
+
+            // Column j has j elements (rows 0 to j-1)
+            // Offset for start of column j = j * (j - 1) / 2
+            int offset = j * (j - 1) / 2;
+            return distance_matrix[offset + i];
         }
         case EdgeWeightFormat::UPPER_DIAG_ROW:
         case EdgeWeightFormat::LOWER_DIAG_COL: {
@@ -146,15 +160,22 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             }
         }
         case EdgeWeightFormat::LOWER_COL: {
-            // Lower triangular column-wise: column j has (dimension - 1 - j) elements
-            if (i > j) {
-                int offset = j * dimension - j - (j * (j + 1)) / 2;
-                return distance_matrix[offset + (i - j - 1)];
-            } else {
-                // Symmetric matrix
-                int offset = i * dimension - i - (i * (i + 1)) / 2;
-                return distance_matrix[offset + (j - i - 1)];
+            // Lower triangular column-wise: column j stores elements for rows j+1 to dimension-1
+            if (i < j)
+                std::swap(i, j); // Now i >= j
+
+            // For column j, we store elements from row j+1 to dimension-1
+            // So we need i > j for non-diagonal elements
+            if (i == j)
+                return 0.0; // Diagonal is 0
+
+            // Column j has (dimension - j - 1) elements
+            // Offset for start of column j: sum of lengths of previous columns
+            int offset = 0;
+            for (int col = 0; col < j; ++col) {
+                offset += (dimension - col - 1);
             }
+            return distance_matrix[offset + (i - j - 1)];
         }
         default:
             throw std::runtime_error("Unsupported edge weight format");
@@ -334,9 +355,12 @@ inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& ins
     } else if (key == "COMMENT") {
         instance.comment = value;
     } else if (key == "DIMENSION") {
-        try {
-            instance.dimension = std::stoi(value);
-        } catch (const std::exception&) {
+        int parsed_dimension;
+        auto [ptr, ec] =
+            std::from_chars(value.data(), value.data() + value.size(), parsed_dimension);
+        if (ec == std::errc()) {
+            instance.dimension = parsed_dimension;
+        } else {
             throw std::runtime_error("Invalid format for DIMENSION: " + value);
         }
     } else if (key == "EDGE_WEIGHT_TYPE") {
@@ -386,6 +410,7 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
         if (line.empty() || line == "EOF")
             break;
 
+        // Parse doubles using fast string-to-double conversion
         std::istringstream iss(line);
         double distance;
 
@@ -475,17 +500,31 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
         if (line.empty() || line == "EOF")
             break;
 
-        std::istringstream iss(line);
+        // Parse coordinates using mixed approach - std::from_chars for int, manual for doubles
+        const char* start = line.data();
+        const char* end = line.data() + line.size();
+
+        // Skip whitespace
+        while (start < end && std::isspace(*start))
+            ++start;
+
         int node_id;
+        auto [ptr1, ec1] = std::from_chars(start, end, node_id);
+        if (ec1 != std::errc()) {
+            throw std::runtime_error("Invalid " + section_name +
+                                     " node ID format at line: " + line);
+        }
+
+        // Use istringstream for floating point parsing (more compatible)
+        std::string remainder(ptr1, end);
+        std::istringstream iss(remainder);
         double x, y, z = 0.0;
 
-        // Try to read node_id, x, y first
         try {
-            if (!(iss >> node_id >> x >> y)) {
+            if (!(iss >> x >> y)) {
                 throw std::runtime_error("Invalid " + section_name +
                                          " coordinate format at line: " + line);
             }
-
             // Try to read z coordinate if available
             iss >> z; // This will fail silently if z is not available, leaving z=0.0
         } catch (const std::ios_base::failure&) {
