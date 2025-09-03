@@ -109,11 +109,11 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 return distance_matrix[offset + (i - j - 1)];
             }
         case EdgeWeightFormat::LOWER_ROW:
-            if (i >= j) {
-                int offset = i * (i + 1) / 2;
+            if (i > j) {
+                int offset = i * (i - 1) / 2;
                 return distance_matrix[offset + j];
             } else {
-                int offset = j * (j + 1) / 2;
+                int offset = j * (j - 1) / 2;
                 return distance_matrix[offset + i];
             }
         default:
