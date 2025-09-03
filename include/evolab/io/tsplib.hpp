@@ -423,7 +423,7 @@ inline double TSPLIBParser::geographical(double lat1, double lon1, double lat2, 
     double q2 = std::cos(deg_to_rad(lat1) - deg_to_rad(lat2));
     double q3 = std::cos(deg_to_rad(lat1) + deg_to_rad(lat2));
 
-    return static_cast<int>(RRR * std::acos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)) + 1.0);
+    return std::ceil(RRR * std::acos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)));
 }
 
 inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double y2) {
