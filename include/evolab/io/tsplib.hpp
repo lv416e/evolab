@@ -132,16 +132,28 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
     switch (edge_weight_type) {
     case EdgeWeightType::EUC_2D:
         return TSPLIBParser::euclidean_2d(x1, y1, x2, y2);
+    case EdgeWeightType::EUC_3D:
+        // For 3D, assume z=0 if only 2D coordinates are available
+        return TSPLIBParser::euclidean_3d(x1, y1, 0.0, x2, y2, 0.0);
     case EdgeWeightType::CEIL_2D:
         return std::ceil(TSPLIBParser::euclidean_2d_raw(x1, y1, x2, y2));
     case EdgeWeightType::MAN_2D:
         return TSPLIBParser::manhattan_2d(x1, y1, x2, y2);
+    case EdgeWeightType::MAN_3D:
+        // For 3D, assume z=0 if only 2D coordinates are available
+        return TSPLIBParser::manhattan_3d(x1, y1, 0.0, x2, y2, 0.0);
     case EdgeWeightType::MAX_2D:
         return TSPLIBParser::maximum_2d(x1, y1, x2, y2);
+    case EdgeWeightType::MAX_3D:
+        // For 3D, assume z=0 if only 2D coordinates are available
+        return TSPLIBParser::maximum_3d(x1, y1, 0.0, x2, y2, 0.0);
     case EdgeWeightType::GEO:
         return TSPLIBParser::geographical(x1, y1, x2, y2);
     case EdgeWeightType::ATT:
         return TSPLIBParser::att_distance(x1, y1, x2, y2);
+    case EdgeWeightType::XRAY1:
+    case EdgeWeightType::XRAY2:
+        throw std::runtime_error("XRAY1 and XRAY2 distance types are not implemented");
     default:
         throw std::runtime_error("Unsupported edge weight type");
     }
@@ -268,13 +280,16 @@ inline EdgeWeightFormat TSPLIBParser::parse_edge_weight_format(const std::string
 }
 
 inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& instance) {
-    std::istringstream iss(line);
-    std::string key, colon, value;
-
-    if (!(iss >> key >> colon))
+    size_t colon_pos = line.find(':');
+    if (colon_pos == std::string::npos)
         return;
 
-    std::getline(iss, value);
+    std::string key = line.substr(0, colon_pos);
+    std::string value = line.substr(colon_pos + 1);
+
+    // Trim whitespace from key and value
+    key.erase(0, key.find_first_not_of(" \t"));
+    key.erase(key.find_last_not_of(" \t") + 1);
     value.erase(0, value.find_first_not_of(" \t"));
     value.erase(value.find_last_not_of(" \t\r\n") + 1);
 
