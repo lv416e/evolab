@@ -170,11 +170,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
                 return 0.0; // Diagonal is 0
 
             // Column j has (dimension - j - 1) elements
-            // Offset for start of column j: sum of lengths of previous columns
-            int offset = 0;
-            for (int col = 0; col < j; ++col) {
-                offset += (dimension - col - 1);
-            }
+            // Offset for start of column j: mathematical formula for sum of arithmetic sequence
+            int offset = j * dimension - (j * (j + 1)) / 2;
             return distance_matrix[offset + (i - j - 1)];
         }
         default:
@@ -515,22 +512,17 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
                                      " node ID format at line: " + line);
         }
 
-        // Use istringstream for floating point parsing (more compatible)
+        double x, y, z = 0.0;
         std::string remainder(ptr1, end);
         std::istringstream iss(remainder);
-        double x, y, z = 0.0;
 
-        try {
-            if (!(iss >> x >> y)) {
-                throw std::runtime_error("Invalid " + section_name +
-                                         " coordinate format at line: " + line);
-            }
-            // Try to read z coordinate if available
-            iss >> z; // This will fail silently if z is not available, leaving z=0.0
-        } catch (const std::ios_base::failure&) {
-            throw std::runtime_error("Invalid numeric format in " + section_name +
-                                     " coordinate at line: " + line);
+        if (!(iss >> x >> y)) {
+            throw std::runtime_error("Invalid " + section_name +
+                                     " coordinate format at line: " + line);
         }
+
+        // Try to read optional z coordinate
+        iss >> z;
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
@@ -549,8 +541,8 @@ inline bool TSPLIBParser::line_starts_with(const std::string& line, const std::s
         return false; // Empty line after trimming
     }
 
-    // Check if the trimmed line starts with the keyword
-    return line.substr(start, keyword.length()) == keyword;
+    // Check if the trimmed line starts with the keyword (avoid substr allocation)
+    return line.compare(start, keyword.length(), keyword) == 0;
 }
 
 } // namespace evolab::io
