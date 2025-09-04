@@ -281,7 +281,7 @@ inline TSPInstance TSPLIBParser::parse_stream(std::istream& stream) {
         } else if (line_starts_with(line, "EDGE_WEIGHT_SECTION")) {
             parse_edge_weight_section(stream, instance);
         }
-    } while (std::getline(stream, line) && line != "EOF");
+    } while (std::getline(stream, line) && !line_starts_with(line, "EOF"));
 
     return instance;
 }
@@ -432,15 +432,20 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
 
     std::string line;
     while (std::getline(stream, line) && instance.distance_matrix.size() < expected_size) {
-        if (line.empty() || line == "EOF")
+        if (line.empty() || line_starts_with(line, "EOF"))
             break;
 
-        // Parse doubles using fast string-to-double conversion
-        std::istringstream iss(line);
-        double distance;
+        // Parse doubles using high-performance char buffer parsing
+        const char* p = line.data();
+        const char* const end = p + line.size();
+        char* endptr;
 
-        while (iss >> distance && instance.distance_matrix.size() < expected_size) {
+        while (p < end && instance.distance_matrix.size() < expected_size) {
+            double distance = std::strtod(p, &endptr);
+            if (p == endptr)
+                break; // No number found or error
             instance.distance_matrix.push_back(distance);
+            p = endptr;
         }
     }
 
@@ -518,7 +523,7 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
 
     std::string line;
     for (int i = 0; i < instance.dimension && std::getline(stream, line); ++i) {
-        if (line.empty() || line == "EOF")
+        if (line.empty() || line_starts_with(line, "EOF"))
             break;
 
         // Parse coordinates using mixed approach - std::from_chars for int, manual for doubles
