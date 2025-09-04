@@ -50,6 +50,70 @@ enum class TSPType {
     SOP   // Sequential Ordering Problem
 };
 
+// Distance calculation utilities - separated from parser for better modularity
+namespace tsp_distance {
+
+inline double euclidean_2d(double x1, double y1, double x2, double y2) {
+    double dx = x1 - x2;
+    double dy = y1 - y2;
+    return std::round(std::sqrt(dx * dx + dy * dy));
+}
+
+inline double euclidean_2d_raw(double x1, double y1, double x2, double y2) {
+    double dx = x1 - x2;
+    double dy = y1 - y2;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+inline double euclidean_3d(double x1, double y1, double z1, double x2, double y2, double z2) {
+    double dx = x1 - x2;
+    double dy = y1 - y2;
+    double dz = z1 - z2;
+    return std::round(std::sqrt(dx * dx + dy * dy + dz * dz));
+}
+
+inline double manhattan_2d(double x1, double y1, double x2, double y2) {
+    return std::abs(x1 - x2) + std::abs(y1 - y2);
+}
+
+inline double manhattan_3d(double x1, double y1, double z1, double x2, double y2, double z2) {
+    return std::abs(x1 - x2) + std::abs(y1 - y2) + std::abs(z1 - z2);
+}
+
+inline double maximum_2d(double x1, double y1, double x2, double y2) {
+    return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
+}
+
+inline double maximum_3d(double x1, double y1, double z1, double x2, double y2, double z2) {
+    return std::max({std::abs(x1 - x2), std::abs(y1 - y2), std::abs(z1 - z2)});
+}
+
+inline double geographical(double lat1, double lon1, double lat2, double lon2) {
+    constexpr double RRR = 6378.388;
+    constexpr double PI = std::numbers::pi;
+
+    static auto deg_to_rad = [](double deg) {
+        int int_deg = static_cast<int>(deg);
+        double min_part = deg - int_deg;
+        return PI * (int_deg + 5.0 * min_part / 3.0) / 180.0;
+    };
+
+    double q1 = std::cos(deg_to_rad(lon1) - deg_to_rad(lon2));
+    double q2 = std::cos(deg_to_rad(lat1) - deg_to_rad(lat2));
+    double q3 = std::cos(deg_to_rad(lat1) + deg_to_rad(lat2));
+
+    return std::floor(RRR * std::acos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)) + 0.5);
+}
+
+inline double att_distance(double x1, double y1, double x2, double y2) {
+    double dx = x1 - x2;
+    double dy = y1 - y2;
+    double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
+    return std::round(rij);
+}
+
+} // namespace tsp_distance
+
 struct TSPInstance {
     std::string name;
     std::string comment;
@@ -76,15 +140,6 @@ class TSPLIBParser {
                                 const std::vector<int>& tour, double tour_length = -1.0);
 
     // Distance calculation functions (public for TSPInstance to use)
-    static double euclidean_2d(double x1, double y1, double x2, double y2);
-    static double euclidean_2d_raw(double x1, double y1, double x2, double y2);
-    static double euclidean_3d(double x1, double y1, double z1, double x2, double y2, double z2);
-    static double manhattan_2d(double x1, double y1, double x2, double y2);
-    static double manhattan_3d(double x1, double y1, double z1, double x2, double y2, double z2);
-    static double maximum_2d(double x1, double y1, double x2, double y2);
-    static double maximum_3d(double x1, double y1, double z1, double x2, double y2, double z2);
-    static double geographical(double lat1, double lon1, double lat2, double lon2);
-    static double att_distance(double x1, double y1, double x2, double y2);
 
   private:
     static EdgeWeightType parse_edge_weight_type(const std::string& type_str);
@@ -201,23 +256,23 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
 
     switch (edge_weight_type) {
     case EdgeWeightType::EUC_2D:
-        return TSPLIBParser::euclidean_2d(x1, y1, x2, y2);
+        return tsp_distance::euclidean_2d(x1, y1, x2, y2);
     case EdgeWeightType::EUC_3D:
-        return TSPLIBParser::euclidean_3d(x1, y1, z1, x2, y2, z2);
+        return tsp_distance::euclidean_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::CEIL_2D:
-        return std::ceil(TSPLIBParser::euclidean_2d_raw(x1, y1, x2, y2));
+        return std::ceil(tsp_distance::euclidean_2d_raw(x1, y1, x2, y2));
     case EdgeWeightType::MAN_2D:
-        return TSPLIBParser::manhattan_2d(x1, y1, x2, y2);
+        return tsp_distance::manhattan_2d(x1, y1, x2, y2);
     case EdgeWeightType::MAN_3D:
-        return TSPLIBParser::manhattan_3d(x1, y1, z1, x2, y2, z2);
+        return tsp_distance::manhattan_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::MAX_2D:
-        return TSPLIBParser::maximum_2d(x1, y1, x2, y2);
+        return tsp_distance::maximum_2d(x1, y1, x2, y2);
     case EdgeWeightType::MAX_3D:
-        return TSPLIBParser::maximum_3d(x1, y1, z1, x2, y2, z2);
+        return tsp_distance::maximum_3d(x1, y1, z1, x2, y2, z2);
     case EdgeWeightType::GEO:
-        return TSPLIBParser::geographical(x1, y1, x2, y2);
+        return tsp_distance::geographical(x1, y1, x2, y2);
     case EdgeWeightType::ATT:
-        return TSPLIBParser::att_distance(x1, y1, x2, y2);
+        return tsp_distance::att_distance(x1, y1, x2, y2);
     case EdgeWeightType::XRAY1:
     case EdgeWeightType::XRAY2:
         throw std::runtime_error("XRAY1 and XRAY2 distance types are not implemented");
@@ -454,68 +509,6 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
     }
 }
 
-inline double TSPLIBParser::euclidean_2d(double x1, double y1, double x2, double y2) {
-    double dx = x1 - x2;
-    double dy = y1 - y2;
-    return std::round(std::sqrt(dx * dx + dy * dy));
-}
-
-inline double TSPLIBParser::euclidean_2d_raw(double x1, double y1, double x2, double y2) {
-    double dx = x1 - x2;
-    double dy = y1 - y2;
-    return std::sqrt(dx * dx + dy * dy);
-}
-
-inline double TSPLIBParser::euclidean_3d(double x1, double y1, double z1, double x2, double y2,
-                                         double z2) {
-    double dx = x1 - x2;
-    double dy = y1 - y2;
-    double dz = z1 - z2;
-    return std::round(std::sqrt(dx * dx + dy * dy + dz * dz));
-}
-
-inline double TSPLIBParser::manhattan_2d(double x1, double y1, double x2, double y2) {
-    return std::abs(x1 - x2) + std::abs(y1 - y2);
-}
-
-inline double TSPLIBParser::manhattan_3d(double x1, double y1, double z1, double x2, double y2,
-                                         double z2) {
-    return std::abs(x1 - x2) + std::abs(y1 - y2) + std::abs(z1 - z2);
-}
-
-inline double TSPLIBParser::maximum_2d(double x1, double y1, double x2, double y2) {
-    return std::max(std::abs(x1 - x2), std::abs(y1 - y2));
-}
-
-inline double TSPLIBParser::maximum_3d(double x1, double y1, double z1, double x2, double y2,
-                                       double z2) {
-    return std::max({std::abs(x1 - x2), std::abs(y1 - y2), std::abs(z1 - z2)});
-}
-
-inline double TSPLIBParser::geographical(double lat1, double lon1, double lat2, double lon2) {
-    constexpr double RRR = 6378.388;
-    constexpr double PI = std::numbers::pi;
-
-    static auto deg_to_rad = [](double deg) {
-        int int_deg = static_cast<int>(deg);
-        double min_part = deg - int_deg;
-        return PI * (int_deg + 5.0 * min_part / 3.0) / 180.0;
-    };
-
-    double q1 = std::cos(deg_to_rad(lon1) - deg_to_rad(lon2));
-    double q2 = std::cos(deg_to_rad(lat1) - deg_to_rad(lat2));
-    double q3 = std::cos(deg_to_rad(lat1) + deg_to_rad(lat2));
-
-    return std::floor(RRR * std::acos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)) + 0.5);
-}
-
-inline double TSPLIBParser::att_distance(double x1, double y1, double x2, double y2) {
-    double dx = x1 - x2;
-    double dy = y1 - y2;
-    double rij = std::sqrt((dx * dx + dy * dy) / 10.0);
-    return std::round(rij);
-}
-
 inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance& instance,
                                               std::vector<std::array<double, 3>>& coords,
                                               const std::string& section_name) {
@@ -543,10 +536,9 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
 
         double x, y, z = 0.0;
 
-        // Skip whitespace and parse coordinates directly from char buffer
+        // Parse coordinates directly from char buffer
+        // Note: std::strtod automatically skips leading whitespace
         const char* p = ptr1;
-        while (p < end && std::isspace(static_cast<unsigned char>(*p)))
-            ++p;
 
         // Parse first coordinate (x)
         char* endptr;
@@ -557,9 +549,7 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
         }
         p = endptr;
 
-        // Skip whitespace and parse second coordinate (y)
-        while (p < end && std::isspace(static_cast<unsigned char>(*p)))
-            ++p;
+        // Parse second coordinate (y) - std::strtod skips whitespace automatically
         y = std::strtod(p, &endptr);
         if (endptr == p) {
             throw std::runtime_error("Invalid " + section_name +
@@ -567,9 +557,7 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
         }
         p = endptr;
 
-        // Try to parse optional z coordinate
-        while (p < end && std::isspace(static_cast<unsigned char>(*p)))
-            ++p;
+        // Try to parse optional z coordinate - std::strtod skips whitespace automatically
         if (p < end) {
             z = std::strtod(p, &endptr);
             // If parsing failed, z remains 0.0 (which is fine for optional coordinate)
