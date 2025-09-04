@@ -21,10 +21,10 @@ concept CrossoverOperator =
 
 struct OperatorStats {
     double total_reward = 0.0;
-    int selection_count = 0;
+    size_t selection_count = 0;
     double avg_reward = 0.0;
     double success_rate = 0.0;
-    int success_count = 0;
+    size_t success_count = 0;
 
     void update_reward(double reward) {
         total_reward += reward;
@@ -49,7 +49,7 @@ class UCBScheduler {
   private:
     std::vector<OperatorStats> stats_;
     double exploration_constant_;
-    int total_selections_;
+    size_t total_selections_;
     std::mt19937& rng_;
 
   public:

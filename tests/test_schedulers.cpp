@@ -73,7 +73,8 @@ void test_ucb_scheduler_initialization(TestResult& result) {
                      "UCB scheduler has correct number of operators");
 
     for (const auto& stat : scheduler.get_stats()) {
-        result.assert_eq(stat.selection_count, 0, "Initial selection count is zero");
+        result.assert_eq(stat.selection_count, static_cast<size_t>(0),
+                         "Initial selection count is zero");
         result.assert_eq(stat.total_reward, 0.0, "Initial total reward is zero");
         result.assert_eq(stat.avg_reward, 0.0, "Initial average reward is zero");
         result.assert_eq(stat.success_rate, 0.0, "Initial success rate is zero");
@@ -110,15 +111,19 @@ void test_ucb_scheduler_reward_update(TestResult& result) {
     scheduler.update_reward(1, -2.0);
 
     const auto& stats = scheduler.get_stats();
-    result.assert_eq(stats[0].selection_count, 1, "Operator 0 selection count updated");
+    result.assert_eq(stats[0].selection_count, static_cast<size_t>(1),
+                     "Operator 0 selection count updated");
     result.assert_eq(stats[0].total_reward, 5.0, "Operator 0 total reward updated");
     result.assert_eq(stats[0].avg_reward, 5.0, "Operator 0 average reward calculated");
-    result.assert_eq(stats[0].success_count, 1, "Operator 0 success count updated");
+    result.assert_eq(stats[0].success_count, static_cast<size_t>(1),
+                     "Operator 0 success count updated");
 
-    result.assert_eq(stats[1].selection_count, 1, "Operator 1 selection count updated");
+    result.assert_eq(stats[1].selection_count, static_cast<size_t>(1),
+                     "Operator 1 selection count updated");
     result.assert_eq(stats[1].total_reward, -2.0, "Operator 1 total reward updated");
     result.assert_eq(stats[1].avg_reward, -2.0, "Operator 1 average reward calculated");
-    result.assert_eq(stats[1].success_count, 0, "Operator 1 success count correct");
+    result.assert_eq(stats[1].success_count, static_cast<size_t>(0),
+                     "Operator 1 success count correct");
 }
 
 void test_thompson_sampling_initialization(TestResult& result) {
@@ -130,7 +135,8 @@ void test_thompson_sampling_initialization(TestResult& result) {
     result.assert_eq(scheduler.get_reward_threshold(), 0.0, "Initial reward threshold is correct");
 
     for (const auto& stat : scheduler.get_stats()) {
-        result.assert_eq(stat.selection_count, 0, "Initial selection count is zero");
+        result.assert_eq(stat.selection_count, static_cast<size_t>(0),
+                         "Initial selection count is zero");
         result.assert_eq(stat.total_reward, 0.0, "Initial total reward is zero");
     }
 }
@@ -177,8 +183,9 @@ void test_thompson_sampling_reward_threshold(TestResult& result) {
     scheduler.update_reward(1, 0.5); // Below threshold
 
     const auto& stats = scheduler.get_stats();
-    result.assert_eq(1, stats[0].success_count, "Operator 0 success from above-threshold reward");
-    result.assert_eq(0, stats[1].success_count,
+    result.assert_eq(static_cast<size_t>(1), stats[0].success_count,
+                     "Operator 0 success from above-threshold reward");
+    result.assert_eq(static_cast<size_t>(0), stats[1].success_count,
                      "Operator 1 no success from below-threshold reward");
 }
 
@@ -261,7 +268,7 @@ void test_adaptive_operator_selector_reward_tracking(TestResult& result) {
     const auto& stats = selector.get_operator_stats();
     int selected_op = selector.get_last_selection();
 
-    result.assert_eq(stats[selected_op].selection_count, 1,
+    result.assert_eq(stats[selected_op].selection_count, static_cast<size_t>(1),
                      "Selected operator selection count updated");
     result.assert_eq(stats[selected_op].total_reward, 1.5,
                      "Selected operator total reward updated");
@@ -290,7 +297,8 @@ void test_adaptive_operator_selector_fitness_change(TestResult& result) {
     selector.report_fitness_change(100.0, 95.0); // Improvement of 5.0
 
     const auto& stats = selector.get_operator_stats();
-    result.assert_eq(stats[0].selection_count, 1, "Operator selection count updated");
+    result.assert_eq(stats[0].selection_count, static_cast<size_t>(1),
+                     "Operator selection count updated");
     result.assert_eq(stats[0].total_reward, 5.0,
                      "Operator total reward reflects fitness improvement");
     result.assert_eq(selector.get_last_improvement(), 5.0, "Last improvement calculated correctly");
@@ -312,38 +320,44 @@ void test_scheduler_reset(TestResult& result) {
     const auto& stats_after = scheduler.get_stats();
 
     for (const auto& stat : stats_after) {
-        result.assert_eq(stat.selection_count, 0, "Selection count reset to zero");
+        result.assert_eq(stat.selection_count, static_cast<size_t>(0),
+                         "Selection count reset to zero");
         result.assert_eq(stat.total_reward, 0.0, "Total reward reset to zero");
         result.assert_eq(stat.avg_reward, 0.0, "Average reward reset to zero");
         result.assert_eq(stat.success_rate, 0.0, "Success rate reset to zero");
-        result.assert_eq(stat.success_count, 0, "Success count reset to zero");
+        result.assert_eq(stat.success_count, static_cast<size_t>(0), "Success count reset to zero");
     }
 }
 
 void test_operator_stats_update(TestResult& result) {
     OperatorStats stats;
 
-    result.assert_eq(stats.selection_count, 0, "Initial selection count is zero");
+    result.assert_eq(stats.selection_count, static_cast<size_t>(0),
+                     "Initial selection count is zero");
     result.assert_eq(stats.total_reward, 0.0, "Initial total reward is zero");
     result.assert_eq(stats.avg_reward, 0.0, "Initial average reward is zero");
     result.assert_eq(stats.success_rate, 0.0, "Initial success rate is zero");
 
     stats.update_reward(2.0);
-    result.assert_eq(stats.selection_count, 1, "Selection count updated after positive reward");
+    result.assert_eq(stats.selection_count, static_cast<size_t>(1),
+                     "Selection count updated after positive reward");
     result.assert_eq(stats.total_reward, 2.0, "Total reward updated");
     result.assert_eq(stats.avg_reward, 2.0, "Average reward calculated");
-    result.assert_eq(stats.success_count, 1, "Success count updated for positive reward");
+    result.assert_eq(stats.success_count, static_cast<size_t>(1),
+                     "Success count updated for positive reward");
     result.assert_eq(stats.success_rate, 1.0, "Success rate calculated");
 
     stats.update_reward(-1.0);
-    result.assert_eq(stats.selection_count, 2, "Selection count updated after negative reward");
+    result.assert_eq(stats.selection_count, static_cast<size_t>(2),
+                     "Selection count updated after negative reward");
     result.assert_eq(stats.total_reward, 1.0, "Total reward accumulated correctly");
     result.assert_eq(stats.avg_reward, 0.5, "Average reward recalculated");
-    result.assert_eq(stats.success_count, 1, "Success count unchanged for negative reward");
+    result.assert_eq(stats.success_count, static_cast<size_t>(1),
+                     "Success count unchanged for negative reward");
     result.assert_eq(stats.success_rate, 0.5, "Success rate recalculated");
 
     stats.reset();
-    result.assert_eq(stats.selection_count, 0, "Selection count reset");
+    result.assert_eq(stats.selection_count, static_cast<size_t>(0), "Selection count reset");
     result.assert_eq(stats.total_reward, 0.0, "Total reward reset");
 }
 
