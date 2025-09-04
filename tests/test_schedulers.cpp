@@ -7,63 +7,10 @@
 
 #include <evolab/evolab.hpp>
 
+#include "test_helper.hpp"
+
 using namespace evolab::schedulers;
 using namespace evolab::operators;
-
-struct TestResult {
-    int passed = 0;
-    int failed = 0;
-
-    void assert_true(bool condition, const std::string& message) {
-        if (condition) {
-            passed++;
-            std::cout << "[PASS] " << message << "\n";
-        } else {
-            failed++;
-            std::cout << "[FAIL] " << message << "\n";
-        }
-    }
-
-    void assert_eq(int expected, int actual, const std::string& message) {
-        assert_true(expected == actual, message + " (expected: " + std::to_string(expected) +
-                                            ", actual: " + std::to_string(actual) + ")");
-    }
-
-    void assert_eq(size_t expected, size_t actual, const std::string& message) {
-        assert_true(expected == actual, message + " (expected: " + std::to_string(expected) +
-                                            ", actual: " + std::to_string(actual) + ")");
-    }
-
-    void assert_eq(double expected, double actual, const std::string& message,
-                   double tolerance = 1e-9) {
-        assert_true(std::abs(expected - actual) < tolerance,
-                    message + " (expected: " + std::to_string(expected) +
-                        ", actual: " + std::to_string(actual) + ")");
-    }
-
-    void assert_ge(int value, int min_value, const std::string& message) {
-        assert_true(value >= min_value, message + " (" + std::to_string(value) +
-                                            " >= " + std::to_string(min_value) + ")");
-    }
-
-    void assert_lt(int value, int max_value, const std::string& message) {
-        assert_true(value < max_value, message + " (" + std::to_string(value) + " < " +
-                                           std::to_string(max_value) + ")");
-    }
-
-    void assert_gt(size_t value, size_t min_value, const std::string& message) {
-        assert_true(value > min_value, message + " (" + std::to_string(value) + " > " +
-                                           std::to_string(min_value) + ")");
-    }
-
-    int summary() {
-        std::cout << "\n=== Scheduler Test Summary ===\n";
-        std::cout << "Passed: " << passed << "\n";
-        std::cout << "Failed: " << failed << "\n";
-        std::cout << "Total:  " << (passed + failed) << "\n";
-        return failed == 0 ? 0 : 1;
-    }
-};
 
 void test_ucb_scheduler_initialization(TestResult& result) {
     std::mt19937 rng(42);
