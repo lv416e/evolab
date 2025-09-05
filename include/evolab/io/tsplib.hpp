@@ -201,20 +201,21 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             size_t offset = static_cast<size_t>(j) * (j - 1) / 2;
             return distance_matrix[offset + i];
         }
-        case EdgeWeightFormat::UPPER_DIAG_ROW:
+        case EdgeWeightFormat::UPPER_DIAG_ROW: {
+            if (i > j)
+                std::swap(i, j); // Symmetric matrix
+            size_t offset =
+                static_cast<size_t>(i) * dimension - (static_cast<size_t>(i) * (i - 1)) / 2;
+            return distance_matrix[offset + (j - i)];
+        }
         case EdgeWeightFormat::LOWER_DIAG_COL: {
-            if (i <= j) {
-                // For upper triangular with diagonal: row i has (dimension - i) elements
-                // Starting position for row i: sum of previous row lengths
-                size_t offset =
-                    static_cast<size_t>(i) * dimension - (static_cast<size_t>(i) * (i - 1)) / 2;
-                return distance_matrix[offset + (j - i)];
-            } else {
-                // Symmetric matrix
-                size_t offset =
-                    static_cast<size_t>(j) * dimension - (static_cast<size_t>(j) * (j - 1)) / 2;
-                return distance_matrix[offset + (i - j)];
-            }
+            // Lower triangular column-wise with diagonal
+            if (i < j)
+                std::swap(i, j); // Symmetric matrix
+            // Column j has (dimension - j) elements (from j to dimension-1)
+            size_t offset =
+                static_cast<size_t>(j) * dimension - (static_cast<size_t>(j) * (j + 1)) / 2;
+            return distance_matrix[offset + (i - j)];
         }
         case EdgeWeightFormat::LOWER_DIAG_ROW:
         case EdgeWeightFormat::UPPER_DIAG_COL: {
@@ -580,8 +581,8 @@ inline bool TSPLIBParser::line_starts_with(const std::string& line, const std::s
         return false; // Empty line after trimming
     }
 
-    // Check if the trimmed line starts with the keyword (avoid substr allocation)
-    return line.compare(start, keyword.length(), keyword) == 0;
+    // Use C++23 string_view and starts_with for efficient comparison
+    return std::string_view(line).substr(start).starts_with(keyword);
 }
 
 } // namespace evolab::io
