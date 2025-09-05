@@ -6,41 +6,7 @@
 
 #include <evolab/evolab.hpp>
 
-// Simple test framework
-struct TestResult {
-    int passed = 0;
-    int failed = 0;
-
-    void assert_true(bool condition, const std::string& message) {
-        if (condition) {
-            passed++;
-            std::cout << "[PASS] " << message << "\n";
-        } else {
-            failed++;
-            std::cout << "[FAIL] " << message << "\n";
-        }
-    }
-
-    void assert_equals(double expected, double actual, const std::string& message,
-                       double tolerance = 1e-9) {
-        bool passed_test = std::abs(expected - actual) < tolerance;
-        assert_true(passed_test, message + " (expected: " + std::to_string(expected) +
-                                     ", actual: " + std::to_string(actual) + ")");
-    }
-
-    void print_summary() {
-        std::cout << "\n=== Test Summary ===\n";
-        std::cout << "Passed: " << passed << "\n";
-        std::cout << "Failed: " << failed << "\n";
-        if (failed == 0) {
-            std::cout << "All tests passed! ✓\n";
-        } else {
-            std::cout << "Some tests failed! ✗\n";
-        }
-    }
-
-    bool all_passed() const { return failed == 0; }
-};
+#include "test_helper.hpp"
 
 using namespace evolab;
 
