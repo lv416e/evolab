@@ -59,6 +59,8 @@ class UCBScheduler {
           rng_(rng) {}
 
     int select_operator() {
+        total_selections_++;
+
         std::vector<size_t> best_operators;
         double best_ucb = -std::numeric_limits<double>::infinity();
 
@@ -81,8 +83,6 @@ class UCBScheduler {
                 best_operators.push_back(i);
             }
         }
-
-        total_selections_++;
 
         // Random tie-breaking
         if (best_operators.size() > 1) {
