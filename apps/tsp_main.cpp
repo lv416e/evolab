@@ -1,4 +1,6 @@
 #include <chrono>
+#include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -6,12 +8,15 @@
 #include <string>
 
 #include <evolab/evolab.hpp>
+#include <unistd.h>
 
 using namespace evolab;
 
-/// Parse command line arguments
-struct Config {
+/// Command-line arguments structure
+/// Wraps both the configuration and runtime options
+struct CLIConfig {
     std::string instance_file;
+    std::string config_file; // TOML configuration file path
     std::string algorithm = "basic";
     std::size_t population = 256;
     std::size_t generations = 1000;
@@ -20,13 +25,74 @@ struct Config {
     std::uint64_t seed = 1;
     bool verbose = false;
     std::string output_file;
+    bool json_output = false; // Enable JSON output format
+    std::string json_file;    // JSON output file path
+
+    // Convert CLI overrides to configuration overrides
+    config::ConfigOverrides to_overrides() const {
+        config::ConfigOverrides overrides;
+        // Only set overrides if explicitly provided via command line
+        // (Would need to track which values were set, for now using defaults check)
+        return overrides;
+    }
 };
+
+/// Get git commit hash (if available)
+std::string get_git_hash() {
+    // Try to get git commit hash from build directory
+    char buffer[128];
+    std::string result;
+    FILE* pipe = popen("git rev-parse --short HEAD 2>/dev/null", "r");
+    if (pipe) {
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            result = std::string(buffer);
+            // Remove trailing newline
+            if (!result.empty() && result.back() == '\n') {
+                result.pop_back();
+            }
+        }
+        pclose(pipe);
+    }
+    return result.empty() ? "unknown" : result;
+}
+
+/// Get hostname
+std::string get_hostname() {
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+        return std::string(hostname);
+    }
+    return "unknown";
+}
+
+/// Get build configuration info
+std::string get_build_config() {
+#ifdef NDEBUG
+    std::string mode = "Release";
+#else
+    std::string mode = "Debug";
+#endif
+
+#ifdef __clang__
+    std::string compiler =
+        "Clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
+#elif defined(__GNUC__)
+    std::string compiler = "GCC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__);
+#elif defined(_MSC_VER)
+    std::string compiler = "MSVC " + std::to_string(_MSC_VER);
+#else
+    std::string compiler = "Unknown";
+#endif
+
+    return mode + " (" + compiler + ")";
+}
 
 /// Print usage information
 void print_usage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [OPTIONS]\n\n"
               << "Options:\n"
               << "  -h, --help              Show this help message\n"
+              << "  --config FILE           Load configuration from TOML file\n"
               << "  -i, --instance FILE     TSP instance file (random if not specified)\n"
               << "  -a, --algorithm ALGO    Algorithm: basic, advanced (default: basic)\n"
               << "  -p, --population SIZE   Population size (default: 256)\n"
@@ -36,15 +102,23 @@ void print_usage(const char* program_name) {
               << "  -s, --seed SEED         Random seed (default: 1)\n"
               << "  -v, --verbose           Verbose output\n"
               << "  -o, --output FILE       Output file for best tour\n"
+              << "  --json                  Enable JSON output format\n"
+              << "  --json-file FILE        Write JSON results to file\n"
               << "\nExamples:\n"
-              << "  " << program_name << " --instance data/pr76.tsp\n"
+              << "  " << program_name << " --config config/basic.toml --instance data/pr76.tsp\n"
               << "  " << program_name << " --algorithm advanced --population 512\n"
-              << "  " << program_name << " --verbose --output solution.tour\n";
+              << "  " << program_name << " --verbose --output solution.tour\n"
+              << "  " << program_name << " --json --json-file results.json\n";
 }
 
 /// Parse command line arguments
-Config parse_args(int argc, char** argv) {
-    Config config;
+CLIConfig parse_args(int argc, char** argv) {
+    CLIConfig config;
+    bool has_population_override = false;
+    bool has_generations_override = false;
+    bool has_crossover_override = false;
+    bool has_mutation_override = false;
+    bool has_seed_override = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -52,24 +126,36 @@ Config parse_args(int argc, char** argv) {
         if (arg == "-h" || arg == "--help") {
             print_usage(argv[0]);
             std::exit(0);
+        } else if (arg == "--config" && i + 1 < argc) {
+            config.config_file = argv[++i];
         } else if ((arg == "-i" || arg == "--instance") && i + 1 < argc) {
             config.instance_file = argv[++i];
         } else if ((arg == "-a" || arg == "--algorithm") && i + 1 < argc) {
             config.algorithm = argv[++i];
         } else if ((arg == "-p" || arg == "--population") && i + 1 < argc) {
             config.population = std::stoull(argv[++i]);
+            has_population_override = true;
         } else if ((arg == "-g" || arg == "--generations") && i + 1 < argc) {
             config.generations = std::stoull(argv[++i]);
+            has_generations_override = true;
         } else if ((arg == "-c" || arg == "--crossover") && i + 1 < argc) {
             config.crossover_prob = std::stod(argv[++i]);
+            has_crossover_override = true;
         } else if ((arg == "-m" || arg == "--mutation") && i + 1 < argc) {
             config.mutation_prob = std::stod(argv[++i]);
+            has_mutation_override = true;
         } else if ((arg == "-s" || arg == "--seed") && i + 1 < argc) {
             config.seed = std::stoull(argv[++i]);
+            has_seed_override = true;
         } else if ((arg == "-o" || arg == "--output") && i + 1 < argc) {
             config.output_file = argv[++i];
         } else if (arg == "-v" || arg == "--verbose") {
             config.verbose = true;
+        } else if (arg == "--json") {
+            config.json_output = true;
+        } else if (arg == "--json-file" && i + 1 < argc) {
+            config.json_file = argv[++i];
+            config.json_output = true; // Auto-enable JSON output
         } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             print_usage(argv[0]);
@@ -80,36 +166,48 @@ Config parse_args(int argc, char** argv) {
     return config;
 }
 
-/// Create TSP problem from config
-problems::TSP create_problem(const Config& config) {
-    if (config.instance_file.empty()) {
+/// Create TSP problem from CLI config
+problems::TSP create_problem(const CLIConfig& cli_config, std::uint64_t seed) {
+    if (cli_config.instance_file.empty()) {
         // Create random TSP instance
-        std::cout << "Creating random TSP instance with 100 cities...\n";
-        return problems::create_random_tsp(100, 1000.0, config.seed);
+        if (!cli_config.json_output) {
+            std::cout << "Creating random TSP instance with 100 cities...\n";
+        }
+        return problems::create_random_tsp(100, 1000.0, seed);
     } else {
         // Load TSPLIB instance
-        std::cout << "Loading TSPLIB instance: " << config.instance_file << "\n";
+        if (!cli_config.json_output) {
+            std::cout << "Loading TSPLIB instance: " << cli_config.instance_file << "\n";
+        }
         try {
             io::TSPLIBParser parser;
-            auto instance = parser.parse_file(config.instance_file);
-            std::cout << "Loaded: " << instance.name << " (" << instance.dimension << " cities)\n";
-            if (!instance.comment.empty()) {
-                std::cout << "Comment: " << instance.comment << "\n";
+            auto instance = parser.parse_file(cli_config.instance_file);
+            if (!cli_config.json_output) {
+                std::cout << "Loaded: " << instance.name << " (" << instance.dimension
+                          << " cities)\n";
+                if (!instance.comment.empty()) {
+                    std::cout << "Comment: " << instance.comment << "\n";
+                }
             }
             return problems::TSP::from_tsplib(instance);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
-            std::cerr << "Using random instance instead.\n";
-            return problems::create_random_tsp(100, 1000.0, config.seed);
+            if (!cli_config.json_output) {
+                std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
+                std::cerr << "Using random instance instead.\n";
+            }
+            return problems::create_random_tsp(100, 1000.0, seed);
         }
     }
 }
 
 /// Write tour to file
-void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour, double fitness) {
+void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour, double fitness,
+                bool json_output = false) {
     std::ofstream file(filename);
     if (!file) {
-        std::cerr << "Could not open output file: " << filename << "\n";
+        if (!json_output) {
+            std::cerr << "Could not open output file: " << filename << "\n";
+        }
         return;
     }
 
@@ -123,11 +221,111 @@ void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour,
     }
     file << "\n";
 
-    std::cout << "Tour written to: " << filename << "\n";
+    if (!json_output) {
+        std::cout << "Tour written to: " << filename << "\n";
+    }
+}
+
+/// Write JSON output with full metadata
+void write_json_output(const auto& result, const CLIConfig& cli_config, const config::Config& cfg,
+                       const problems::TSP& tsp, double runtime, const std::string& filename = "") {
+    std::stringstream json;
+
+    // Start JSON object
+    json << "{\n";
+
+    // Metadata section
+    json << "  \"metadata\": {\n";
+    json << "    \"version\": \"" << VERSION << "\",\n";
+    json << "    \"git_hash\": \"" << get_git_hash() << "\",\n";
+    json << "    \"hostname\": \"" << get_hostname() << "\",\n";
+    json << "    \"build_config\": \"" << get_build_config() << "\",\n";
+    json << "    \"timestamp\": " << std::time(nullptr) << ",\n";
+    json << "    \"runtime_seconds\": " << std::fixed << std::setprecision(3) << runtime << "\n";
+    json << "  },\n";
+
+    // Configuration section
+    json << "  \"configuration\": {\n";
+    json << "    \"instance_file\": \"" << cli_config.instance_file << "\",\n";
+    json << "    \"algorithm\": \"" << cli_config.algorithm << "\",\n";
+    json << "    \"population_size\": " << cfg.ga.population_size << ",\n";
+    json << "    \"max_generations\": " << cfg.ga.max_generations << ",\n";
+    json << "    \"crossover_probability\": " << cfg.operators.crossover.probability << ",\n";
+    json << "    \"mutation_probability\": " << cfg.operators.mutation.probability << ",\n";
+    json << "    \"seed\": " << cfg.ga.seed << "\n";
+    json << "  },\n";
+
+    // Problem section
+    json << "  \"problem\": {\n";
+    json << "    \"type\": \"TSP\",\n";
+    json << "    \"dimension\": " << tsp.num_cities() << "\n";
+    json << "  },\n";
+
+    // Results section
+    json << "  \"results\": {\n";
+    json << "    \"best_fitness\": " << std::fixed << std::setprecision(2)
+         << result.best_fitness.value << ",\n";
+    json << "    \"generations_used\": " << result.generations << ",\n";
+    json << "    \"evaluations_performed\": " << result.evaluations << ",\n";
+    json << "    \"converged\": " << (result.converged ? "true" : "false") << ",\n";
+
+    // Best tour (first 10 cities for brevity)
+    json << "    \"best_tour_sample\": [";
+    auto sample_size = std::min(static_cast<size_t>(10), result.best_genome.size());
+    for (size_t i = 0; i < sample_size; ++i) {
+        json << result.best_genome[i];
+        if (i < sample_size - 1)
+            json << ", ";
+    }
+    if (result.best_genome.size() > 10) {
+        json << ", ...";
+    }
+    json << "],\n";
+
+    json << "    \"tour_length\": " << result.best_genome.size() << "\n";
+    json << "  },\n";
+
+    // Evolution history section (last 5 entries)
+    json << "  \"evolution_history\": [\n";
+    auto history_start = result.history.size() > 5 ? result.history.size() - 5 : 0;
+    for (size_t i = history_start; i < result.history.size(); ++i) {
+        const auto& stats = result.history[i];
+        json << "    {\n";
+        json << "      \"generation\": " << stats.generation << ",\n";
+        json << "      \"best_fitness\": " << std::fixed << std::setprecision(2)
+             << stats.best_fitness.value << ",\n";
+        json << "      \"mean_fitness\": " << std::fixed << std::setprecision(2)
+             << stats.mean_fitness.value << ",\n";
+        json << "      \"diversity\": " << std::fixed << std::setprecision(4) << stats.diversity
+             << ",\n";
+        json << "      \"elapsed_ms\": " << stats.elapsed_time.count() << "\n";
+        json << "    }";
+        if (i < result.history.size() - 1)
+            json << ",";
+        json << "\n";
+    }
+    json << "  ]\n";
+
+    json << "}\n";
+
+    // Output to file or stdout
+    if (!filename.empty()) {
+        std::ofstream file(filename);
+        if (file) {
+            file << json.str();
+            if (!cli_config.json_output) { // Only print message if not in JSON mode
+                std::cout << "JSON results written to: " << filename << "\n";
+            }
+        } else {
+            std::cerr << "Could not open JSON output file: " << filename << "\n";
+        }
+    } else {
+        std::cout << json.str();
+    }
 }
 
 /// Print statistics
-void print_stats(const auto& result, const Config& config, double runtime) {
+void print_stats(const auto& result, const CLIConfig& cli_config, double runtime) {
     std::cout << "\n=== Results ===\n";
     std::cout << "Best fitness: " << std::fixed << std::setprecision(2) << result.best_fitness.value
               << "\n";
@@ -136,7 +334,7 @@ void print_stats(const auto& result, const Config& config, double runtime) {
     std::cout << "Runtime: " << std::fixed << std::setprecision(3) << runtime << " seconds\n";
     std::cout << "Converged: " << (result.converged ? "Yes" : "No") << "\n";
 
-    if (config.verbose && !result.history.empty()) {
+    if (cli_config.verbose && !result.history.empty()) {
         std::cout << "\n=== Evolution History ===\n";
         std::cout << std::setw(10) << "Gen" << std::setw(15) << "Best" << std::setw(15) << "Mean"
                   << std::setw(15) << "Diversity" << std::setw(12) << "Time(ms)\n";
@@ -154,37 +352,86 @@ void print_stats(const auto& result, const Config& config, double runtime) {
 
 int main(int argc, char** argv) {
     try {
-        auto config = parse_args(argc, argv);
+        auto cli_config = parse_args(argc, argv);
 
-        std::cout << "EvoLab TSP Solver v" << VERSION << "\n";
-        std::cout << std::string(30, '=') << "\n";
+        // Only print header if not in JSON output mode
+        if (!cli_config.json_output) {
+            std::cout << "EvoLab TSP Solver v" << VERSION << "\n";
+            std::cout << std::string(30, '=') << "\n";
+        }
+
+        // Load or create configuration
+        config::Config cfg;
+        if (!cli_config.config_file.empty()) {
+            // Load configuration from TOML file
+            if (!cli_config.json_output) {
+                std::cout << "Loading configuration from: " << cli_config.config_file << "\n";
+            }
+            cfg = config::Config::from_file(cli_config.config_file);
+
+            // Apply command-line overrides
+            config::ConfigOverrides overrides;
+            // Only override if values differ from defaults
+            if (cli_config.population != 256) {
+                overrides.population_size = cli_config.population;
+            }
+            if (cli_config.generations != 1000) {
+                overrides.max_generations = cli_config.generations;
+            }
+            if (cli_config.crossover_prob != 0.9) {
+                overrides.crossover_probability = cli_config.crossover_prob;
+            }
+            if (cli_config.mutation_prob != 0.1) {
+                overrides.mutation_probability = cli_config.mutation_prob;
+            }
+            if (cli_config.seed != 1) {
+                overrides.seed = cli_config.seed;
+            }
+            cfg.apply_overrides(overrides);
+        } else {
+            // Create default configuration from CLI args
+            cfg.ga.population_size = cli_config.population;
+            cfg.ga.max_generations = cli_config.generations;
+            cfg.operators.crossover.probability = cli_config.crossover_prob;
+            cfg.operators.mutation.probability = cli_config.mutation_prob;
+            cfg.ga.seed = cli_config.seed;
+            cfg.termination.max_generations = cli_config.generations;
+            cfg.logging.verbose = cli_config.verbose;
+            cfg.logging.log_interval = cli_config.verbose ? 50 : 100;
+        }
 
         // Create problem
-        auto tsp = create_problem(config);
-        std::cout << "Problem size: " << tsp.num_cities() << " cities\n";
+        auto tsp = create_problem(cli_config, cfg.ga.seed);
+        if (!cli_config.json_output) {
+            std::cout << "Problem size: " << tsp.num_cities() << " cities\n";
+        }
 
-        // Configure GA
-        core::GAConfig ga_config{.population_size = config.population,
-                                 .max_generations = config.generations,
-                                 .crossover_prob = config.crossover_prob,
-                                 .mutation_prob = config.mutation_prob,
-                                 .seed = config.seed,
-                                 .log_interval =
-                                     static_cast<std::size_t>(config.verbose ? 50 : 100)};
+        // Get GA configuration
+        auto ga_config = cfg.to_ga_config();
 
-        std::cout << "Population: " << ga_config.population_size << "\n";
-        std::cout << "Generations: " << ga_config.max_generations << "\n";
-        std::cout << "Algorithm: " << config.algorithm << "\n";
-        std::cout << "Seed: " << ga_config.seed << "\n\n";
-
-        // Run algorithm
-        std::cout << "Starting evolution...\n";
+        if (!cli_config.json_output) {
+            std::cout << "Population: " << ga_config.population_size << "\n";
+            std::cout << "Generations: " << ga_config.max_generations << "\n";
+            std::cout << "Algorithm: " << cli_config.algorithm << "\n";
+            std::cout << "Seed: " << ga_config.seed << "\n\n";
+            std::cout << "Starting evolution...\n";
+        }
         auto start_time = std::chrono::high_resolution_clock::now();
 
+        // Run GA based on algorithm selection
         auto result = [&]() {
-            if (config.algorithm == "advanced") {
+            if (cli_config.algorithm == "advanced") {
                 auto ga = factory::make_tsp_ga_advanced();
                 return ga.run(tsp, ga_config);
+            } else if (cli_config.algorithm == "config" && !cli_config.config_file.empty()) {
+                // Use config-based GA
+                if (cfg.local_search.enabled) {
+                    auto ga = factory::make_tsp_ga_with_local_search_from_config(cfg);
+                    return ga.run(tsp, ga_config);
+                } else {
+                    auto ga = factory::make_tsp_ga_from_config(cfg);
+                    return ga.run(tsp, ga_config);
+                }
             } else {
                 auto ga = factory::make_tsp_ga_basic();
                 return ga.run(tsp, ga_config);
@@ -194,17 +441,26 @@ int main(int argc, char** argv) {
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration<double>(end_time - start_time).count();
 
-        // Print results
-        print_stats(result, config, duration);
+        // Output results based on mode
+        if (cli_config.json_output) {
+            // JSON output mode
+            write_json_output(result, cli_config, cfg, tsp, duration, cli_config.json_file);
+        } else {
+            // Normal console output
+            print_stats(result, cli_config, duration);
+        }
 
-        // Write output file if requested
-        if (!config.output_file.empty()) {
-            write_tour(config.output_file, result.best_genome, result.best_fitness.value);
+        // Write tour file if requested (independent of JSON output)
+        if (!cli_config.output_file.empty()) {
+            write_tour(cli_config.output_file, result.best_genome, result.best_fitness.value,
+                       cli_config.json_output);
         }
 
         // Verify solution
         if (!tsp.is_valid_tour(result.best_genome)) {
-            std::cerr << "Warning: Final solution is not a valid tour!\n";
+            if (!cli_config.json_output) {
+                std::cerr << "Warning: Final solution is not a valid tour!\n";
+            }
             return 1;
         }
 

@@ -24,6 +24,9 @@
 // IO
 #include "io/tsplib.hpp"
 
+// Configuration
+#include "config/config.hpp"
+
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform
@@ -103,6 +106,52 @@ inline auto make_tsp_ga_advanced() {
 inline auto make_ga_basic() {
     return core::make_ga(operators::TournamentSelection{4}, operators::PMXCrossover{},
                          operators::InversionMutation{}, local_search::NoLocalSearch{});
+}
+
+/// Create a TSP GA from configuration with PMX crossover
+/// Default implementation for configuration-driven GA
+inline auto make_tsp_ga_from_config(const config::Config& cfg) {
+    // Always use PMX as the default, configuration determines the parameters
+    // Different crossover types would need separate factory functions due to type system
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::PMXCrossover{}, operators::SwapMutation{});
+}
+
+/// Create TSP GA with Edge Assembly Crossover (EAX)
+inline auto make_tsp_ga_eax_from_config(const config::Config& cfg) {
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::EdgeRecombinationCrossover{}, operators::SwapMutation{});
+}
+
+/// Create TSP GA with Order Crossover (OX)
+inline auto make_tsp_ga_ox_from_config(const config::Config& cfg) {
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::OrderCrossover{}, operators::SwapMutation{});
+}
+
+/// Create a TSP GA with local search from configuration
+inline auto make_tsp_ga_with_local_search_from_config(const config::Config& cfg) {
+    // Always include local search in the type, just configure whether it's active
+    // This ensures consistent return type
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::PMXCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.enabled, cfg.local_search.max_iterations});
+}
+
+/// Create UCB scheduler from configuration for a specific problem type
+template <typename Problem>
+inline auto make_ucb_scheduler_from_config(const config::Config& cfg) {
+    return schedulers::UCBOperatorSelector<Problem>(cfg.scheduler.operators.size(),
+                                                    cfg.scheduler.exploration_rate);
+}
+
+/// Create Thompson sampling scheduler from configuration
+template <typename Problem>
+inline auto make_thompson_scheduler_from_config(const config::Config& cfg) {
+    return schedulers::ThompsonOperatorSelector<Problem>(cfg.scheduler.operators.size(),
+                                                         0.0 // Default reward threshold
+    );
 }
 
 } // namespace factory

@@ -47,6 +47,18 @@ if(EVOLAB_USE_OPENMP)
     endif()
 endif()
 
+# Fetch toml11 library for configuration parsing
+# Using FetchContent for modern CMake integration with header-only library
+include(FetchContent)
+FetchContent_Declare(
+    toml11
+    GIT_REPOSITORY https://github.com/ToruNiina/toml11.git
+    GIT_TAG v4.2.0  # Using stable version for reproducibility
+)
+set(TOML11_INSTALL OFF CACHE INTERNAL "")  # Disable toml11 installation to avoid export issues
+FetchContent_MakeAvailable(toml11)
+message(STATUS "Fetched toml11 library for TOML configuration parsing")
+
 # Header-only library
 add_library(evolab INTERFACE)
 add_library(EvoLab::evolab ALIAS evolab)
@@ -58,6 +70,10 @@ target_include_directories(evolab INTERFACE
 target_compile_features(evolab INTERFACE cxx_std_23)
 
 # Link libraries
+# Use BUILD_INTERFACE to avoid export issues with FetchContent dependencies
+target_link_libraries(evolab INTERFACE 
+    $<BUILD_INTERFACE:toml11::toml11>)  # Only during build, not for install
+
 if(TBB_FOUND)
     target_link_libraries(evolab INTERFACE TBB::tbb)
 endif()

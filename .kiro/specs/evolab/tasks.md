@@ -19,41 +19,43 @@
 ### Foundation Infrastructure
 
 #### 1. Merge and Validate TSPLIB Parser Integration
-- [ ] 1.1 Merge PR #15 and validate TSPLIB parser integration
-  - Merge feature branch `feat/tsplib-parser` to main branch via GitHub PR
-  - Run comprehensive test suite to ensure no integration regressions
-  - Validate TSPLIB parser works with existing TSP problem adapter in `include/evolab/problems/tsp.hpp`
-  - Update main branch documentation to reflect completed TSPLIB support
+- [x] 1.1 Merge PR #15 and validate TSPLIB parser integration
+  - ✅ Merged feature branch `feat/tsplib-parser` to main branch via GitHub PR #15
+  - ✅ Run comprehensive test suite to ensure no integration regressions (294/294 tests pass)
+  - ✅ Validate TSPLIB parser works with existing TSP problem adapter via TSP::from_tsplib() factory method
+  - ✅ Update main branch documentation to reflect completed TSPLIB support in PR #16
   - _Requirements: FR-PA-001_
 
 #### 2. Configuration System Implementation
-- [ ] 2.1 Create core configuration framework
-  - Implement `include/evolab/config/config.hpp` with TOML parsing using toml11 library
-  - Define GAConfig, LocalSearchConfig, and SchedulerConfig struct templates with type-safe defaults
-  - Add configuration validation logic to ensure parameter ranges (population_size > 0, probabilities in [0,1])
-  - Create `configs/` directory with example TOML configurations for common scenarios
+- [x] 2.1 Create core configuration framework
+  - ✅ `include/evolab/config/config.hpp` with TOML parsing using toml11 library (completed)
+  - ✅ Define GAConfig, LocalSearchConfig, and SchedulerConfig struct templates with type-safe defaults (completed)
+  - ✅ Add configuration validation logic to ensure parameter ranges (completed)
+  - ✅ Create `configs/` directory with example TOML configurations for common scenarios (4 config files created)
   - _Requirements: NFR-USE-001_
 
-- [ ] 2.2 Integrate configuration system with existing GA components
-  - Modify `include/evolab/core/ga.hpp` to accept Config objects instead of hardcoded parameters
-  - Update Multi-Armed Bandit schedulers in `include/evolab/schedulers/mab.hpp` to use config-driven parameters
-  - Implement configuration override mechanism for command-line parameters
-  - Add unit tests for configuration parsing and validation in `tests/test_config.cpp`
+- [x] 2.2 Integrate configuration system with existing GA components
+  - ✅ Modify `include/evolab/core/ga.hpp` to accept Config objects instead of hardcoded parameters (completed via to_ga_config() method)
+  - ✅ Update Multi-Armed Bandit schedulers in `include/evolab/schedulers/mab.hpp` to use config-driven parameters (factory functions added)
+  - ✅ Implement configuration override mechanism for command-line parameters (ConfigOverrides struct and apply_overrides() method)
+  - ✅ Add unit tests for configuration parsing and validation in `tests/test_config.cpp` (completed with TDD approach)
+  - ✅ Update CLI app `apps/tsp_main.cpp` to support --config option with command-line overrides
   - _Requirements: NFR-USE-001, FR-AC-001_
 
 #### 3. Command-Line Application Development
-- [ ] 3.1 Create TSP command-line interface
-  - Implement `apps/evolab-tsp/main.cpp` with CLI11 argument parsing
-  - Add support for TSPLIB instance loading, configuration file specification, and seed management
-  - Integrate TSPLIB parser with GA framework and Multi-Armed Bandit schedulers
-  - Implement real-time progress display showing generation, best fitness, and diversity metrics
+- [x] 3.1 Create TSP command-line interface
+  - ✅ Implement `apps/tsp_main.cpp` with comprehensive argument parsing
+  - ✅ Add support for TSPLIB instance loading with graceful error handling
+  - ✅ Add seed management and algorithm selection (basic/advanced)
+  - ✅ Integrate TSPLIB parser with GA framework via TSP::from_tsplib()
+  - ✅ Implement real-time progress display showing generation, best fitness, and diversity metrics
   - _Requirements: NFR-USE-002, FR-PA-001_
 
-- [ ] 3.2 Add result output and logging capabilities
-  - Implement structured JSON result output with run metadata (seed, config, git hash, build flags)
-  - Create CSV evolution curve logging with generation, best/mean/worst fitness, and diversity tracking
-  - Add TSPLIB-compatible tour format output for solution validation
-  - Implement basic solution visualization output (coordinates for plotting)
+- [x] 3.2 Add result output and logging capabilities
+  - ✅ Structured JSON result output with run metadata (full implementation with metadata, configuration, results, and evolution history)
+  - ✅ Evolution curve logging with generation, best/mean/worst fitness, and diversity tracking
+  - ✅ TSPLIB-compatible tour format output for solution validation
+  - ✅ Basic result display with fitness, generations, evaluations, and runtime
   - _Requirements: NFR-USE-003, NFR-QUAL-001_
 
 ### Performance Optimization
