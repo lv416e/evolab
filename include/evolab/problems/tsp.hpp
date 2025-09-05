@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../core/concepts.hpp"
+#include "../io/tsplib.hpp"
 #include "../utils/candidate_list.hpp"
 
 namespace evolab::problems {
@@ -49,6 +50,14 @@ class TSP {
                 }
             }
         }
+    }
+
+    /// Create TSP from TSPLIB instance
+    /// Factory method that creates a TSP problem from a parsed TSPLIB instance
+    /// This enables integration with the standard TSPLIB test suite
+    static TSP from_tsplib(const io::TSPInstance& instance) {
+        auto distances = instance.get_full_distance_matrix();
+        return TSP(instance.dimension, std::move(distances));
     }
 
     /// Get distance between two cities

@@ -87,9 +87,21 @@ problems::TSP create_problem(const Config& config) {
         std::cout << "Creating random TSP instance with 100 cities...\n";
         return problems::create_random_tsp(100, 1000.0, config.seed);
     } else {
-        // TODO: Implement TSPLIB file parsing
-        std::cerr << "TSPLIB file parsing not yet implemented. Using random instance.\n";
-        return problems::create_random_tsp(100, 1000.0, config.seed);
+        // Load TSPLIB instance
+        std::cout << "Loading TSPLIB instance: " << config.instance_file << "\n";
+        try {
+            io::TSPLIBParser parser;
+            auto instance = parser.parse_file(config.instance_file);
+            std::cout << "Loaded: " << instance.name << " (" << instance.dimension << " cities)\n";
+            if (!instance.comment.empty()) {
+                std::cout << "Comment: " << instance.comment << "\n";
+            }
+            return problems::TSP::from_tsplib(instance);
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
+            std::cerr << "Using random instance instead.\n";
+            return problems::create_random_tsp(100, 1000.0, config.seed);
+        }
     }
 }
 

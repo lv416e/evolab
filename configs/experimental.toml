@@ -1,0 +1,46 @@
+# Experimental TSP GA Configuration
+# Research-oriented setup for algorithm development and testing
+
+[ga]
+population_size = 200
+max_generations = 2000
+elite_rate = 0.03
+seed = 314159
+
+[operators]
+crossover = { type = "EAX", probability = 0.85 }
+mutation = { type = "scramble", probability = 0.08 }
+selection = { type = "tournament", tournament_size = 7 }
+
+[scheduler]
+enabled = true
+type = "UCB"
+operators = ["EAX", "PMX", "OX", "CX"]
+exploration_rate = 2.0
+window_size = 50
+
+[diversity]
+enabled = true
+minimum_diversity = 0.1
+restart_threshold = 0.05
+measurement_interval = 10
+
+[local_search]
+enabled = true
+type = "2-opt"
+max_iterations = 200
+probability = 0.4
+first_improvement = true
+
+[termination]
+max_generations = 2000
+time_limit_minutes = 30
+target_fitness = 0  # Problem-specific
+stagnation_generations = 150
+
+[logging]
+log_interval = 20
+verbose = true
+track_diversity = true
+track_operator_performance = true
+save_population_snapshots = false

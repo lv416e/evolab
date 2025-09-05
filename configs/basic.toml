@@ -1,0 +1,22 @@
+# Basic TSP GA Configuration
+# Simple genetic algorithm with standard operators for quick experimentation
+
+[ga]
+population_size = 100
+max_generations = 500
+elite_rate = 0.02
+seed = 1
+
+[operators]
+crossover = { type = "PMX", probability = 0.8 }
+mutation = { type = "swap", probability = 0.1 }
+selection = { type = "tournament", tournament_size = 3 }
+
+[termination]
+max_generations = 500
+time_limit_minutes = 5
+stagnation_generations = 50
+
+[logging]
+log_interval = 50
+verbose = false
