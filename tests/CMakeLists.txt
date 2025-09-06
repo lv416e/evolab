@@ -21,9 +21,19 @@ add_executable(test_tsplib test_tsplib.cpp)
 target_link_libraries(test_tsplib PRIVATE evolab)
 target_compile_features(test_tsplib PRIVATE cxx_std_23)
 
+add_executable(test_config test_config.cpp)
+target_link_libraries(test_config PRIVATE evolab)
+target_compile_features(test_config PRIVATE cxx_std_23)
+
+add_executable(test_config_integration test_config_integration.cpp)
+target_link_libraries(test_config_integration PRIVATE evolab)
+target_compile_features(test_config_integration PRIVATE cxx_std_23)
+
 # Register tests with CTest
 add_test(NAME CoreTests COMMAND test_core)
 add_test(NAME TSPTests COMMAND test_tsp)
 add_test(NAME OperatorTests COMMAND test_operators)
 add_test(NAME SchedulerTests COMMAND test_schedulers)
 add_test(NAME TSPLIBTests COMMAND test_tsplib)
+add_test(NAME ConfigTests COMMAND test_config)
+add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)

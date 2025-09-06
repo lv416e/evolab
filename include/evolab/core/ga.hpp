@@ -33,6 +33,28 @@ struct GAConfig {
     std::size_t log_interval = 10;
     bool enable_checkpoints = false;
     std::string checkpoint_path = "";
+
+    // Performance tracking
+    bool track_operator_performance = false;
+    bool save_population_snapshots = false;
+};
+
+/// Operator performance statistics
+struct OperatorStats {
+    std::size_t executions = 0;             // Number of times executed
+    std::chrono::nanoseconds total_time{0}; // Total execution time
+    std::size_t successes = 0;              // Number of successful operations
+    double average_improvement = 0.0;       // Average fitness improvement
+
+    // Calculate averages
+    double average_time_ms() const {
+        return executions > 0 ? static_cast<double>(total_time.count()) / (executions * 1000000.0)
+                              : 0.0;
+    }
+
+    double success_rate() const {
+        return executions > 0 ? static_cast<double>(successes) / executions : 0.0;
+    }
 };
 
 /// Statistics for a single generation
@@ -43,6 +65,11 @@ struct GenerationStats {
     Fitness worst_fitness;
     double diversity;
     std::chrono::milliseconds elapsed_time;
+
+    // Operator performance (only populated if tracking enabled)
+    OperatorStats crossover_stats;
+    OperatorStats mutation_stats;
+    OperatorStats selection_stats;
 };
 
 /// Result of genetic algorithm run

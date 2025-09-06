@@ -47,6 +47,26 @@ if(EVOLAB_USE_OPENMP)
     endif()
 endif()
 
+# Fetch toml11 library for configuration parsing
+# Using FetchContent for modern CMake integration with header-only library
+include(FetchContent)
+FetchContent_Declare(
+    toml11
+    URL https://github.com/ToruNiina/toml11/archive/refs/tags/v4.2.0.tar.gz
+)
+set(TOML11_INSTALL OFF CACHE INTERNAL "")  # Disable toml11 installation to avoid export issues
+FetchContent_MakeAvailable(toml11)
+message(STATUS "Fetched toml11 library for TOML configuration parsing")
+
+# Fetch nlohmann/json library for JSON generation
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+set(JSON_Install OFF CACHE INTERNAL "")  # Disable installation to avoid export issues
+FetchContent_MakeAvailable(nlohmann_json)
+message(STATUS "Fetched nlohmann/json library for JSON generation")
+
 # Header-only library
 add_library(evolab INTERFACE)
 add_library(EvoLab::evolab ALIAS evolab)
@@ -58,6 +78,10 @@ target_include_directories(evolab INTERFACE
 target_compile_features(evolab INTERFACE cxx_std_23)
 
 # Link libraries
+# Use BUILD_INTERFACE to avoid export issues with FetchContent dependencies
+target_link_libraries(evolab INTERFACE 
+    $<BUILD_INTERFACE:toml11::toml11>)  # Only during build, not for install
+
 if(TBB_FOUND)
     target_link_libraries(evolab INTERFACE TBB::tbb)
 endif()
