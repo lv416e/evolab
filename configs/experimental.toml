@@ -40,6 +40,5 @@ stagnation_generations = 150
 [logging]
 log_interval = 20
 verbose = true
-track_diversity = true
 track_operator_performance = true
 save_population_snapshots = false

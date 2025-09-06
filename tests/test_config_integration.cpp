@@ -218,8 +218,8 @@ void test_diversity_settings_from_config() {
         [ga]
         population_size = 100
         
-        [logging]
-        track_diversity = true
+        [diversity]
+        enabled = true
         
         [termination]
         stagnation_generations = 200

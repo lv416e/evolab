@@ -85,7 +85,6 @@ struct TerminationConfig {
 struct LoggingConfig {
     std::size_t log_interval = 50;     // Log every N generations
     bool verbose = false;              // Detailed output disabled by default
-    bool track_diversity = false;      // Diversity tracking disabled by default
     bool save_evolution_curve = false; // CSV output disabled by default
 };
 
@@ -481,9 +480,7 @@ inline LoggingConfig Config::parse_logging(const toml::value& data) {
         log.verbose = toml::find<bool>(log_table, "verbose");
     }
 
-    if (log_table.contains("track_diversity")) {
-        log.track_diversity = toml::find<bool>(log_table, "track_diversity");
-    }
+    // track_diversity removed - use diversity.enabled instead
 
     if (log_table.contains("save_evolution_curve")) {
         log.save_evolution_curve = toml::find<bool>(log_table, "save_evolution_curve");
@@ -601,7 +598,7 @@ inline std::string Config::to_toml() const {
     toml::value log_table;
     log_table["log_interval"] = logging.log_interval;
     log_table["verbose"] = logging.verbose;
-    log_table["track_diversity"] = logging.track_diversity;
+    // track_diversity removed - use diversity.enabled instead
     log_table["save_evolution_curve"] = logging.save_evolution_curve;
     root["logging"] = log_table;
 
@@ -691,12 +688,7 @@ inline core::GAConfig Config::to_ga_config() const {
         ga_config.diversity_max_samples = diversity.measurement_interval;
     }
 
-    // Legacy support: also enable diversity tracking if logging.track_diversity is set
-    if (logging.track_diversity && !diversity.enabled) {
-        ga_config.enable_diversity_tracking = true;
-        ga_config.diversity_threshold = 0.01; // Fallback default
-        ga_config.diversity_max_samples = 50; // Fallback default
-    }
+    // Diversity tracking is now controlled only by diversity.enabled
 
     return ga_config;
 }

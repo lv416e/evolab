@@ -196,7 +196,6 @@ void test_complete_config() {
         [logging]
         log_interval = 25
         verbose = true
-        track_diversity = true
         save_evolution_curve = true
     )";
 
@@ -227,7 +226,6 @@ void test_complete_config() {
 
     // Logging
     result.assert_true(config.logging.verbose, "Verbose logging");
-    result.assert_true(config.logging.track_diversity, "Track diversity");
 
     std::filesystem::remove(temp_file);
     result.print_summary();

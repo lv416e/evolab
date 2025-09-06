@@ -25,4 +25,3 @@ stagnation_generations = 100
 [logging]
 log_interval = 25
 verbose = true
-track_diversity = true

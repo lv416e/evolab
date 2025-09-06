@@ -37,5 +37,4 @@ chunk_size = 64
 [logging]
 log_interval = 10
 verbose = true
-track_diversity = true
 save_evolution_curve = true
