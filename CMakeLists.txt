@@ -59,6 +59,15 @@ set(TOML11_INSTALL OFF CACHE INTERNAL "")  # Disable toml11 installation to avoi
 FetchContent_MakeAvailable(toml11)
 message(STATUS "Fetched toml11 library for TOML configuration parsing")
 
+# Fetch nlohmann/json library for JSON generation
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+set(JSON_Install OFF CACHE INTERNAL "")  # Disable installation to avoid export issues
+FetchContent_MakeAvailable(nlohmann_json)
+message(STATUS "Fetched nlohmann/json library for JSON generation")
+
 # Header-only library
 add_library(evolab INTERFACE)
 add_library(EvoLab::evolab ALIAS evolab)

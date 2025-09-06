@@ -110,9 +110,18 @@ inline auto make_ga_basic() {
 
 /// Create a TSP GA from configuration with PMX crossover
 /// Default implementation for configuration-driven GA
+///
+/// NOTE: Current limitation - operator types are fixed at compile time due to C++ template design.
+/// The configuration's operator.type field is currently not used to select operators dynamically.
+/// To use different operators, use the specific factory functions below (e.g.,
+/// make_tsp_ga_eax_from_config).
+///
+/// TODO: Future enhancement - implement runtime operator selection using std::variant or type
+/// erasure
 inline auto make_tsp_ga_from_config(const config::Config& cfg) {
-    // Always use PMX as the default, configuration determines the parameters
-    // Different crossover types would need separate factory functions due to type system
+    // LIMITATION: Always uses PMX crossover regardless of config.operators.crossover.type
+    // This is due to C++'s compile-time template instantiation requirements
+    // See GitHub issue #16 review comment for discussion
     return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
                          operators::PMXCrossover{}, operators::SwapMutation{});
 }

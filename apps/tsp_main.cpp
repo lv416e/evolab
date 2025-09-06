@@ -8,6 +8,7 @@
 #include <string>
 
 #include <evolab/evolab.hpp>
+#include <nlohmann/json.hpp>
 #include <unistd.h>
 
 using namespace evolab;
@@ -34,41 +35,52 @@ struct CLIConfig {
     bool json_output = false;
     std::string json_file;
 
+    // Track which values were explicitly set via command line
+    bool has_population_override = false;
+    bool has_generations_override = false;
+    bool has_crossover_override = false;
+    bool has_mutation_override = false;
+    bool has_seed_override = false;
+
     // Convert CLI overrides to configuration overrides
     config::ConfigOverrides to_overrides() const {
         config::ConfigOverrides overrides;
         // Only set overrides if explicitly provided via command line
-        // (Would need to track which values were set, for now using defaults check)
+        if (has_population_override) {
+            overrides.population_size = population;
+        }
+        if (has_generations_override) {
+            overrides.max_generations = generations;
+        }
+        if (has_crossover_override) {
+            overrides.crossover_probability = crossover_prob;
+        }
+        if (has_mutation_override) {
+            overrides.mutation_probability = mutation_prob;
+        }
+        if (has_seed_override) {
+            overrides.seed = seed;
+        }
         return overrides;
     }
 };
 
-/// Get git commit hash (if available)
+/// Get git commit hash (from CMake build)
 std::string get_git_hash() {
-    // Try to get git commit hash from build directory
-    char buffer[128];
-    std::string result;
-    FILE* pipe = popen("git rev-parse --short HEAD 2>/dev/null", "r");
-    if (pipe) {
-        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            result = std::string(buffer);
-            // Remove trailing newline
-            if (!result.empty() && result.back() == '\n') {
-                result.pop_back();
-            }
-        }
-        pclose(pipe);
-    }
-    return result.empty() ? "unknown" : result;
+#ifdef GIT_HASH
+    return GIT_HASH;
+#else
+    return "unknown";
+#endif
 }
 
-/// Get hostname
+/// Get hostname (from CMake build)
 std::string get_hostname() {
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == 0) {
-        return std::string(hostname);
-    }
+#ifdef BUILD_HOSTNAME
+    return BUILD_HOSTNAME;
+#else
     return "unknown";
+#endif
 }
 
 /// Get build configuration info
@@ -120,11 +132,6 @@ void print_usage(const char* program_name) {
 /// Parse command line arguments
 CLIConfig parse_args(int argc, char** argv) {
     CLIConfig config;
-    bool has_population_override = false;
-    bool has_generations_override = false;
-    bool has_crossover_override = false;
-    bool has_mutation_override = false;
-    bool has_seed_override = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -140,19 +147,19 @@ CLIConfig parse_args(int argc, char** argv) {
             config.algorithm = argv[++i];
         } else if ((arg == "-p" || arg == "--population") && i + 1 < argc) {
             config.population = std::stoull(argv[++i]);
-            has_population_override = true;
+            config.has_population_override = true;
         } else if ((arg == "-g" || arg == "--generations") && i + 1 < argc) {
             config.generations = std::stoull(argv[++i]);
-            has_generations_override = true;
+            config.has_generations_override = true;
         } else if ((arg == "-c" || arg == "--crossover") && i + 1 < argc) {
             config.crossover_prob = std::stod(argv[++i]);
-            has_crossover_override = true;
+            config.has_crossover_override = true;
         } else if ((arg == "-m" || arg == "--mutation") && i + 1 < argc) {
             config.mutation_prob = std::stod(argv[++i]);
-            has_mutation_override = true;
+            config.has_mutation_override = true;
         } else if ((arg == "-s" || arg == "--seed") && i + 1 < argc) {
             config.seed = std::stoull(argv[++i]);
-            has_seed_override = true;
+            config.has_seed_override = true;
         } else if ((arg == "-o" || arg == "--output") && i + 1 < argc) {
             config.output_file = argv[++i];
         } else if (arg == "-v" || arg == "--verbose") {
@@ -236,90 +243,69 @@ void write_tour(const std::string& filename, const problems::TSP::GenomeT& tour,
 /// Write JSON output with full metadata
 void write_json_output(const auto& result, const CLIConfig& cli_config, const config::Config& cfg,
                        const problems::TSP& tsp, double runtime, const std::string& filename = "") {
-    std::stringstream json;
+    using json = nlohmann::json;
 
-    // Start JSON object
-    json << "{\n";
+    // Create JSON object
+    json output;
 
     // Metadata section
-    json << "  \"metadata\": {\n";
-    json << "    \"version\": \"" << VERSION << "\",\n";
-    json << "    \"git_hash\": \"" << get_git_hash() << "\",\n";
-    json << "    \"hostname\": \"" << get_hostname() << "\",\n";
-    json << "    \"build_config\": \"" << get_build_config() << "\",\n";
-    json << "    \"timestamp\": " << std::time(nullptr) << ",\n";
-    json << "    \"runtime_seconds\": " << std::fixed << std::setprecision(3) << runtime << "\n";
-    json << "  },\n";
+    output["metadata"] = {{"version", VERSION},
+                          {"git_hash", get_git_hash()},
+                          {"hostname", get_hostname()},
+                          {"build_config", get_build_config()},
+                          {"timestamp", std::time(nullptr)},
+                          {"runtime_seconds", runtime}};
 
     // Configuration section
-    json << "  \"configuration\": {\n";
-    json << "    \"instance_file\": \"" << cli_config.instance_file << "\",\n";
-    json << "    \"algorithm\": \"" << cli_config.algorithm << "\",\n";
-    json << "    \"population_size\": " << cfg.ga.population_size << ",\n";
-    json << "    \"max_generations\": " << cfg.ga.max_generations << ",\n";
-    json << "    \"crossover_probability\": " << cfg.operators.crossover.probability << ",\n";
-    json << "    \"mutation_probability\": " << cfg.operators.mutation.probability << ",\n";
-    json << "    \"seed\": " << cfg.ga.seed << "\n";
-    json << "  },\n";
+    output["configuration"] = {{"instance_file", cli_config.instance_file},
+                               {"algorithm", cli_config.algorithm},
+                               {"population_size", cfg.ga.population_size},
+                               {"max_generations", cfg.ga.max_generations},
+                               {"crossover_probability", cfg.operators.crossover.probability},
+                               {"mutation_probability", cfg.operators.mutation.probability},
+                               {"seed", cfg.ga.seed}};
 
     // Problem section
-    json << "  \"problem\": {\n";
-    json << "    \"type\": \"TSP\",\n";
-    json << "    \"dimension\": " << tsp.num_cities() << "\n";
-    json << "  },\n";
+    output["problem"] = {{"type", "TSP"}, {"dimension", tsp.num_cities()}};
 
     // Results section
-    json << "  \"results\": {\n";
-    json << "    \"best_fitness\": " << std::fixed << std::setprecision(2)
-         << result.best_fitness.value << ",\n";
-    json << "    \"generations_used\": " << result.generations << ",\n";
-    json << "    \"evaluations_performed\": " << result.evaluations << ",\n";
-    json << "    \"converged\": " << (result.converged ? "true" : "false") << ",\n";
+    json results;
+    results["best_fitness"] = result.best_fitness.value;
+    results["generations_used"] = result.generations;
+    results["evaluations_performed"] = result.evaluations;
+    results["converged"] = result.converged;
 
     // Best tour (first 10 cities for brevity)
-    json << "    \"best_tour_sample\": [";
+    json tour_sample = json::array();
     auto sample_size = std::min(static_cast<size_t>(10), result.best_genome.size());
     for (size_t i = 0; i < sample_size; ++i) {
-        json << result.best_genome[i];
-        if (i < sample_size - 1)
-            json << ", ";
+        tour_sample.push_back(result.best_genome[i]);
     }
     if (result.best_genome.size() > 10) {
-        json << ", ...";
+        tour_sample.push_back("...");
     }
-    json << "],\n";
-
-    json << "    \"tour_length\": " << result.best_genome.size() << "\n";
-    json << "  },\n";
+    results["best_tour_sample"] = tour_sample;
+    results["tour_length"] = result.best_genome.size();
+    output["results"] = results;
 
     // Evolution history section (last 5 entries)
-    json << "  \"evolution_history\": [\n";
+    json history = json::array();
     auto history_start = result.history.size() > 5 ? result.history.size() - 5 : 0;
     for (size_t i = history_start; i < result.history.size(); ++i) {
         const auto& stats = result.history[i];
-        json << "    {\n";
-        json << "      \"generation\": " << stats.generation << ",\n";
-        json << "      \"best_fitness\": " << std::fixed << std::setprecision(2)
-             << stats.best_fitness.value << ",\n";
-        json << "      \"mean_fitness\": " << std::fixed << std::setprecision(2)
-             << stats.mean_fitness.value << ",\n";
-        json << "      \"diversity\": " << std::fixed << std::setprecision(4) << stats.diversity
-             << ",\n";
-        json << "      \"elapsed_ms\": " << stats.elapsed_time.count() << "\n";
-        json << "    }";
-        if (i < result.history.size() - 1)
-            json << ",";
-        json << "\n";
+        history.push_back({{"generation", stats.generation},
+                           {"best_fitness", stats.best_fitness.value},
+                           {"mean_fitness", stats.mean_fitness.value},
+                           {"diversity", stats.diversity},
+                           {"elapsed_ms", stats.elapsed_time.count()}});
     }
-    json << "  ]\n";
-
-    json << "}\n";
+    output["evolution_history"] = history;
 
     // Output to file or stdout
     if (!filename.empty()) {
         std::ofstream file(filename);
         if (file) {
-            file << json.str();
+            file << output.dump(2); // Pretty print with 2 spaces indentation
             if (!cli_config.json_output) {
                 std::cout << "JSON results written to: " << filename << "\n";
             }
@@ -327,7 +313,7 @@ void write_json_output(const auto& result, const CLIConfig& cli_config, const co
             std::cerr << "Could not open JSON output file: " << filename << "\n";
         }
     } else {
-        std::cout << json.str();
+        std::cout << output.dump(2) << "\n";
     }
 }
 
@@ -377,24 +363,7 @@ int main(int argc, char** argv) {
             cfg = config::Config::from_file(cli_config.config_file);
 
             // Apply command-line overrides
-            config::ConfigOverrides overrides;
-            // Only override if values differ from defaults
-            if (cli_config.population != 256) {
-                overrides.population_size = cli_config.population;
-            }
-            if (cli_config.generations != 1000) {
-                overrides.max_generations = cli_config.generations;
-            }
-            if (cli_config.crossover_prob != 0.9) {
-                overrides.crossover_probability = cli_config.crossover_prob;
-            }
-            if (cli_config.mutation_prob != 0.1) {
-                overrides.mutation_probability = cli_config.mutation_prob;
-            }
-            if (cli_config.seed != 1) {
-                overrides.seed = cli_config.seed;
-            }
-            cfg.apply_overrides(overrides);
+            cfg.apply_overrides(cli_config.to_overrides());
         } else {
             // Create default configuration from CLI args
             cfg.ga.population_size = cli_config.population;
