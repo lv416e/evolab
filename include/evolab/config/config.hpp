@@ -96,6 +96,14 @@ struct ParallelConfig {
     std::size_t chunk_size = 64; // Work chunk size for load balancing
 };
 
+/// Population diversity maintenance configuration
+struct DiversityConfig {
+    bool enabled = false;                  // Diversity tracking disabled by default
+    double minimum_diversity = 0.1;        // Minimum required population diversity
+    double restart_threshold = 0.05;       // Diversity threshold for population restart
+    std::size_t measurement_interval = 10; // Measure diversity every N generations
+};
+
 /// Command-line override structure
 /// Contains optional overrides for configuration parameters
 struct ConfigOverrides {
@@ -116,6 +124,7 @@ struct Config {
     TerminationConfig termination;
     LoggingConfig logging;
     ParallelConfig parallel;
+    DiversityConfig diversity;
 
     /// Load configuration from TOML file
     /// Validates all parameters and applies defaults for missing values
@@ -164,6 +173,9 @@ struct Config {
 
     /// Parse parallel configuration from TOML table
     static ParallelConfig parse_parallel(const toml::value& data);
+
+    /// Parse diversity configuration from TOML table
+    static DiversityConfig parse_diversity(const toml::value& data);
 };
 
 // Implementation of Config methods
@@ -199,6 +211,10 @@ inline Config Config::from_file(const std::string& filepath) {
 
     if (data.contains("parallel")) {
         config.parallel = parse_parallel(data);
+    }
+
+    if (data.contains("diversity")) {
+        config.diversity = parse_diversity(data);
     }
 
     // Validate the complete configuration
@@ -495,6 +511,29 @@ inline ParallelConfig Config::parse_parallel(const toml::value& data) {
     return par;
 }
 
+inline DiversityConfig Config::parse_diversity(const toml::value& data) {
+    DiversityConfig div;
+    const auto& div_table = toml::find(data, "diversity");
+
+    if (div_table.contains("enabled")) {
+        div.enabled = toml::find<bool>(div_table, "enabled");
+    }
+
+    if (div_table.contains("minimum_diversity")) {
+        div.minimum_diversity = toml::find<double>(div_table, "minimum_diversity");
+    }
+
+    if (div_table.contains("restart_threshold")) {
+        div.restart_threshold = toml::find<double>(div_table, "restart_threshold");
+    }
+
+    if (div_table.contains("measurement_interval")) {
+        div.measurement_interval = toml::find<std::size_t>(div_table, "measurement_interval");
+    }
+
+    return div;
+}
+
 inline void Config::merge(const Config& other) {
     // Simple merge strategy: other config values override this config
     // In practice, this could be more sophisticated
@@ -573,6 +612,14 @@ inline std::string Config::to_toml() const {
     par_table["chunk_size"] = parallel.chunk_size;
     root["parallel"] = par_table;
 
+    // Diversity section
+    toml::value div_table;
+    div_table["enabled"] = diversity.enabled;
+    div_table["minimum_diversity"] = diversity.minimum_diversity;
+    div_table["restart_threshold"] = diversity.restart_threshold;
+    div_table["measurement_interval"] = diversity.measurement_interval;
+    root["diversity"] = div_table;
+
     std::stringstream ss;
     ss << toml::format(root);
     return ss.str();
@@ -636,12 +683,19 @@ inline core::GAConfig Config::to_ga_config() const {
 
     // Logging settings
     ga_config.log_interval = logging.log_interval;
-    ga_config.enable_diversity_tracking = logging.track_diversity;
+    ga_config.enable_diversity_tracking = diversity.enabled;
 
-    // Diversity parameters (using defaults if not tracking)
-    if (logging.track_diversity) {
-        ga_config.diversity_threshold = 0.01; // Default threshold
-        ga_config.diversity_max_samples = 50; // Default sample size
+    // Diversity parameters from configuration
+    if (diversity.enabled) {
+        ga_config.diversity_threshold = diversity.restart_threshold;
+        ga_config.diversity_max_samples = diversity.measurement_interval;
+    }
+
+    // Legacy support: also enable diversity tracking if logging.track_diversity is set
+    if (logging.track_diversity && !diversity.enabled) {
+        ga_config.enable_diversity_tracking = true;
+        ga_config.diversity_threshold = 0.01; // Fallback default
+        ga_config.diversity_max_samples = 50; // Fallback default
     }
 
     return ga_config;
