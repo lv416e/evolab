@@ -3,7 +3,6 @@
 
 [ga]
 population_size = 256
-max_generations = 1000
 elite_rate = 0.05
 seed = 42
 
