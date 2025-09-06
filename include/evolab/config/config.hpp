@@ -61,6 +61,7 @@ struct LocalSearchConfig {
     std::string type = "2-opt";           // 2-opt as standard local search
     std::size_t max_iterations = 100;     // Iteration limit to control runtime
     double probability = 0.3;             // Apply to 30% of population
+    bool first_improvement = false;       // First improvement vs best improvement strategy
     std::size_t candidate_list_size = 40; // K-nearest neighbors for efficiency
 };
 
@@ -399,6 +400,10 @@ inline LocalSearchConfig Config::parse_local_search(const toml::value& data) {
         ls.probability = toml::find<double>(ls_table, "probability");
     }
 
+    if (ls_table.contains("first_improvement")) {
+        ls.first_improvement = toml::find<bool>(ls_table, "first_improvement");
+    }
+
     if (ls_table.contains("candidate_list_size")) {
         ls.candidate_list_size = toml::find<std::size_t>(ls_table, "candidate_list_size");
     }
@@ -584,6 +589,7 @@ inline std::string Config::to_toml() const {
     ls_table["type"] = local_search.type;
     ls_table["max_iterations"] = local_search.max_iterations;
     ls_table["probability"] = local_search.probability;
+    ls_table["first_improvement"] = local_search.first_improvement;
     ls_table["candidate_list_size"] = local_search.candidate_list_size;
     root["local_search"] = ls_table;
 
@@ -689,8 +695,8 @@ inline core::GAConfig Config::to_ga_config() const {
     ga_config.stagnation_limit = termination.stagnation_generations;
 
     // Convert time limit from minutes to milliseconds
-    ga_config.time_limit =
-        std::chrono::milliseconds(static_cast<long>(termination.time_limit_minutes * 60 * 1000));
+    ga_config.time_limit = std::chrono::milliseconds(
+        static_cast<long long>(termination.time_limit_minutes * 60 * 1000));
 
     // Logging settings
     ga_config.log_interval = logging.log_interval;
