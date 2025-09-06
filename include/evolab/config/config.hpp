@@ -83,9 +83,11 @@ struct TerminationConfig {
 
 /// Logging and output configuration
 struct LoggingConfig {
-    std::size_t log_interval = 50;     // Log every N generations
-    bool verbose = false;              // Detailed output disabled by default
-    bool save_evolution_curve = false; // CSV output disabled by default
+    std::size_t log_interval = 50;           // Log every N generations
+    bool verbose = false;                    // Detailed output disabled by default
+    bool save_evolution_curve = false;       // CSV output disabled by default
+    bool track_operator_performance = false; // Track operator execution times and efficiency
+    bool save_population_snapshots = false;  // Save population state at intervals
 };
 
 /// Parallel execution configuration
@@ -486,6 +488,14 @@ inline LoggingConfig Config::parse_logging(const toml::value& data) {
         log.save_evolution_curve = toml::find<bool>(log_table, "save_evolution_curve");
     }
 
+    if (log_table.contains("track_operator_performance")) {
+        log.track_operator_performance = toml::find<bool>(log_table, "track_operator_performance");
+    }
+
+    if (log_table.contains("save_population_snapshots")) {
+        log.save_population_snapshots = toml::find<bool>(log_table, "save_population_snapshots");
+    }
+
     return log;
 }
 
@@ -600,6 +610,8 @@ inline std::string Config::to_toml() const {
     log_table["verbose"] = logging.verbose;
     // track_diversity removed - use diversity.enabled instead
     log_table["save_evolution_curve"] = logging.save_evolution_curve;
+    log_table["track_operator_performance"] = logging.track_operator_performance;
+    log_table["save_population_snapshots"] = logging.save_population_snapshots;
     root["logging"] = log_table;
 
     // Parallel section
@@ -681,6 +693,8 @@ inline core::GAConfig Config::to_ga_config() const {
     // Logging settings
     ga_config.log_interval = logging.log_interval;
     ga_config.enable_diversity_tracking = diversity.enabled;
+    ga_config.track_operator_performance = logging.track_operator_performance;
+    ga_config.save_population_snapshots = logging.save_population_snapshots;
 
     // Diversity parameters from configuration
     if (diversity.enabled) {
