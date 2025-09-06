@@ -52,8 +52,7 @@ endif()
 include(FetchContent)
 FetchContent_Declare(
     toml11
-    GIT_REPOSITORY https://github.com/ToruNiina/toml11.git
-    GIT_TAG v4.2.0  # Using stable version for reproducibility
+    URL https://github.com/ToruNiina/toml11/archive/refs/tags/v4.2.0.tar.gz
 )
 set(TOML11_INSTALL OFF CACHE INTERNAL "")  # Disable toml11 installation to avoid export issues
 FetchContent_MakeAvailable(toml11)

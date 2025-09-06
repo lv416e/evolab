@@ -72,20 +72,20 @@ class TSP {
                 type_name = "Unknown";
                 break;
             }
-            throw std::invalid_argument(
+            throw io::TSPLIBDataError(
                 "Invalid problem type for TSP solver. Expected TSP but got: " + type_name);
         }
 
         // Validate dimension
         if (instance.dimension <= 0) {
-            throw std::invalid_argument("Invalid TSP dimension: " +
-                                        std::to_string(instance.dimension));
+            throw io::TSPLIBDataError("Invalid TSP dimension: " +
+                                      std::to_string(instance.dimension));
         }
 
         // Validate that we have either coordinates or explicit distance matrix
         if (instance.edge_weight_type != io::EdgeWeightType::EXPLICIT &&
             instance.node_coords.empty()) {
-            throw std::invalid_argument(
+            throw io::TSPLIBDataError(
                 "TSP instance has neither node coordinates nor explicit distance matrix");
         }
 
