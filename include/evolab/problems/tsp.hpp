@@ -57,19 +57,23 @@ class TSP {
     static TSP from_tsplib(const io::TSPInstance& instance) {
         // Validate that this is actually a TSP problem (not ATSP, HCP, or SOP)
         if (instance.type != io::TSPType::TSP) {
+            std::string type_name;
+            switch (instance.type) {
+            case io::TSPType::ATSP:
+                type_name = "ATSP (Asymmetric TSP)";
+                break;
+            case io::TSPType::HCP:
+                type_name = "HCP (Hamiltonian Cycle Problem)";
+                break;
+            case io::TSPType::SOP:
+                type_name = "SOP (Sequential Ordering Problem)";
+                break;
+            default:
+                type_name = "Unknown";
+                break;
+            }
             throw std::invalid_argument(
-                "Invalid problem type for TSP solver. Expected TSP but got: " + [&instance]() {
-                    switch (instance.type) {
-                    case io::TSPType::ATSP:
-                        return std::string("ATSP (Asymmetric TSP)");
-                    case io::TSPType::HCP:
-                        return std::string("HCP (Hamiltonian Cycle Problem)");
-                    case io::TSPType::SOP:
-                        return std::string("SOP (Sequential Ordering Problem)");
-                    default:
-                        return std::string("Unknown");
-                    }
-                }());
+                "Invalid problem type for TSP solver. Expected TSP but got: " + type_name);
         }
 
         // Validate dimension

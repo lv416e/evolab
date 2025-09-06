@@ -9,7 +9,6 @@
 
 #include <evolab/evolab.hpp>
 #include <nlohmann/json.hpp>
-#include <unistd.h>
 
 using namespace evolab;
 
