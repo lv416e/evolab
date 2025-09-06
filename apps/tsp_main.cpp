@@ -34,6 +34,9 @@ struct CLIConfig {
     bool json_output = false;
     std::string json_file;
 
+    // Runtime warnings for JSON output transparency
+    mutable std::vector<std::string> warnings;
+
     // Track which values were explicitly set via command line
     bool has_population_override = false;
     bool has_generations_override = false;
@@ -179,7 +182,7 @@ CLIConfig parse_args(int argc, char** argv) {
 }
 
 /// Create TSP problem from CLI config
-problems::TSP create_problem(const CLIConfig& cli_config, std::uint64_t seed) {
+problems::TSP create_problem(CLIConfig& cli_config, std::uint64_t seed) {
     if (cli_config.instance_file.empty()) {
         // Create random TSP instance
         if (!cli_config.json_output) {
@@ -204,9 +207,16 @@ problems::TSP create_problem(const CLIConfig& cli_config, std::uint64_t seed) {
             }
             return problems::TSP::from_tsplib(instance);
         } catch (const std::exception& e) {
-            if (!cli_config.json_output) {
-                std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
-                std::cerr << "Using random instance instead.\n";
+            // Always output to stderr for debugging (RFC 9457 best practice)
+            std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
+            std::cerr << "Using random instance instead.\n";
+
+            // For JSON output transparency: record warning for structured output
+            if (cli_config.json_output) {
+                std::string warning = "TSPLIB file load failed: " + std::string(e.what()) +
+                                      ". Fallback to random " +
+                                      std::to_string(DEFAULT_RANDOM_CITIES) + "-city instance.";
+                cli_config.warnings.push_back(warning);
             }
             return problems::create_random_tsp(DEFAULT_RANDOM_CITIES, DEFAULT_MAX_COORD, seed);
         }
@@ -266,6 +276,15 @@ void write_json_output(const auto& result, const CLIConfig& cli_config, const co
 
     // Problem section
     output["problem"] = {{"type", "TSP"}, {"dimension", tsp.num_cities()}};
+
+    // Warnings section for error transparency (RFC 9457 best practice)
+    if (!cli_config.warnings.empty()) {
+        json warnings_array = json::array();
+        for (const auto& warning : cli_config.warnings) {
+            warnings_array.push_back(warning);
+        }
+        output["warnings"] = warnings_array;
+    }
 
     // Results section
     json results;
