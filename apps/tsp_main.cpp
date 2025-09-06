@@ -400,13 +400,35 @@ int main(int argc, char** argv) {
                 auto ga = factory::make_tsp_ga_advanced();
                 return ga.run(tsp, ga_config);
             } else if (cli_config.algorithm == "config" && !cli_config.config_file.empty()) {
-                // Use config-based GA
+                // Use config-based GA with dynamic operator selection
+                const std::string& crossover_type = cfg.operators.crossover.type;
+
                 if (cfg.local_search.enabled) {
-                    auto ga = factory::make_tsp_ga_with_local_search_from_config(cfg);
-                    return ga.run(tsp, ga_config);
+                    // Local search enabled - select appropriate crossover with local search
+                    if (crossover_type == "EAX") {
+                        auto ga = factory::make_tsp_ga_eax_with_local_search_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    } else if (crossover_type == "OX") {
+                        auto ga = factory::make_tsp_ga_ox_with_local_search_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    } else {
+                        // Default to PMX
+                        auto ga = factory::make_tsp_ga_with_local_search_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    }
                 } else {
-                    auto ga = factory::make_tsp_ga_from_config(cfg);
-                    return ga.run(tsp, ga_config);
+                    // No local search - select appropriate crossover
+                    if (crossover_type == "EAX") {
+                        auto ga = factory::make_tsp_ga_eax_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    } else if (crossover_type == "OX") {
+                        auto ga = factory::make_tsp_ga_ox_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    } else {
+                        // Default to PMX
+                        auto ga = factory::make_tsp_ga_from_config(cfg);
+                        return ga.run(tsp, ga_config);
+                    }
                 }
             } else {
                 auto ga = factory::make_tsp_ga_basic();
