@@ -140,11 +140,28 @@ inline auto make_tsp_ga_ox_from_config(const config::Config& cfg) {
 
 /// Create a TSP GA with local search from configuration
 inline auto make_tsp_ga_with_local_search_from_config(const config::Config& cfg) {
-    // Always include local search in the type, just configure whether it's active
-    // This ensures consistent return type
+    // LIMITATION: Always uses PMX crossover regardless of config.operators.crossover.type
+    // This is due to C++'s compile-time template instantiation requirements
+    // Use create_tsp_ga_dynamic_from_config for runtime operator selection
     return core::make_ga(
         operators::TournamentSelection{cfg.operators.selection.tournament_size},
         operators::PMXCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.enabled, cfg.local_search.max_iterations});
+}
+
+/// Create TSP GA with local search, using EAX crossover
+inline auto make_tsp_ga_eax_with_local_search_from_config(const config::Config& cfg) {
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::EdgeRecombinationCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.enabled, cfg.local_search.max_iterations});
+}
+
+/// Create TSP GA with local search, using OX crossover
+inline auto make_tsp_ga_ox_with_local_search_from_config(const config::Config& cfg) {
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::OrderCrossover{}, operators::SwapMutation{},
         local_search::TwoOpt{cfg.local_search.enabled, cfg.local_search.max_iterations});
 }
 
