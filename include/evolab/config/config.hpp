@@ -25,7 +25,7 @@ class ConfigValidationError : public std::runtime_error {
 struct GAConfig {
     std::size_t population_size = 256;  // Default population size for reasonable performance
     std::size_t max_generations = 1000; // Default generation limit for convergence
-    double elite_rate = 0.02;           // Preserve top 2% by default for elitism
+    double elite_ratio = 0.02;          // Preserve top 2% by default for elitism
     std::uint64_t seed = 1;             // Reproducible seed by default
 };
 
@@ -266,8 +266,8 @@ inline void Config::validate() const {
         throw ConfigValidationError("Population size must be positive");
     }
 
-    if (ga.elite_rate < 0.0 || ga.elite_rate > 1.0) {
-        throw ConfigValidationError("Elite rate must be in [0,1]");
+    if (ga.elite_ratio < 0.0 || ga.elite_ratio > 1.0) {
+        throw ConfigValidationError("Elite ratio must be in [0,1]");
     }
 
     // Validate operator probabilities
@@ -325,8 +325,8 @@ inline GAConfig Config::parse_ga(const toml::value& data) {
         ga.max_generations = toml::find<std::size_t>(ga_table, "max_generations");
     }
 
-    if (ga_table.contains("elite_rate")) {
-        ga.elite_rate = toml::find<double>(ga_table, "elite_rate");
+    if (ga_table.contains("elite_ratio")) {
+        ga.elite_ratio = toml::find<double>(ga_table, "elite_ratio");
     }
 
     if (ga_table.contains("seed")) {
@@ -555,7 +555,7 @@ inline std::string Config::to_toml() const {
     toml::value ga_table;
     ga_table["population_size"] = ga.population_size;
     ga_table["max_generations"] = ga.max_generations;
-    ga_table["elite_rate"] = ga.elite_rate;
+    ga_table["elite_ratio"] = ga.elite_ratio;
     ga_table["seed"] = ga.seed;
     root["ga"] = ga_table;
 
@@ -677,7 +677,7 @@ inline core::GAConfig Config::to_ga_config() const {
     // Termination config: controls actual algorithm execution behavior
     ga_config.population_size = ga.population_size;
     ga_config.max_generations = ga.max_generations; // Apply base configuration
-    ga_config.elite_ratio = ga.elite_rate;          // Note: different name in core
+    ga_config.elite_ratio = ga.elite_ratio;
     ga_config.seed = ga.seed;
 
     // Operator probabilities

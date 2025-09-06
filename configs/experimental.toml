@@ -3,7 +3,7 @@
 
 [ga]
 population_size = 200
-elite_rate = 0.03
+elite_ratio = 0.03
 seed = 314159
 
 [operators]

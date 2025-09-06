@@ -27,7 +27,7 @@ void test_config_to_ga_config_conversion() {
         [ga]
         population_size = 128
         max_generations = 2000
-        elite_rate = 0.03
+        elite_ratio = 0.03
         seed = 123
         
         [operators]
@@ -52,7 +52,7 @@ void test_config_to_ga_config_conversion() {
                      "Max generations conversion");
     result.assert_eq(0.85, ga_config.crossover_prob, "Crossover probability conversion");
     result.assert_eq(0.15, ga_config.mutation_prob, "Mutation probability conversion");
-    result.assert_eq(0.03, ga_config.elite_ratio, "Elite rate conversion");
+    result.assert_eq(0.03, ga_config.elite_ratio, "Elite ratio conversion");
     result.assert_eq(static_cast<size_t>(123), static_cast<size_t>(ga_config.seed),
                      "Seed conversion");
     result.assert_eq(static_cast<size_t>(150), ga_config.stagnation_limit,

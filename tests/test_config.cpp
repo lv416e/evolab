@@ -26,7 +26,7 @@ void test_basic_ga_config() {
         [ga]
         population_size = 100
         max_generations = 500
-        elite_rate = 0.02
+        elite_ratio = 0.02
         seed = 42
     )";
 
@@ -35,7 +35,7 @@ void test_basic_ga_config() {
 
     result.assert_eq(static_cast<size_t>(100), config.ga.population_size, "GA population size");
     result.assert_eq(static_cast<size_t>(500), config.ga.max_generations, "GA max generations");
-    result.assert_eq(0.02, config.ga.elite_rate, "GA elite rate");
+    result.assert_eq(0.02, config.ga.elite_ratio, "GA elite ratio");
     result.assert_eq(static_cast<size_t>(42), static_cast<size_t>(config.ga.seed), "GA seed");
 
     std::filesystem::remove(temp_file);
@@ -173,7 +173,7 @@ void test_complete_config() {
         [ga]
         population_size = 256
         max_generations = 1000
-        elite_rate = 0.05
+        elite_ratio = 0.05
         seed = 2023
         
         [operators]
@@ -205,7 +205,7 @@ void test_complete_config() {
     // GA configuration
     result.assert_eq(static_cast<size_t>(256), config.ga.population_size, "GA population size");
     result.assert_eq(static_cast<size_t>(1000), config.ga.max_generations, "GA max generations");
-    result.assert_eq(0.05, config.ga.elite_rate, "GA elite rate");
+    result.assert_eq(0.05, config.ga.elite_ratio, "GA elite ratio");
     result.assert_eq(static_cast<size_t>(2023), static_cast<size_t>(config.ga.seed), "GA seed");
 
     // Operators
@@ -247,7 +247,7 @@ void test_defaults() {
                      "Specified population size");
     result.assert_eq(static_cast<size_t>(1000), config.ga.max_generations,
                      "Default max generations");
-    result.assert_eq(0.02, config.ga.elite_rate, "Default elite rate");
+    result.assert_eq(0.02, config.ga.elite_ratio, "Default elite ratio");
     result.assert_gt(static_cast<size_t>(config.ga.seed), static_cast<size_t>(0),
                      "Default seed > 0");
 
