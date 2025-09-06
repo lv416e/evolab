@@ -12,11 +12,17 @@
 
 using namespace evolab;
 
+// Default values for random TSP instance fallback
+namespace {
+constexpr int DEFAULT_RANDOM_CITIES = 100;
+constexpr double DEFAULT_MAX_COORD = 1000.0;
+} // namespace
+
 /// Command-line arguments structure
 /// Wraps both the configuration and runtime options
 struct CLIConfig {
     std::string instance_file;
-    std::string config_file; // TOML configuration file path
+    std::string config_file;
     std::string algorithm = "basic";
     std::size_t population = 256;
     std::size_t generations = 1000;
@@ -25,8 +31,8 @@ struct CLIConfig {
     std::uint64_t seed = 1;
     bool verbose = false;
     std::string output_file;
-    bool json_output = false; // Enable JSON output format
-    std::string json_file;    // JSON output file path
+    bool json_output = false;
+    std::string json_file;
 
     // Convert CLI overrides to configuration overrides
     config::ConfigOverrides to_overrides() const {
@@ -155,7 +161,7 @@ CLIConfig parse_args(int argc, char** argv) {
             config.json_output = true;
         } else if (arg == "--json-file" && i + 1 < argc) {
             config.json_file = argv[++i];
-            config.json_output = true; // Auto-enable JSON output
+            config.json_output = true;
         } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             print_usage(argv[0]);
@@ -171,9 +177,10 @@ problems::TSP create_problem(const CLIConfig& cli_config, std::uint64_t seed) {
     if (cli_config.instance_file.empty()) {
         // Create random TSP instance
         if (!cli_config.json_output) {
-            std::cout << "Creating random TSP instance with 100 cities...\n";
+            std::cout << "Creating random TSP instance with " << DEFAULT_RANDOM_CITIES
+                      << " cities...\n";
         }
-        return problems::create_random_tsp(100, 1000.0, seed);
+        return problems::create_random_tsp(DEFAULT_RANDOM_CITIES, DEFAULT_MAX_COORD, seed);
     } else {
         // Load TSPLIB instance
         if (!cli_config.json_output) {
@@ -195,7 +202,7 @@ problems::TSP create_problem(const CLIConfig& cli_config, std::uint64_t seed) {
                 std::cerr << "Failed to load TSPLIB file: " << e.what() << "\n";
                 std::cerr << "Using random instance instead.\n";
             }
-            return problems::create_random_tsp(100, 1000.0, seed);
+            return problems::create_random_tsp(DEFAULT_RANDOM_CITIES, DEFAULT_MAX_COORD, seed);
         }
     }
 }
@@ -313,7 +320,7 @@ void write_json_output(const auto& result, const CLIConfig& cli_config, const co
         std::ofstream file(filename);
         if (file) {
             file << json.str();
-            if (!cli_config.json_output) { // Only print message if not in JSON mode
+            if (!cli_config.json_output) {
                 std::cout << "JSON results written to: " << filename << "\n";
             }
         } else {
