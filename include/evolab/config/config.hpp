@@ -672,18 +672,20 @@ namespace evolab::config {
 inline core::GAConfig Config::to_ga_config() const {
     core::GAConfig ga_config;
 
-    // Direct mappings from GA config
+    // Configuration priority pattern: GA defaults are overridden by termination settings
+    // GA config: used for display, testing, and JSON output
+    // Termination config: controls actual algorithm execution behavior
     ga_config.population_size = ga.population_size;
-    ga_config.max_generations = ga.max_generations;
-    ga_config.elite_ratio = ga.elite_rate; // Note: different name in core
+    ga_config.max_generations = ga.max_generations; // Apply base configuration
+    ga_config.elite_ratio = ga.elite_rate;          // Note: different name in core
     ga_config.seed = ga.seed;
 
     // Operator probabilities
     ga_config.crossover_prob = operators.crossover.probability;
     ga_config.mutation_prob = operators.mutation.probability;
 
-    // Termination settings
-    ga_config.max_generations = termination.max_generations;
+    // Override with execution-specific termination settings
+    ga_config.max_generations = termination.max_generations; // Final execution control
     ga_config.stagnation_limit = termination.stagnation_generations;
 
     // Convert time limit from minutes to milliseconds
