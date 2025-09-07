@@ -1,0 +1,256 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Configuration",
+      "description": "Default build configuration with Release optimizations",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EVOLAB_BUILD_TESTS": "ON",
+        "EVOLAB_BUILD_BENCHMARKS": "ON",
+        "EVOLAB_USE_TBB": "ON",
+        "EVOLAB_USE_OPENMP": "ON"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Configuration",
+      "description": "Debug build with sanitizers and full debugging information",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EVOLAB_BUILD_TESTS": "ON",
+        "EVOLAB_BUILD_BENCHMARKS": "OFF",
+        "EVOLAB_USE_TBB": "ON",
+        "EVOLAB_USE_OPENMP": "ON",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release Configuration",
+      "description": "Optimized release build with maximum performance",
+      "generator": "Unix Makefiles", 
+      "binaryDir": "build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EVOLAB_BUILD_TESTS": "ON",
+        "EVOLAB_BUILD_BENCHMARKS": "ON",
+        "EVOLAB_USE_TBB": "ON",
+        "EVOLAB_USE_OPENMP": "ON",
+        "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Configuration",
+      "description": "Fast Ninja-based release build for maximum performance",
+      "generator": "Ninja",
+      "binaryDir": "build/ninja-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EVOLAB_BUILD_TESTS": "ON",
+        "EVOLAB_BUILD_BENCHMARKS": "ON",
+        "EVOLAB_USE_TBB": "ON",
+        "EVOLAB_USE_OPENMP": "ON",
+        "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Build",
+      "configurePreset": "default",
+      "jobs": 0
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Build",
+      "configurePreset": "debug",
+      "jobs": 0
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "configurePreset": "release",
+      "jobs": 0
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Build",
+      "configurePreset": "ninja-release",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Tests",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {
+        "jobs": 0
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Tests",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {
+        "jobs": 0
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release Tests",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {
+        "jobs": 0
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Tests",
+      "configurePreset": "ninja-release",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {
+        "jobs": 0
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Workflow",
+      "description": "Complete build and test cycle with default settings",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Workflow",
+      "description": "Debug build cycle with sanitizers and verbose testing",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "displayName": "Release Workflow",
+      "description": "Optimized release build and test cycle",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release"
+        },
+        {
+          "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Workflow",
+      "description": "Fast ninja-based release workflow for maximum performance",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ninja-release"
+        },
+        {
+          "type": "build", 
+          "name": "ninja-release"
+        },
+        {
+          "type": "test",
+          "name": "ninja-release"
+        }
+      ]
+    }
+  ]
+}
