@@ -1,19 +1,10 @@
 # EvoLab C++23 Metaheuristics Research Platform
-# Modern justfile for development workflow automation
+# Modern justfile for development workflow automation with CMake Presets
 # https://just.systems/
 
-# Configuration variables - override with environment variables  
-build_dir := env_var_or_default('BUILD_DIR', 'build')
-build_type := env_var_or_default('BUILD_TYPE', 'Release')
+# Configuration variables - CMake Presets integration
+preset := env_var_or_default('PRESET', 'default')
 parallel_jobs := env_var_or_default('PARALLEL_JOBS', `nproc`)
-
-# Compiler settings
-cc := env_var_or_default('CC', 'clang')
-cxx := env_var_or_default('CXX', 'clang++')
-
-# Export variables for cmake
-export CC := cc
-export CXX := cxx
 
 # Default recipe - show available commands
 default:
@@ -21,67 +12,74 @@ default:
     @echo "=================================="
     @just --list
 
-# 🔧 Configure and build the project  
-build:
-    @echo "🔧 Configuring EvoLab with C++23 ({{build_type}} build)..."
-    @echo "   Build directory: {{build_dir}}"
-    @echo "   Parallel jobs: {{parallel_jobs}}"
-    cmake -S . -B {{build_dir}} \
-        -DCMAKE_BUILD_TYPE={{build_type}} \
-        -DCMAKE_CXX_STANDARD=23 \
-        -DCMAKE_CXX_STANDARD_REQUIRED=ON \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# 🔧 Configure and build the project using CMake Presets
+build preset=preset:
+    @echo "🔧 Configuring EvoLab with C++23 ({{preset}} preset)..."
+    cmake --preset {{preset}}
     @echo "🏗️ Building with {{parallel_jobs}} parallel jobs..."
-    cmake --build {{build_dir}} --parallel {{parallel_jobs}}
+    cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
 
-# 🧪 Run all tests with colored output
-test: build
-    @echo "🧪 Running all test suites..."
-    cd {{build_dir}} && ctest --parallel {{parallel_jobs}} --output-on-failure --progress
+# 🔧 CMake workflow execution (configure + build + test)
+workflow preset=preset:
+    @echo "🚀 Running complete workflow with {{preset}} preset..."
+    cmake --workflow --preset {{preset}}
 
-# 🎯 Run specific test suites
-test-core: build
-    @echo "🎯 Running core algorithm tests..."
-    cd {{build_dir}} && ctest -R "CoreTests" --verbose
+# 🧪 Run all tests using CMake Presets
+test preset=preset: (build preset)
+    @echo "🧪 Running test suite with {{preset}} preset..."
+    ctest --preset {{preset}}
 
-test-tsp: build
-    @echo "🎯 Running TSP problem tests..."
-    cd {{build_dir}} && ctest -R "TSPTests" --verbose
+# 🎯 Run specific test suites  
+test-core preset=preset: (build preset)
+    @echo "🎯 Running core algorithm tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "CoreTests" --verbose
 
-test-operators: build
-    @echo "🎯 Running genetic operator tests..."
-    cd {{build_dir}} && ctest -R "OperatorTests" --verbose
+test-tsp preset=preset: (build preset)
+    @echo "🎯 Running TSP problem tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "TSPTests" --verbose
 
-test-schedulers: build
-    @echo "🚀 Running scheduler tests..."
-    cd {{build_dir}} && ctest -R "SchedulerTests" --verbose
+test-operators preset=preset: (build preset) 
+    @echo "🎯 Running genetic operator tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "OperatorTests" --verbose
 
-test-tsplib: build
-    @echo "📚 Running TSPLIB integration tests..."
-    cd {{build_dir}} && ctest -R "TSPLIBTests" --verbose
+test-schedulers preset=preset: (build preset)
+    @echo "🚀 Running scheduler tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "SchedulerTests" --verbose
 
-test-config: build
-    @echo "⚙️ Running configuration tests..."
-    cd {{build_dir}} && ctest -R "ConfigTests|ConfigIntegrationTests" --verbose
+test-tsplib preset=preset: (build preset)
+    @echo "📚 Running TSPLIB integration tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "TSPLIBTests" --verbose
+
+test-config preset=preset: (build preset)
+    @echo "⚙️ Running configuration tests with {{preset}} preset..."
+    ctest --preset {{preset}} -R "ConfigTests|ConfigIntegrationTests" --verbose
 
 # 🎮 Build and run TSP application
-run *ARGS: build
-    @echo "🎮 Running TSP application..."
+run preset=preset *ARGS: (build preset)
+    @echo "🎮 Running TSP application with {{preset}} preset..."
     {{build_dir}}/apps/evolab-tsp {{ARGS}}
 
-# 🏃‍♀️ Quick development workflow
-dev: clean build test format lint
+# Helper function to get build directory for preset - use in variables
+build_dir := if preset == "debug" { "build/debug" } else if preset == "release" { "build/release" } else if preset == "ninja-release" { "build/ninja-release" } else { "build" }
+
+# 🏃‍♀️ Quick development workflow with default preset
+dev: clean (workflow preset) format lint
     @echo "✅ Development cycle completed successfully!"
 
-# 🐛 Debug build with sanitizers
+# 🐛 Debug build with sanitizers using debug preset
 debug:
     @echo "🐛 Creating debug build with sanitizers..."
-    BUILD_TYPE=Debug CMAKE_CXX_FLAGS="-fsanitize=address,undefined -g3 -O0" just build
+    just workflow debug
 
-# 🚀 Optimized release build  
+# 🚀 Optimized release build using release preset
 release:
     @echo "🚀 Creating optimized release build..."
-    BUILD_TYPE=Release just build
+    just workflow release
+
+# ⚡ Ultra-fast build using Ninja generator
+ninja:
+    @echo "⚡ Creating ultra-fast Ninja build..."
+    just workflow ninja-release
 
 # 🎨 Code formatting with clang-format
 format:
@@ -94,15 +92,19 @@ check-format:
     find include tests apps -name "*.hpp" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
 
 # 📝 Static analysis with clang-tidy
-lint: build
-    @echo "📝 Running clang-tidy static analysis..."
+lint preset=preset: (build preset)
+    @echo "📝 Running clang-tidy static analysis with {{preset}} preset..."
     cd {{build_dir}} && \
     find ../include ../tests ../apps -name "*.cpp" | \
     xargs clang-tidy -p . --config-file=../.clang-tidy || echo "clang-tidy completed with warnings"
 
 # 🧹 Clean build artifacts
 clean:
-    @echo "🧹 Cleaning build artifacts..."
+    @echo "🧹 Cleaning all build directories..."
+    rm -rf build build/debug build/release build/ninja-release
+
+clean-preset preset=preset:
+    @echo "🧹 Cleaning {{preset}} build artifacts..."
     rm -rf {{build_dir}}
 
 clean-all: clean
@@ -114,48 +116,56 @@ clean-all: clean
 info:
     @echo "📋 EvoLab Project Information"
     @echo "============================"
-    @echo "Build directory: {{build_dir}}"
-    @echo "Build type: {{build_type}}"
+    @echo "Active preset: {{preset}}"
     @echo "Parallel jobs: {{parallel_jobs}}"
-    @echo "C compiler: {{cc}}"
-    @echo "C++ compiler: {{cxx}}"
     @echo ""
     @echo "🔧 Tool Versions:"
     @echo "CMake: `cmake --version | head -1`"
-    @echo "C++ Compiler: `{{cxx}} --version | head -1`"
+    @echo "C++ Compiler: `clang++ --version | head -1`"
     @echo "System: `uname -sm`"
     @echo ""
-    @if [ -d "{{build_dir}}" ]; then \
-        echo "📁 Build Status: Configured"; \
-        echo "Build files: `find {{build_dir}} -name "*.ninja" -o -name "Makefile" | wc -l` files"; \
-    else \
-        echo "📁 Build Status: Not configured"; \
-    fi
+    @echo "📋 Available CMake Presets:"
+    cmake --list-presets=all
+    @echo ""
+    @echo "📁 Build Status:"
+    @if [ -d "build" ]; then echo "  build: Configured"; else echo "  build: Not configured"; fi
+    @if [ -d "build/debug" ]; then echo "  build/debug: Configured"; else echo "  build/debug: Not configured"; fi  
+    @if [ -d "build/release" ]; then echo "  build/release: Configured"; else echo "  build/release: Not configured"; fi
+    @if [ -d "build/ninja-release" ]; then echo "  build/ninja-release: Configured"; else echo "  build/ninja-release: Not configured"; fi
 
 # 🆘 Help command with usage examples
 help:
     @echo "🆘 EvoLab Development Help"
     @echo "========================"
     @echo ""
-    @echo "🏁 Quick Start:"
-    @echo "  just build           # Build the project"
-    @echo "  just test            # Run all tests"
+    @echo "🏁 Quick Start (CMake Presets):"
+    @echo "  just build           # Build with default preset"
+    @echo "  just test            # Test with default preset"
+    @echo "  just workflow        # Complete workflow (configure+build+test)"
     @echo "  just dev             # Full development cycle"
     @echo ""
-    @echo "🎯 Specific Testing:"
-    @echo "  just test-schedulers # Test scheduler algorithms"
-    @echo "  just test-tsp        # Test TSP implementations"
-    @echo "  just test-tsplib     # Test TSPLIB integration"
-    @echo "  just test-config     # Test configuration system"
+    @echo "🎯 Preset-specific Commands:"
+    @echo "  just build debug     # Debug build with sanitizers"
+    @echo "  just test release    # Test optimized release build"
+    @echo "  just workflow ninja-release  # Ultra-fast Ninja workflow"
+    @echo ""
+    @echo "🔧 Build Variants:"
+    @echo "  just debug           # Debug workflow (sanitizers + verbose tests)"
+    @echo "  just release         # Release workflow (O3 optimizations)"
+    @echo "  just ninja           # Ninja workflow (fastest builds)"
     @echo ""
     @echo "🎮 Running Applications:"
-    @echo "  just run --help      # Show TSP app options"
-    @echo "  just run --problem random --cities 20"
+    @echo "  just run --help      # Show TSP app options (default preset)"
+    @echo "  just run release --problem random --cities 20  # Run with release preset"
     @echo ""
-    @echo "🏗️ Build Variants:"
-    @echo "  just debug           # Debug build with sanitizers"
-    @echo "  just release         # Optimized release build"
+    @echo "🧪 Testing Options:"
+    @echo "  just test-schedulers debug  # Test schedulers with debug preset"
+    @echo "  just test-tsp release       # Test TSP with release preset"
     @echo ""
-    @echo "⚙️ Configuration:"
-    @echo "  BUILD_TYPE=Debug just build"
-    @echo "  PARALLEL_JOBS=16 just test"
+    @echo "⚙️ Environment Variables:"
+    @echo "  PRESET=debug just build     # Override default preset"
+    @echo "  PARALLEL_JOBS=16 just test  # Override parallel jobs"
+    @echo ""
+    @echo "📋 Information:"
+    @echo "  just info            # Show project and preset information"
+    @echo "  cmake --list-presets # List all available presets"
