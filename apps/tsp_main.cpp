@@ -1,10 +1,12 @@
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <format>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include <evolab/evolab.hpp>
@@ -417,7 +419,18 @@ int main(int argc, char** argv) {
             if (cli_config.algorithm == "advanced") {
                 auto ga = factory::make_tsp_ga_advanced();
                 return ga.run(tsp, ga_config);
-            } else if (cli_config.algorithm == "config" && !cli_config.config_file.empty()) {
+            } else if (cli_config.algorithm == "config") {
+                // Explicit validation: config algorithm requires configuration file
+                if (cli_config.config_file.empty()) {
+                    throw std::runtime_error(
+                        std::format("Algorithm 'config' requires --config FILE parameter.\n"
+                                    "Examples:\n"
+                                    "  {} --algorithm config --config configs/basic.toml\n"
+                                    "  {} --algorithm config --config configs/experimental.toml "
+                                    "--instance data/burma14.tsp",
+                                    argv[0], argv[0]));
+                }
+
                 // Use config-based GA with dynamic operator selection
                 const std::string& crossover_type = cfg.operators.crossover.type;
 
