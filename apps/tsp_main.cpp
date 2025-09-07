@@ -114,7 +114,7 @@ void print_usage(const char* program_name) {
               << "  -h, --help              Show this help message\n"
               << "  --config FILE           Load configuration from TOML file\n"
               << "  -i, --instance FILE     TSP instance file (random if not specified)\n"
-              << "  -a, --algorithm ALGO    Algorithm: basic, advanced (default: basic)\n"
+              << "  -a, --algorithm ALGO    Algorithm: basic, advanced, config (default: basic)\n"
               << "  -p, --population SIZE   Population size (default: 256)\n"
               << "  -g, --generations NUM   Max generations (default: 1000)\n"
               << "  -c, --crossover PROB    Crossover probability (default: 0.9)\n"
