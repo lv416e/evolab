@@ -36,6 +36,7 @@ if(EVOLAB_USE_TBB)
     if(TBB_FOUND)
         message(STATUS "Found TBB: ${TBB_VERSION}")
         add_compile_definitions(EVOLAB_HAVE_TBB)
+        set(EVOLAB_HAVE_TBB TRUE)  # Set CMake variable for use in conditionals
     endif()
 endif()
 
