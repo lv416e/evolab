@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../core/concepts.hpp"
+#include "../io/tsplib.hpp"
 #include "../utils/candidate_list.hpp"
 
 namespace evolab::problems {
@@ -18,13 +19,12 @@ namespace evolab::problems {
 class TSP {
   public:
     using Gene = int;
-    using GenomeT = std::vector<int>; // Permutation representation
+    using GenomeT = std::vector<int>;
 
   private:
-    int n_;                         // Number of cities
-    std::vector<double> distances_; // Distance matrix (row-major: dist[i*n + j])
-    mutable std::optional<utils::CandidateList>
-        candidate_list_; // Optional candidate list for optimization
+    int n_;
+    std::vector<double> distances_; // Row-major: dist[i*n + j]
+    mutable std::optional<utils::CandidateList> candidate_list_;
 
   public:
     TSP() = default;
@@ -49,6 +49,49 @@ class TSP {
                 }
             }
         }
+    }
+
+    /// Create TSP from TSPLIB instance
+    /// Factory method that creates a TSP problem from a parsed TSPLIB instance
+    /// This enables integration with the standard TSPLIB test suite
+    static TSP from_tsplib(const io::TSPInstance& instance) {
+        // Validate that this is actually a TSP problem (not ATSP, HCP, or SOP)
+        if (instance.type != io::TSPType::TSP) {
+            std::string type_name;
+            switch (instance.type) {
+            case io::TSPType::ATSP:
+                type_name = "ATSP (Asymmetric TSP)";
+                break;
+            case io::TSPType::HCP:
+                type_name = "HCP (Hamiltonian Cycle Problem)";
+                break;
+            case io::TSPType::SOP:
+                type_name = "SOP (Sequential Ordering Problem)";
+                break;
+            default:
+                type_name = "Unknown";
+                break;
+            }
+            throw io::TSPLIBDataError(
+                "Invalid problem type for TSP solver. Expected TSP but got: " + type_name);
+        }
+
+        // Validate dimension
+        if (instance.dimension <= 0) {
+            throw io::TSPLIBDataError("Invalid TSP dimension: " +
+                                      std::to_string(instance.dimension));
+        }
+
+        // Validate that we have either coordinates or explicit distance matrix
+        if (instance.edge_weight_type != io::EdgeWeightType::EXPLICIT &&
+            instance.node_coords.empty()) {
+            throw io::TSPLIBDataError(
+                "TSP instance has neither node coordinates nor explicit distance matrix");
+        }
+
+        // Get distance matrix and create TSP instance
+        auto distances = instance.get_full_distance_matrix();
+        return TSP(instance.dimension, std::move(distances));
     }
 
     /// Get distance between two cities
@@ -129,7 +172,8 @@ class TSP {
         double old_distance = distance(city_i, city_i_next) + distance(city_j, city_j_next);
         double new_distance = distance(city_i, city_j) + distance(city_i_next, city_j_next);
 
-        return old_distance - new_distance; // Positive gain means improvement
+        // Positive gain means improvement
+        return old_distance - new_distance;
     }
 
     /// Apply 2-opt move

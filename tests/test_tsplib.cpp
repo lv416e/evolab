@@ -500,7 +500,7 @@ EOF
     try {
         instance.calculate_distance(0, 5); // Out of range
         result.assert_true(false, "Should throw exception for out of range indices");
-    } catch (const std::out_of_range& e) {
+    } catch (const TSPLIBDataError& e) {
         result.assert_true(true, "Correctly throws exception for out of range indices");
     }
 }

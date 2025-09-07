@@ -15,40 +15,60 @@
 
 namespace evolab::io {
 
+// Custom exception types for TSPLIB parsing
+class TSPLIBParseError : public std::runtime_error {
+  public:
+    explicit TSPLIBParseError(const std::string& message)
+        : std::runtime_error("TSPLIB Parse Error: " + message) {}
+};
+
+class TSPLIBFileError : public TSPLIBParseError {
+  public:
+    explicit TSPLIBFileError(const std::string& filename)
+        : TSPLIBParseError("Cannot open file: " + filename) {}
+};
+
+class TSPLIBFormatError : public TSPLIBParseError {
+  public:
+    explicit TSPLIBFormatError(const std::string& message)
+        : TSPLIBParseError("Invalid format: " + message) {}
+};
+
+class TSPLIBDataError : public TSPLIBParseError {
+  public:
+    explicit TSPLIBDataError(const std::string& message)
+        : TSPLIBParseError("Invalid data: " + message) {}
+};
+
 enum class EdgeWeightType {
-    EUC_2D,  // Euclidean distances in 2D
-    EUC_3D,  // Euclidean distances in 3D
-    MAX_2D,  // Maximum distances in 2D
-    MAX_3D,  // Maximum distances in 3D
-    MAN_2D,  // Manhattan distances in 2D
-    MAN_3D,  // Manhattan distances in 3D
-    CEIL_2D, // Ceiling of Euclidean distances in 2D
-    GEO,     // Geographical distances
-    ATT,     // Special distance function (ATT)
-    XRAY1,   // Special distance function (XRAY1)
-    XRAY2,   // Special distance function (XRAY2)
-    EXPLICIT // Explicit distance matrix
+    EUC_2D,
+    EUC_3D,
+    MAX_2D,
+    MAX_3D,
+    MAN_2D,
+    MAN_3D,
+    CEIL_2D,
+    GEO,
+    ATT,
+    XRAY1,
+    XRAY2,
+    EXPLICIT
 };
 
 enum class EdgeWeightFormat {
-    FUNCTION,       // Computed from coordinates
-    FULL_MATRIX,    // Full n×n matrix
-    UPPER_ROW,      // Upper triangular matrix row-wise
-    LOWER_ROW,      // Lower triangular matrix row-wise
-    UPPER_DIAG_ROW, // Upper triangular matrix with diagonal row-wise
-    LOWER_DIAG_ROW, // Lower triangular matrix with diagonal row-wise
-    UPPER_COL,      // Upper triangular matrix column-wise
-    LOWER_COL,      // Lower triangular matrix column-wise
-    UPPER_DIAG_COL, // Upper triangular matrix with diagonal column-wise
-    LOWER_DIAG_COL  // Lower triangular matrix with diagonal column-wise
+    FUNCTION,
+    FULL_MATRIX,
+    UPPER_ROW,
+    LOWER_ROW,
+    UPPER_DIAG_ROW,
+    LOWER_DIAG_ROW,
+    UPPER_COL,
+    LOWER_COL,
+    UPPER_DIAG_COL,
+    LOWER_DIAG_COL
 };
 
-enum class TSPType {
-    TSP,  // Symmetric Traveling Salesman Problem
-    ATSP, // Asymmetric Traveling Salesman Problem
-    HCP,  // Hamiltonian Cycle Problem
-    SOP   // Sequential Ordering Problem
-};
+enum class TSPType { TSP, ATSP, HCP, SOP };
 
 // Distance calculation utilities - separated from parser for better modularity
 namespace tsp_distance {
@@ -117,7 +137,7 @@ inline double att_distance(double x1, double y1, double x2, double y2) {
 struct TSPInstance {
     std::string name;
     std::string comment;
-    TSPType type = TSPType::TSP; // Default to symmetric TSP
+    TSPType type = TSPType::TSP;
     int dimension = 0;
     EdgeWeightType edge_weight_type = EdgeWeightType::EUC_2D;
     EdgeWeightFormat edge_weight_format = EdgeWeightFormat::FUNCTION;
@@ -139,8 +159,6 @@ class TSPLIBParser {
     static void write_tour_file(const std::string& filename, const std::string& problem_name,
                                 const std::vector<int>& tour, double tour_length = -1.0);
 
-    // Distance calculation functions (public for TSPInstance to use)
-
   private:
     static EdgeWeightType parse_edge_weight_type(const std::string& type_str);
     static EdgeWeightFormat parse_edge_weight_format(const std::string& format_str);
@@ -151,10 +169,8 @@ class TSPLIBParser {
     static void parse_display_data_section(std::istream& stream, TSPInstance& instance);
     static void parse_edge_weight_section(std::istream& stream, TSPInstance& instance);
 
-    // Helper function to check if line starts with keyword after trimming
     static bool line_starts_with(const std::string& line, const std::string& keyword);
 
-    // Helper function to parse coordinate sections
     static void parse_coord_section(std::istream& stream, TSPInstance& instance,
                                     std::vector<std::array<double, 3>>& coords,
                                     const std::string& section_name);
@@ -166,7 +182,8 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
     if (i == j)
         return 0.0;
     if (i < 0 || i >= dimension || j < 0 || j >= dimension) {
-        throw std::out_of_range("Node indices out of range");
+        throw TSPLIBDataError("Node indices out of range: (" + std::to_string(i) + ", " +
+                              std::to_string(j) + ") for dimension " + std::to_string(dimension));
     }
 
     if (edge_weight_type == EdgeWeightType::EXPLICIT) {
@@ -191,10 +208,10 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         case EdgeWeightFormat::UPPER_COL: {
             // Upper triangular column-wise: column j stores elements for rows 0 to j-1
             if (i > j)
-                std::swap(i, j); // Now i <= j
+                std::swap(i, j);
 
             if (i == j)
-                return 0.0; // Diagonal is 0
+                return 0.0;
 
             // Column j has j elements (rows 0 to j-1)
             // Offset for start of column j = j * (j - 1) / 2
@@ -203,7 +220,7 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         }
         case EdgeWeightFormat::UPPER_DIAG_ROW: {
             if (i > j)
-                std::swap(i, j); // Symmetric matrix
+                std::swap(i, j);
             size_t offset =
                 static_cast<size_t>(i) * dimension - (static_cast<size_t>(i) * (i - 1)) / 2;
             return distance_matrix[offset + (j - i)];
@@ -211,7 +228,7 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         case EdgeWeightFormat::LOWER_DIAG_COL: {
             // Lower triangular column-wise with diagonal
             if (i < j)
-                std::swap(i, j); // Symmetric matrix
+                std::swap(i, j);
             // Column j has (dimension - j) elements (from j to dimension-1)
             size_t offset =
                 static_cast<size_t>(j) * dimension - (static_cast<size_t>(j) * (j + 1)) / 2;
@@ -230,12 +247,12 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         case EdgeWeightFormat::LOWER_COL: {
             // Lower triangular column-wise: column j stores elements for rows j+1 to dimension-1
             if (i < j)
-                std::swap(i, j); // Now i >= j
+                std::swap(i, j);
 
             // For column j, we store elements from row j+1 to dimension-1
             // So we need i > j for non-diagonal elements
             if (i == j)
-                return 0.0; // Diagonal is 0
+                return 0.0;
 
             // Column j has (dimension - j - 1) elements
             // Offset for start of column j: mathematical formula for sum of arithmetic sequence
@@ -244,12 +261,12 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
             return distance_matrix[offset + (i - j - 1)];
         }
         default:
-            throw std::runtime_error("Unsupported edge weight format");
+            throw TSPLIBFormatError("Unsupported edge weight format in distance calculation");
         }
     }
 
     if (node_coords.empty()) {
-        throw std::runtime_error("No coordinate data available");
+        throw TSPLIBDataError("No coordinate data available for distance calculation");
     }
 
     double x1 = node_coords[i][0], y1 = node_coords[i][1], z1 = node_coords[i][2];
@@ -276,9 +293,9 @@ inline double TSPInstance::calculate_distance(int i, int j) const {
         return tsp_distance::att_distance(x1, y1, x2, y2);
     case EdgeWeightType::XRAY1:
     case EdgeWeightType::XRAY2:
-        throw std::runtime_error("XRAY1 and XRAY2 distance types are not implemented");
+        throw TSPLIBFormatError("XRAY1 and XRAY2 distance types are not implemented");
     default:
-        throw std::runtime_error("Unsupported edge weight type");
+        throw TSPLIBFormatError("Unsupported edge weight type in distance calculation");
     }
 }
 
@@ -297,7 +314,7 @@ inline std::vector<double> TSPInstance::get_full_distance_matrix() const {
 inline TSPInstance TSPLIBParser::parse_file(const std::string& filename) {
     std::ifstream file(filename);
     if (!file) {
-        throw std::runtime_error("Cannot open file: " + filename);
+        throw TSPLIBFileError(filename);
     }
 
     return parse_stream(file);
@@ -325,7 +342,8 @@ inline TSPInstance TSPLIBParser::parse_stream(std::istream& stream) {
     }
 
     if (instance.dimension <= 0) {
-        throw std::runtime_error("Invalid dimension specification");
+        throw TSPLIBDataError("Invalid dimension specification: " +
+                              std::to_string(instance.dimension));
     }
 
     // Parse sections
@@ -347,7 +365,7 @@ inline void TSPLIBParser::write_tour_file(const std::string& filename,
                                           const std::vector<int>& tour, double tour_length) {
     std::ofstream file(filename);
     if (!file) {
-        throw std::runtime_error("Cannot create tour file: " + filename);
+        throw TSPLIBFileError(filename);
     }
 
     file << "NAME : " << problem_name << "\n";
@@ -377,7 +395,7 @@ inline EdgeWeightType TSPLIBParser::parse_edge_weight_type(const std::string& ty
 
     auto it = type_map.find(type_str);
     if (it == type_map.end()) {
-        throw std::runtime_error("Unsupported edge weight type: " + type_str);
+        throw TSPLIBFormatError("Unsupported edge weight type: " + type_str);
     }
     return it->second;
 }
@@ -397,7 +415,7 @@ inline EdgeWeightFormat TSPLIBParser::parse_edge_weight_format(const std::string
 
     auto it = format_map.find(format_str);
     if (it == format_map.end()) {
-        throw std::runtime_error("Unsupported edge weight format: " + format_str);
+        throw TSPLIBFormatError("Unsupported edge weight format: " + format_str);
     }
     return it->second;
 }
@@ -410,7 +428,7 @@ inline TSPType TSPLIBParser::parse_tsp_type(const std::string& type_str) {
 
     auto it = type_map.find(type_str);
     if (it == type_map.end()) {
-        throw std::runtime_error("Unsupported TSP type: " + type_str);
+        throw TSPLIBFormatError("Unsupported TSP type: " + type_str);
     }
     return it->second;
 }
@@ -440,7 +458,7 @@ inline void TSPLIBParser::parse_header(const std::string& line, TSPInstance& ins
         if (ec == std::errc()) {
             instance.dimension = parsed_dimension;
         } else {
-            throw std::runtime_error("Invalid format for DIMENSION: " + value);
+            throw TSPLIBFormatError("Invalid format for DIMENSION: " + value);
         }
     } else if (key == "EDGE_WEIGHT_TYPE") {
         instance.edge_weight_type = parse_edge_weight_type(value);
@@ -481,7 +499,7 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
         expected_size = (instance.dimension * (instance.dimension - 1)) / 2;
         break;
     default:
-        throw std::runtime_error("Unsupported edge weight format for parsing");
+        throw TSPLIBFormatError("Unsupported edge weight format for parsing");
     }
 
     instance.distance_matrix.reserve(expected_size);
@@ -499,14 +517,16 @@ inline void TSPLIBParser::parse_edge_weight_section(std::istream& stream, TSPIns
         while (p < end && instance.distance_matrix.size() < expected_size) {
             double distance = std::strtod(p, &endptr);
             if (p == endptr)
-                break; // No number found or error
+                break;
             instance.distance_matrix.push_back(distance);
             p = endptr;
         }
     }
 
     if (instance.distance_matrix.size() != expected_size) {
-        throw std::runtime_error("Distance matrix size mismatch");
+        throw TSPLIBDataError("Distance matrix size mismatch: expected " +
+                              std::to_string(expected_size) + " but got " +
+                              std::to_string(instance.distance_matrix.size()));
     }
 }
 
@@ -531,8 +551,7 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
         int node_id;
         auto [ptr1, ec1] = std::from_chars(start, end, node_id);
         if (ec1 != std::errc()) {
-            throw std::runtime_error("Invalid " + section_name +
-                                     " node ID format at line: " + line);
+            throw TSPLIBFormatError("Invalid " + section_name + " node ID format at line: " + line);
         }
 
         double x, y, z = 0.0;
@@ -545,16 +564,16 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
         char* endptr;
         x = std::strtod(p, &endptr);
         if (endptr == p) {
-            throw std::runtime_error("Invalid " + section_name +
-                                     " coordinate format at line: " + line);
+            throw TSPLIBFormatError("Invalid " + section_name +
+                                    " coordinate format at line: " + line);
         }
         p = endptr;
 
         // Parse second coordinate (y) - std::strtod skips whitespace automatically
         y = std::strtod(p, &endptr);
         if (endptr == p) {
-            throw std::runtime_error("Invalid " + section_name +
-                                     " coordinate format at line: " + line);
+            throw TSPLIBFormatError("Invalid " + section_name +
+                                    " coordinate format at line: " + line);
         }
         p = endptr;
 
@@ -566,8 +585,9 @@ inline void TSPLIBParser::parse_coord_section(std::istream& stream, TSPInstance&
 
         // Validate node_id and use it for proper indexing
         if (node_id < 1 || node_id > instance.dimension) {
-            throw std::runtime_error("Invalid " + section_name +
-                                     " node ID: " + std::to_string(node_id));
+            throw TSPLIBDataError("Invalid " + section_name +
+                                  " node ID: " + std::to_string(node_id) + " (expected 1-" +
+                                  std::to_string(instance.dimension) + ")");
         }
 
         coords[node_id - 1] = {x, y, z};
@@ -578,7 +598,7 @@ inline bool TSPLIBParser::line_starts_with(const std::string& line, const std::s
     // Trim leading whitespace from line
     size_t start = line.find_first_not_of(" \t");
     if (start == std::string::npos) {
-        return false; // Empty line after trimming
+        return false;
     }
 
     // Use C++23 string_view and starts_with for efficient comparison

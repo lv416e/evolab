@@ -24,6 +24,9 @@
 // IO
 #include "io/tsplib.hpp"
 
+// Configuration
+#include "config/config.hpp"
+
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform
@@ -103,6 +106,78 @@ inline auto make_tsp_ga_advanced() {
 inline auto make_ga_basic() {
     return core::make_ga(operators::TournamentSelection{4}, operators::PMXCrossover{},
                          operators::InversionMutation{}, local_search::NoLocalSearch{});
+}
+
+/// Create a TSP GA from configuration with PMX crossover
+/// Default implementation for configuration-driven GA
+///
+/// NOTE: Current limitation - operator types are fixed at compile time due to C++ template design.
+/// The configuration's operator.type field is currently not used to select operators dynamically.
+/// To use different operators, use the specific factory functions below (e.g.,
+/// make_tsp_ga_eax_from_config).
+///
+/// TODO: Future enhancement - implement runtime operator selection using std::variant or type
+/// erasure
+inline auto make_tsp_ga_from_config(const config::Config& cfg) {
+    // LIMITATION: Always uses PMX crossover regardless of config.operators.crossover.type
+    // This is due to C++'s compile-time template instantiation requirements
+    // See GitHub issue #16 review comment for discussion
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::PMXCrossover{}, operators::SwapMutation{});
+}
+
+/// Create TSP GA with Edge Assembly Crossover (EAX)
+inline auto make_tsp_ga_eax_from_config(const config::Config& cfg) {
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::EdgeRecombinationCrossover{}, operators::SwapMutation{});
+}
+
+/// Create TSP GA with Order Crossover (OX)
+inline auto make_tsp_ga_ox_from_config(const config::Config& cfg) {
+    return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
+                         operators::OrderCrossover{}, operators::SwapMutation{});
+}
+
+/// Create a TSP GA with local search from configuration
+inline auto make_tsp_ga_with_local_search_from_config(const config::Config& cfg) {
+    // LIMITATION: Always uses PMX crossover regardless of config.operators.crossover.type
+    // This is due to C++'s compile-time template instantiation requirements
+    // Use create_tsp_ga_dynamic_from_config for runtime operator selection
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::PMXCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.first_improvement, cfg.local_search.max_iterations});
+}
+
+/// Create TSP GA with local search, using EAX crossover
+inline auto make_tsp_ga_eax_with_local_search_from_config(const config::Config& cfg) {
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::EdgeRecombinationCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.first_improvement, cfg.local_search.max_iterations});
+}
+
+/// Create TSP GA with local search, using OX crossover
+inline auto make_tsp_ga_ox_with_local_search_from_config(const config::Config& cfg) {
+    return core::make_ga(
+        operators::TournamentSelection{cfg.operators.selection.tournament_size},
+        operators::OrderCrossover{}, operators::SwapMutation{},
+        local_search::TwoOpt{cfg.local_search.first_improvement, cfg.local_search.max_iterations});
+}
+
+/// Create UCB scheduler from configuration for a specific problem type
+template <typename Problem>
+inline auto make_ucb_scheduler_from_config(const config::Config& cfg) {
+    return schedulers::UCBOperatorSelector<Problem>(cfg.scheduler.operators.size(),
+                                                    cfg.scheduler.exploration_rate);
+}
+
+/// Create Thompson sampling scheduler from configuration
+template <typename Problem>
+inline auto make_thompson_scheduler_from_config(const config::Config& cfg) {
+    return schedulers::ThompsonOperatorSelector<Problem>(cfg.scheduler.operators.size(),
+                                                         0.0 // Default reward threshold
+    );
 }
 
 } // namespace factory

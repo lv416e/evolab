@@ -76,12 +76,13 @@ Note: Optional for new features or small additions. You can proceed directly to 
 Managed by `/kiro:steering` command. Updates here reflect command changes.
 
 ### Active Steering Files
-- `product.md`: Always included - Product context and business objectives
-- `tech.md`: Always included - Technology stack and architectural decisions
-- `structure.md`: Always included - File organization and code patterns
+- `product.md`: Always included - Product context and business objectives ✅
+- `tech.md`: Always included - Technology stack and architectural decisions ✅
+- `structure.md`: Always included - File organization and code patterns ✅
 
 ### Custom Steering Files
 <!-- Added by /kiro:steering-custom command -->
+- `pr-conventions.md`: Always included - Pull request title format and conventions ✅
 <!-- Format:
 - `filename.md`: Mode - Pattern(s) - Description
   Mode: Always|Conditional|Manual

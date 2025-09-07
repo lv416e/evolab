@@ -1,0 +1,27 @@
+# Advanced TSP GA Configuration
+# Memetic algorithm with local search for better solution quality
+
+[ga]
+population_size = 256
+elite_ratio = 0.05
+seed = 42
+
+[operators]
+crossover = { type = "EAX", probability = 0.9 }
+mutation = { type = "inversion", probability = 0.05 }
+selection = { type = "tournament", tournament_size = 5 }
+
+[local_search]
+enabled = true
+type = "2-opt" 
+max_iterations = 100
+probability = 0.3
+
+[termination]
+max_generations = 1000
+time_limit_minutes = 15
+stagnation_generations = 100
+
+[logging]
+log_interval = 25
+verbose = true

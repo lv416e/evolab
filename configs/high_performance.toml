@@ -1,0 +1,40 @@
+# High Performance TSP GA Configuration  
+# Aggressive settings for competitive solution quality
+
+[ga]
+population_size = 512
+elite_ratio = 0.10
+seed = 2023
+
+[operators]
+crossover = { type = "EAX", probability = 0.95 }
+mutation = { type = "adaptive", probability = 0.02 }
+selection = { type = "ranking", selection_pressure = 1.8 }
+
+[local_search]
+enabled = true
+type = "LK"
+max_iterations = 500
+probability = 0.5
+candidate_list_size = 40
+
+[scheduler]
+enabled = true
+type = "thompson"
+operators = ["EAX", "PMX", "OX"]
+window_size = 100
+
+[termination]
+max_generations = 5000
+time_limit_minutes = 60
+stagnation_generations = 200
+
+[parallel]
+enabled = true
+threads = 0  # Auto-detect
+chunk_size = 64
+
+[logging]
+log_interval = 10
+verbose = true
+save_evolution_curve = true
