@@ -1,3 +1,25 @@
+/**
+ * @file config.hpp
+ * @brief Configuration management system for genetic algorithm parameters
+ *
+ * This module implements a dual-namespace architecture separating user-facing
+ * configuration concerns from runtime execution requirements:
+ *
+ * **evolab::config namespace** - Configuration Interface Layer
+ * - Handles TOML file parsing and user input validation
+ * - Optimized for human readability and serialization formats
+ * - Provides structured access to configuration sections
+ * - Used in CLI tools, JSON output, and logging systems
+ *
+ * **evolab::core namespace** - Algorithm Execution Layer
+ * - Contains runtime-optimized data structures
+ * - Used directly by genetic algorithm implementations
+ * - Focuses on memory layout and computational efficiency
+ * - Isolated from configuration file format concerns
+ *
+ * This separation follows the Single Responsibility Principle and enables
+ * independent evolution of user interfaces and algorithm implementations.
+ */
 #pragma once
 
 #include <chrono>
@@ -20,6 +42,13 @@ class ConfigValidationError : public std::runtime_error {
   public:
     using std::runtime_error::runtime_error;
 };
+
+// Type aliases for enhanced code clarity and intent
+using PopulationSizeType = std::size_t;  ///< Population size parameter type
+using GenerationCountType = std::size_t; ///< Generation counter and limit type
+using ProbabilityType = double;          ///< Probability values in [0.0, 1.0] range
+using SeedType = std::uint64_t;          ///< Random seed type for reproducibility
+using TimeValueType = double;            ///< Time-related values (minutes, seconds)
 
 /// GA core configuration parameters
 struct GAConfig {
@@ -447,7 +476,10 @@ inline TerminationConfig Config::parse_termination(const toml::value& data) {
     }
 
     if (term_table.contains("time_limit_minutes")) {
-        // Handle both integer and floating-point values for time limit
+        // Robust parsing for numeric values that may appear as either integers or floats
+        // TOML v1.0.0 allows: time_limit_minutes = 30 (integer) or time_limit_minutes = 30.5
+        // (float) This approach prevents parser-specific type conversion failures and maintains
+        // precision
         const auto& time_val = term_table.at("time_limit_minutes");
         if (time_val.is_integer()) {
             term.time_limit_minutes =
@@ -462,7 +494,8 @@ inline TerminationConfig Config::parse_termination(const toml::value& data) {
     }
 
     if (term_table.contains("target_fitness")) {
-        // Handle both integer and floating-point values for target fitness
+        // Consistent numeric type handling for fitness values
+        // Supports both target_fitness = 0 (exact match) and target_fitness = 123.45 (threshold)
         const auto& fitness_val = term_table.at("target_fitness");
         if (fitness_val.is_integer()) {
             term.target_fitness =
@@ -675,14 +708,28 @@ inline void Config::apply_overrides(const ConfigOverrides& overrides) {
 
 namespace evolab::config {
 
+/**
+ * @brief Convert configuration to runtime GA parameters
+ *
+ * Implements a two-stage configuration merge strategy where base parameters from
+ * the [ga] section provide display values and fallbacks, while execution-critical
+ * parameters from [termination] section take precedence during algorithm runs.
+ *
+ * This design enables:
+ * - Clear separation between user interface and execution logic
+ * - Graceful fallback behavior when termination parameters are unspecified
+ * - Consistent JSON output regardless of execution overrides
+ * - Independent tuning of display vs runtime parameters
+ *
+ * @return Fully configured core::GAConfig ready for algorithm execution
+ */
 inline core::GAConfig Config::to_ga_config() const {
     core::GAConfig ga_config;
 
-    // Configuration priority pattern: GA defaults are overridden by termination settings
-    // GA config: used for display, testing, and JSON output
-    // Termination config: controls actual algorithm execution behavior
+    // Stage 1: Apply base configuration from [ga] section
+    // These values serve as defaults and are used for display purposes
     ga_config.population_size = ga.population_size;
-    ga_config.max_generations = ga.max_generations; // Apply base configuration
+    ga_config.max_generations = ga.max_generations;
     ga_config.elite_ratio = ga.elite_ratio;
     ga_config.seed = ga.seed;
 
@@ -690,8 +737,9 @@ inline core::GAConfig Config::to_ga_config() const {
     ga_config.crossover_prob = operators.crossover.probability;
     ga_config.mutation_prob = operators.mutation.probability;
 
-    // Override with execution-specific termination settings
-    ga_config.max_generations = termination.max_generations; // Final execution control
+    // Stage 2: Apply execution-specific overrides from [termination] section
+    // These parameters control actual algorithm behavior and take precedence
+    ga_config.max_generations = termination.max_generations;
     ga_config.stagnation_limit = termination.stagnation_generations;
 
     // Convert time limit from minutes to milliseconds
@@ -714,5 +762,36 @@ inline core::GAConfig Config::to_ga_config() const {
 
     return ga_config;
 }
+
+// Compile-time type compatibility and logical consistency validation
+namespace {
+// Ensure type compatibility between config and core namespaces
+static_assert(std::same_as<decltype(GAConfig::seed), decltype(core::GAConfig::seed)>,
+              "Seed types must be identical between config and core for safe conversion");
+
+static_assert(std::same_as<decltype(GAConfig::elite_ratio), decltype(core::GAConfig::elite_ratio)>,
+              "Elite ratio types must match between config and core for precise conversion");
+
+static_assert(sizeof(decltype(core::GAConfig::max_generations)) >=
+                  sizeof(decltype(GAConfig::max_generations)),
+              "Core GAConfig must support at least the same range as config GAConfig");
+
+// Validate default configuration values meet algorithmic requirements
+static_assert(GAConfig{}.population_size > 0,
+              "Default population size must be positive for valid algorithm operation");
+
+static_assert(GAConfig{}.elite_ratio >= 0.0 && GAConfig{}.elite_ratio <= 1.0,
+              "Default elite ratio must be within [0.0, 1.0] for valid selection behavior");
+
+static_assert(GAConfig{}.max_generations > 0,
+              "Default generation limit must be positive for algorithm termination");
+
+// Ensure TOML-compatible types for configuration parsing
+static_assert(std::is_arithmetic_v<decltype(GAConfig::population_size)>,
+              "Population size must be arithmetic type for TOML compatibility");
+
+static_assert(std::is_floating_point_v<decltype(GAConfig::elite_ratio)>,
+              "Elite ratio must be floating-point type for precision requirements");
+} // namespace
 
 } // namespace evolab::config
