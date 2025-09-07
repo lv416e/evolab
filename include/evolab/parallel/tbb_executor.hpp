@@ -30,8 +30,8 @@ class TBBExecutor {
         : base_seed_(seed), thread_rngs_([this]() {
               // Each thread gets a unique seed derived from base_seed and thread ID
               // This ensures reproducible results independent of thread scheduling
-              static thread_local std::hash<std::thread::id> hasher;
-              std::uint64_t thread_seed = base_seed_ ^ hasher(std::this_thread::get_id());
+              std::uint64_t thread_seed =
+                  base_seed_ ^ std::hash<std::thread::id>{}(std::this_thread::get_id());
               return std::mt19937(thread_seed);
           }) {}
 
@@ -47,7 +47,8 @@ class TBBExecutor {
 
         // Use TBB parallel_for with blocked_range for efficient work distribution
         tbb::parallel_for(tbb::blocked_range<std::size_t>(0, population.size()),
-                          [&](const tbb::blocked_range<std::size_t>& range) {
+                          [this, &problem, &fitnesses,
+                           &population](const tbb::blocked_range<std::size_t>& range) {
                               // Get thread-local RNG for this worker (for future stochastic
                               // algorithms)
                               [[maybe_unused]] auto& rng = thread_rngs_.local();

@@ -30,7 +30,7 @@ target_link_libraries(test_config_integration PRIVATE evolab)
 target_compile_features(test_config_integration PRIVATE cxx_std_23)
 
 # Conditional TBB parallel tests
-if(EVOLAB_HAVE_TBB)
+if(TBB_FOUND)
     add_executable(test_parallel test_parallel.cpp)
     target_link_libraries(test_parallel PRIVATE evolab)
     target_compile_features(test_parallel PRIVATE cxx_std_23)
@@ -45,6 +45,6 @@ add_test(NAME TSPLIBTests COMMAND test_tsplib)
 add_test(NAME ConfigTests COMMAND test_config)
 add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)
 
-if(EVOLAB_HAVE_TBB)
+if(TBB_FOUND)
     add_test(NAME ParallelTests COMMAND test_parallel)
 endif()
