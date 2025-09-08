@@ -50,9 +50,15 @@ endif()
 # Fetch toml11 library for configuration parsing
 # Using FetchContent for modern CMake integration with header-only library
 include(FetchContent)
+
+# Configure FetchContent for better SSL/TLS handling and reliability
+set(CMAKE_TLS_VERIFY ON)
+set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
     toml11
     URL https://github.com/ToruNiina/toml11/archive/refs/tags/v4.2.0.tar.gz
+    URL_HASH SHA256=9287971cd4a1a3992ef37e7b95a3972d1ae56410e7f8e3f300727ab1d6c79c2c
+    TIMEOUT 30
 )
 set(TOML11_INSTALL OFF CACHE INTERNAL "")  # Disable toml11 installation to avoid export issues
 FetchContent_MakeAvailable(toml11)
@@ -62,6 +68,8 @@ message(STATUS "Fetched toml11 library for TOML configuration parsing")
 FetchContent_Declare(
     nlohmann_json
     URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+    URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+    TIMEOUT 30
 )
 set(JSON_Install OFF CACHE INTERNAL "")  # Disable installation to avoid export issues
 FetchContent_MakeAvailable(nlohmann_json)
