@@ -7,10 +7,12 @@
 
 #include "test_helper.hpp"
 
-using namespace evolab;
-using namespace evolab::problems;
-using namespace evolab::parallel;
-using namespace evolab::core;
+// Explicit using declarations for better namespace management and dependency clarity
+// Avoids namespace pollution while maintaining code readability
+using evolab::core::Fitness;
+using evolab::parallel::TBBExecutor;
+using evolab::problems::create_random_tsp;
+using evolab::problems::TSP;
 
 namespace {
 
@@ -44,7 +46,7 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
 
 } // anonymous namespace
 
-void test_parallel_evaluation_correctness() {
+static void test_parallel_evaluation_correctness() {
     TestResult result;
 
     auto tsp = create_random_tsp(12, 100.0, 42);
@@ -70,7 +72,7 @@ void test_parallel_evaluation_correctness() {
     result.print_summary();
 }
 
-void test_thread_safe_rng() {
+static void test_thread_safe_rng() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -95,7 +97,7 @@ void test_thread_safe_rng() {
     result.print_summary();
 }
 
-void test_performance_improvement() {
+static void test_performance_improvement() {
     TestResult result;
 
     auto tsp = create_random_tsp(20, 100.0, 42);
