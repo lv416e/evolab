@@ -8,7 +8,7 @@ This directory contains detailed technical analysis and decision documentation f
 
 | Document ID | Title | Status | Date | Summary |
 |-------------|-------|--------|------|---------|
-| [TDD-2025-001](./tbb-executor-concurrent-determinism-analysis.md) | TBBExecutor Concurrent Determinism Analysis | Deferred | 2025-01-09 | Analysis of proposed const-correctness and stateless design improvements for parallel executor |
+| [TDD-2025-001](./tbb-executor-concurrent-determinism-analysis.md) | TBBExecutor Concurrent Determinism Analysis | Deferred | 2025-09-09 | Analysis of proposed const-correctness and stateless design improvements for parallel executor |
 
 ## Document Categories
 
