@@ -7,11 +7,10 @@
 #include <random>
 #include <vector>
 
+#include <evolab/core/concepts.hpp>
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
-
-#include "../core/concepts.hpp"
 
 namespace evolab::parallel {
 
