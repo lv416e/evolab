@@ -37,15 +37,23 @@
       }
     },
     {
-      "name": "debug",
+      "name": "debug-base",
+      "hidden": true,
       "inherits": "base",
+      "description": "Base debug configuration for all debug variants with common settings",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "EVOLAB_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "debug-base",
       "displayName": "Debug Configuration",
       "description": "Debug build with sanitizers and full debugging information",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "EVOLAB_BUILD_BENCHMARKS": "OFF",
         "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0 -fno-omit-frame-pointer"
       }
     },
@@ -53,7 +61,7 @@
       "name": "release-common",
       "hidden": true,
       "inherits": "base",
-      "description": "Common release configuration with optimizations",
+      "description": "Base release configuration with optimizations for all release variants",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "EVOLAB_BUILD_BENCHMARKS": "ON",
@@ -62,53 +70,45 @@
     },
     {
       "name": "debug-asan",
-      "inherits": "base",
+      "inherits": "debug-base",
       "displayName": "AddressSanitizer Debug",
       "description": "Debug build with AddressSanitizer for memory error detection",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-asan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "EVOLAB_BUILD_BENCHMARKS": "OFF",
         "CMAKE_CXX_FLAGS": "-fsanitize=address -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
       "name": "debug-ubsan",
-      "inherits": "base",
+      "inherits": "debug-base",
       "displayName": "UndefinedBehaviorSanitizer Debug",
       "description": "Debug build with UndefinedBehaviorSanitizer for UB detection",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-ubsan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "EVOLAB_BUILD_BENCHMARKS": "OFF",
         "CMAKE_CXX_FLAGS": "-fsanitize=undefined -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
       "name": "debug-tsan",
-      "inherits": "base",
+      "inherits": "debug-base",
       "displayName": "ThreadSanitizer Debug",
       "description": "Debug build with ThreadSanitizer for race condition detection",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-tsan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "EVOLAB_BUILD_BENCHMARKS": "OFF",
         "CMAKE_CXX_FLAGS": "-fsanitize=thread -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
       "name": "debug-msan",
-      "inherits": "base",
+      "inherits": "debug-base",
       "displayName": "MemorySanitizer Debug",
       "description": "Debug build with MemorySanitizer for uninitialized memory detection",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-msan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "EVOLAB_BUILD_BENCHMARKS": "OFF",
         "CMAKE_CXX_FLAGS": "-fsanitize=memory -g3 -O1 -fno-omit-frame-pointer"
       }
     },
