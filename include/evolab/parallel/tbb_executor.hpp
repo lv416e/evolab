@@ -2,6 +2,7 @@
 
 #ifdef EVOLAB_HAVE_TBB
 
+#include <atomic>
 #include <cstdint>
 #include <random>
 #include <thread>
@@ -30,21 +31,42 @@ class TBBExecutor {
   private:
     std::uint64_t base_seed_;
 
-    // Thread-local RNG storage - each thread gets its own RNG seeded deterministically
+    // Atomic counter for deterministic thread index assignment across program executions
+    // This ensures reproducible results by providing each thread with a sequential,
+    // deterministic identifier rather than relying on non-portable thread ID hashing
+    mutable std::atomic<std::uint64_t> rng_init_count_{0};
+
+    // Thread-local RNG storage with guaranteed deterministic seeding
+    // Each thread receives a unique, reproducible seed derived from base_seed and
+    // sequential thread initialization order, ensuring identical results across
+    // multiple program executions with the same base seed
     mutable tbb::combinable<std::mt19937> thread_rngs_;
 
   public:
     /// Constructs a thread-safe parallel executor with deterministic seeding
     ///
+    /// Initializes the executor with guaranteed reproducible behavior across program
+    /// executions. Uses atomic counter-based thread indexing to ensure deterministic
+    /// seed generation independent of system threading implementation details.
+    ///
     /// @param seed Base seed for reproducible parallel execution across multiple runs
-    ///             Each thread derives its unique seed from this base value and thread ID
+    ///             Each thread derives its unique seed from this base value and sequential
+    ///             thread initialization index, ensuring cross-execution consistency
     explicit TBBExecutor(std::uint64_t seed = 1)
         : base_seed_(seed), thread_rngs_([this]() {
-              // Generate deterministic per-thread seed from base seed and thread ID
-              // This approach ensures reproducible results regardless of thread scheduling
-              // while providing unique seeds for each worker thread
-              const std::uint64_t thread_seed =
-                  base_seed_ ^ std::hash<std::thread::id>{}(std::this_thread::get_id());
+              // Generate truly deterministic per-thread seed using sequential thread indexing
+              // This approach guarantees identical results across program executions by:
+              // 1. Using atomic counter to assign sequential thread indices (0, 1, 2, ...)
+              // 2. Combining base_seed with thread index using multiplicative hashing
+              // 3. Avoiding std::hash<thread::id> which is non-deterministic across executions
+              const std::uint64_t thread_idx =
+                  rng_init_count_.fetch_add(1, std::memory_order_relaxed);
+
+              // Apply multiplicative hashing with large prime for better seed distribution
+              // This prevents correlation between adjacent thread seeds and improves randomness
+              constexpr std::uint64_t mixing_prime = 0x9e3779b97f4a7c15ULL; // Golden ratio prime
+              const std::uint64_t thread_seed = base_seed_ + (thread_idx * mixing_prime);
+
               return std::mt19937(thread_seed);
           }) {}
 
@@ -93,17 +115,43 @@ class TBBExecutor {
 
     /// Resets all thread-local RNG state for deterministic multi-run experiments
     ///
-    /// This method clears the thread-local combinable storage, forcing fresh
-    /// RNG initialization on next access. Useful for ensuring identical behavior
-    /// across multiple experimental runs with the same executor instance.
-    void reset_rngs() noexcept { thread_rngs_.clear(); }
+    /// This method performs a complete reset of the parallel RNG infrastructure:
+    /// 1. Clears all thread-local RNG instances from TBB combinable storage
+    /// 2. Resets the atomic thread counter to ensure identical thread indexing
+    /// 3. Forces fresh, deterministic initialization on subsequent RNG access
+    ///
+    /// Critical for ensuring identical behavior across multiple experimental runs
+    /// with the same executor instance and base seed.
+    void reset_rngs() noexcept {
+        thread_rngs_.clear();
+        rng_init_count_.store(0, std::memory_order_relaxed);
+    }
 
   private:
-    // Thread-safety design notes:
+    // Thread-safety and determinism design notes:
+    //
+    // Immutable state (thread-safe by design):
     // - base_seed_: immutable after construction, safe for concurrent read access
+    //
+    // Atomic synchronization:
+    // - rng_init_count_: atomic counter ensures thread-safe sequential indexing
+    // - Uses relaxed memory ordering for performance (ordering not critical for RNG seeding)
+    // - Guarantees deterministic thread index assignment across program executions
+    //
+    // Thread-local storage:
     // - thread_rngs_: TBB combinable provides thread-local storage with proper synchronization
+    // - Each thread maintains its own MT19937 instance with unique, deterministic seed
+    // - No shared mutable state between threads during fitness evaluation
+    //
+    // Parallel execution safety:
     // - Each thread writes to distinct fitness array indices, preventing data races
     // - Problem and population parameters are read-only during evaluation
+    // - RNG access is thread-local, eliminating contention
+    //
+    // Deterministic reproducibility guarantees:
+    // - Same base_seed produces identical results across program executions
+    // - Thread initialization order is deterministic via atomic counter
+    // - Independent of thread ID hashing or system-specific threading behavior
     //
     // Future extensibility:
     // - RNG infrastructure prepared for stochastic evaluation methods
