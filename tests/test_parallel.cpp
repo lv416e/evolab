@@ -96,6 +96,20 @@ static void test_thread_safe_rng() {
                              std::to_string(i));
     }
 
+    // Test reset_rngs() functionality for deterministic multi-run experiments
+    // Critical: Verify atomic counter reset and thread-local state clearing
+    executor1.reset_rngs();
+    auto fitnesses3 = executor1.parallel_evaluate(tsp, population);
+
+    result.assert_eq(fitnesses1.size(), fitnesses3.size(),
+                     "RNG reset: fitness vector sizes must match after reset");
+
+    for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
+        result.assert_eq(fitnesses1[i].value, fitnesses3[i].value,
+                         "RNG reset: results must be identical after reset for element " +
+                             std::to_string(i));
+    }
+
     result.print_summary();
 }
 
@@ -182,6 +196,16 @@ static void test_performance_improvement() {
     std::cout << std::endl;
 
     // Verify correctness across all implementations
+    // Critical: Ensure performance optimizations don't compromise result accuracy
+    result.assert_eq(sequential_fitnesses.size(), parallel_fitnesses.size(),
+                     "Performance test: fitness vector sizes must match");
+
+    for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
+        result.assert_eq(
+            sequential_fitnesses[i].value, parallel_fitnesses[i].value,
+            "Performance test: parallel and sequential fitness must be identical for element " +
+                std::to_string(i));
+    }
 
     result.print_summary();
 }
