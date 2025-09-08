@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.25)
 project(EvoLab
     VERSION 0.1.0
     DESCRIPTION "A modern C++23 metaheuristics research platform for TSP/VRP/QAP problems"
