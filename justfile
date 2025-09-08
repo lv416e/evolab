@@ -115,22 +115,22 @@ debug:
     @echo "Creating debug build with sanitizers..."
     just workflow debug
 
-# Run AddressSanitizer analysis
+# Build and test with AddressSanitizer
 asan:
     @echo "Running AddressSanitizer workflow..."
     just workflow debug-asan
 
-# Run UndefinedBehaviorSanitizer analysis
+# Build and test with UndefinedBehaviorSanitizer
 ubsan:
     @echo "Running UndefinedBehaviorSanitizer workflow..."
     just workflow debug-ubsan
 
-# Run ThreadSanitizer analysis
+# Build and test with ThreadSanitizer
 tsan:
     @echo "Running ThreadSanitizer workflow..."
     just workflow debug-tsan
 
-# Run MemorySanitizer analysis
+# Build and test with MemorySanitizer
 msan:
     @echo "Running MemorySanitizer workflow..."
     just workflow debug-msan
@@ -140,12 +140,12 @@ release:
     @echo "Creating optimized release build..."
     just workflow release
 
-# Ultra-fast build using Ninja generator
+# Build using Ninja generator
 ninja:
     @echo "Creating fast Ninja build..."
     just workflow ninja-release
 
-# Build with Unity compilation (faster builds)
+# Build with Unity compilation
 unity-build preset=preset: (_validate-preset preset)
     @echo "Building with Unity Build for faster compilation..."
     cmake --preset {{preset}} -DCMAKE_UNITY_BUILD=ON -DCMAKE_UNITY_BUILD_BATCH_SIZE=16
@@ -159,7 +159,7 @@ modules preset=preset: (_validate-preset preset)
     cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
     @echo "C++23 Modules build completed!"
 
-# Run complete CI pipeline with all checks
+# Run CI pipeline with all checks
 [parallel]
 ci: format check-format asan ubsan (test "release") benchmarks
     @echo "Complete CI pipeline finished successfully!"
@@ -167,18 +167,17 @@ ci: format check-format asan ubsan (test "release") benchmarks
 # Run performance benchmarks
 benchmarks preset="release": (_validate-preset preset)
     @echo "Running performance benchmarks..."
-    # Set CPU governor to performance for consistent benchmarks
     @echo "Setting CPU to performance mode for benchmarks..."
     cmake --build --preset {{preset}} --target benchmarks --parallel {{parallel_jobs}} || echo "Benchmarks target not found - skipping"
     @echo "Benchmarks completed with {{preset}} preset!"
 
 # Format all C++ source code
 format:
-    @echo "Formatting C++ code with modern standards..."
+    @echo "Formatting C++ code with configured style..."
     find include tests apps -name "*.hpp" -o -name "*.cpp" -print0 | xargs -0 -P {{parallel_jobs}} clang-format -i --style=file
     @echo "Code formatting completed with {{parallel_jobs}} parallel jobs!"
 
-# Format specific staged files (for git hooks)
+# Format specific staged files
 format-staged *FILES:
     @echo "Formatting staged files..."
     @if [ "{{FILES}}" != "" ]; then \
@@ -193,7 +192,7 @@ check-format:
     @echo "Checking code formatting..."
     find include tests apps -name "*.hpp" -o -name "*.cpp" -print0 | xargs -0 clang-format --dry-run --Werror
 
-# Check formatting of specific staged files (for git hooks)
+# Check formatting of specific staged files
 check-format-staged *FILES:
     @echo "Checking formatting of staged files..."
     @if [ "{{FILES}}" != "" ]; then \
@@ -211,7 +210,7 @@ lint preset=preset: (build preset) (_validate-preset preset)
     xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p . --config-file=../.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
     @echo "C++23 static analysis completed!"
 
-# Lint specific staged files (for git hooks)
+# Lint specific staged files
 lint-staged preset=preset *FILES:
     @echo "Running clang-tidy on staged files with {{preset}} preset..."
     @if [ "{{FILES}}" != "" ]; then \
@@ -264,14 +263,14 @@ help:
     @echo "EvoLab C++23 Metaheuristics Platform"
     @echo "====================================="
     @echo ""
-    @echo "📖 Available Commands:"
+    @echo "Available Commands:"
     @just --list
     @echo ""
-    @echo "📊 Project Information:"
+    @echo "Project Information:"
     @echo "  just info                    # Detailed project diagnostics"
     @echo "  cmake --list-presets=all    # All available CMake presets"
     @echo ""
-    @echo "⚡ Quick Start:"
+    @echo "Quick Start:"
     @echo "  just                         # Show this help"
     @echo "  just build                   # Build with default preset"
     @echo "  just test                    # Run all tests"
