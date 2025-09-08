@@ -17,11 +17,13 @@ pre-commit:
       fail_text: "Code formatting check failed. Run 'just format' to fix."
 
     build-check:
+      # Use default preset for pre-commit to ensure fast feedback during development
       run: PRESET=${PRESET:-default} just build
       fail_text: "Build failed! Please fix compilation errors."
 
     lint:
       glob: "*.{hpp,h}"
+      # Use default preset for linting - faster than release build for development workflow
       run: just lint-staged ${PRESET:-default} {staged_files}
       fail_text: "Static analysis found issues."
 
@@ -36,10 +38,12 @@ pre-push:
         fi
 
     build:
+      # Use release preset for pre-push to catch optimization-related issues before sharing
       run: PRESET=${PRESET:-release} just build
       fail_text: "Pre-push build failed! Fix compilation errors before pushing."
 
     test:
+      # Use release preset for comprehensive testing with optimizations enabled
       run: PRESET=${PRESET:-release} just test
       fail_text: "Tests failed! Fix failing tests before pushing."
 
