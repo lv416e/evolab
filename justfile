@@ -1,15 +1,20 @@
 # EvoLab C++23 Metaheuristics Research Platform
-# Modern task automation with CMake Presets integration
-# https://just.systems/
+# 
+# This justfile provides a unified interface for all development tasks,
+# from building and testing to code quality checks and deployment.
+# It integrates seamlessly with CMake Presets for consistent configuration.
+#
+# Quick start: `just --list` to see all available commands
+# Documentation: https://just.systems/
 
-# Configuration variables - CMake Presets integration
+# Project configuration with flexible preset system
 preset := env_var_or_default('PRESET', 'default')
 parallel_jobs := env_var_or_default('PARALLEL_JOBS', num_cpus())
 unity_build := env_var_or_default('UNITY_BUILD', 'OFF')
 cpp23_modules := env_var_or_default('CPP23_MODULES', 'OFF')
 sanitizer := env_var_or_default('SANITIZER', 'address')
 
-# Recipe aliases
+# Convenient shortcuts for frequently used commands
 alias b := build
 alias t := test
 alias d := dev
@@ -20,18 +25,18 @@ alias c := clean
 alias i := info
 alias h := help
 
-# Show all available commands and usage
+# Display all available commands (default action)
 default:
     @just --list
 
-# Build project with specified CMake preset
+# Build project using any available preset configuration
 build preset=preset:
     @echo "Configuring EvoLab with C++23 ({{preset}} preset)..."
     cmake --preset {{preset}}
     @echo "Building with {{parallel_jobs}} parallel jobs..."
     cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
 
-# Complete workflow: configure + build + test
+# Run complete development cycle: configure, build, and test in one command
 workflow preset=preset:
     @echo "Running complete workflow with {{preset}} preset..."
     cmake --workflow --preset {{preset}}
@@ -105,12 +110,12 @@ _validate-preset preset:
         cmake --list-presets=configure 2>/dev/null || echo "No presets available"; \
     fi
 
-# Complete development cycle (clean + build + test + quality checks)
+# Full development workflow: clean slate + build + test + code quality
 [parallel]
 dev: clean (workflow preset) (quality-checks preset)
     @echo "Development cycle completed successfully!"
 
-# Run code quality checks (format + lint)
+# Ensure code meets project standards (formatting and static analysis)
 [parallel]
 quality-checks preset=preset: format check-format (lint preset)
     @echo "Code quality checks completed!"
@@ -183,7 +188,7 @@ benchmarks preset="release": (_validate-preset preset)
     cmake --build --preset {{preset}} --target benchmarks --parallel {{parallel_jobs}} || echo "Benchmarks target not found - skipping"
     @echo "Benchmarks completed with {{preset}} preset!"
 
-# Format all C++ source code
+# Auto-format all C++ code to maintain consistent style
 format:
     @echo "Formatting C++ code with configured style..."
     find include tests apps -name "*.hpp" -o -name "*.cpp" -print0 | xargs -0 -P {{parallel_jobs}} clang-format -i --style=file
@@ -214,7 +219,7 @@ check-format-staged *FILES:
         echo "No files to check"; \
     fi
 
-# Run static analysis with clang-tidy
+# Check code for potential issues and improvements
 lint preset=preset: (build preset) (_validate-preset preset)
     @echo "Running clang-tidy analysis with {{preset}} preset..."
     find include tests apps -name "*.cpp" -o -name "*.hpp" -print0 | \
