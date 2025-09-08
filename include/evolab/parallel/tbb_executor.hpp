@@ -167,6 +167,12 @@ class TBBExecutor {
 
 #else
 
+#include <cstdint>
+#include <type_traits>
+#include <vector>
+
+#include <evolab/core/concepts.hpp>
+
 // Standards-compliant fallback implementation when TBB is not available
 //
 // This fallback provides clear compile-time error messages when TBB parallel
