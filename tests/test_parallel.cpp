@@ -66,9 +66,11 @@ static void test_parallel_evaluation_correctness() {
                      "Fitness vector sizes should match");
 
     for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
-        result.assert_eq(sequential_fitnesses[i].value, parallel_fitnesses[i].value,
-                         "Parallel and sequential fitness should be identical " +
-                             std::to_string(i));
+        result.assert_true(sequential_fitnesses[i].value == parallel_fitnesses[i].value,
+                           "Parallel and sequential fitness should be identical " +
+                               std::to_string(i) +
+                               " (expected: " + std::to_string(sequential_fitnesses[i].value) +
+                               ", actual: " + std::to_string(parallel_fitnesses[i].value) + ")");
     }
 
     result.print_summary();
@@ -91,9 +93,11 @@ static void test_thread_safe_rng() {
                      "RNG reproducibility: fitness vector sizes should match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_eq(fitnesses1[i].value, fitnesses2[i].value,
-                         "RNG reproducibility: results should be identical with same seed " +
-                             std::to_string(i));
+        result.assert_true(fitnesses1[i].value == fitnesses2[i].value,
+                           "RNG reproducibility: results should be identical with same seed " +
+                               std::to_string(i) +
+                               " (expected: " + std::to_string(fitnesses1[i].value) +
+                               ", actual: " + std::to_string(fitnesses2[i].value) + ")");
     }
 
     // Test reset_rngs() functionality for deterministic multi-run experiments
@@ -105,9 +109,11 @@ static void test_thread_safe_rng() {
                      "RNG reset: fitness vector sizes must match after reset");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_eq(fitnesses1[i].value, fitnesses3[i].value,
-                         "RNG reset: results must be identical after reset for element " +
-                             std::to_string(i));
+        result.assert_true(fitnesses1[i].value == fitnesses3[i].value,
+                           "RNG reset: results must be identical after reset for element " +
+                               std::to_string(i) +
+                               " (expected: " + std::to_string(fitnesses1[i].value) +
+                               ", actual: " + std::to_string(fitnesses3[i].value) + ")");
     }
 
     result.print_summary();
@@ -213,10 +219,11 @@ static void test_performance_improvement() {
                      "Performance test: fitness vector sizes must match");
 
     for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
-        result.assert_eq(
-            sequential_fitnesses[i].value, parallel_fitnesses[i].value,
+        result.assert_true(
+            sequential_fitnesses[i].value == parallel_fitnesses[i].value,
             "Performance test: parallel and sequential fitness must be identical for element " +
-                std::to_string(i));
+                std::to_string(i) + " (expected: " + std::to_string(sequential_fitnesses[i].value) +
+                ", actual: " + std::to_string(parallel_fitnesses[i].value) + ")");
     }
 
     result.print_summary();
