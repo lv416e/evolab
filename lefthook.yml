@@ -30,7 +30,7 @@ pre-push:
   commands:
     changed-check:
       run: |
-        if ! git diff --name-only --cached | grep -Eq '^(src|include|apps|tests)/.*\.(c|cc|cpp|cxx|h|hpp)$'; then
+        if ! git diff --name-only @{u}..HEAD | grep -Eq '^(src|include|apps|tests)/.*\.(c|cc|cpp|cxx|h|hpp)$'; then
           echo "No code changes detected. Skipping build & tests."
           exit 0
         fi

@@ -97,30 +97,22 @@ debug:
     @echo "Creating debug build with sanitizers..."
     just workflow debug
 
-# Advanced Sanitizer Configurations
-asan preset="debug": (_validate-preset preset)
-    @echo "Running AddressSanitizer build..."
-    SANITIZER=address cmake --preset {{preset}} -DCMAKE_CXX_FLAGS="-fsanitize=address -g3 -O1 -fno-omit-frame-pointer"
-    cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
-    ctest --preset {{preset}} --verbose
+# Sanitizer Workflows - Modern C++23 CMake Preset-based
+asan:
+    @echo "Running AddressSanitizer workflow..."
+    just workflow debug-asan
 
-ubsan preset="debug": (_validate-preset preset)
-    @echo "Running UndefinedBehaviorSanitizer build..."
-    SANITIZER=undefined cmake --preset {{preset}} -DCMAKE_CXX_FLAGS="-fsanitize=undefined -g3 -O1 -fno-omit-frame-pointer"
-    cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
-    ctest --preset {{preset}} --verbose
+ubsan: 
+    @echo "Running UndefinedBehaviorSanitizer workflow..."
+    just workflow debug-ubsan
 
-tsan preset="debug": (_validate-preset preset)
-    @echo "Running ThreadSanitizer build..."
-    SANITIZER=thread cmake --preset {{preset}} -DCMAKE_CXX_FLAGS="-fsanitize=thread -g3 -O1"
-    cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
-    ctest --preset {{preset}} --verbose
+tsan:
+    @echo "Running ThreadSanitizer workflow..."
+    just workflow debug-tsan
 
-msan preset="debug": (_validate-preset preset)
-    @echo "Running MemorySanitizer build..."
-    SANITIZER=memory cmake --preset {{preset}} -DCMAKE_CXX_FLAGS="-fsanitize=memory -g3 -O1 -fno-omit-frame-pointer"
-    cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
-    ctest --preset {{preset}} --verbose
+msan:
+    @echo "Running MemorySanitizer workflow..."  
+    just workflow debug-msan
 
 # Optimized release build using release preset
 release:
@@ -148,7 +140,7 @@ modules preset=preset: (_validate-preset preset)
 
 # Complete CI Pipeline (Parallel Execution)
 [parallel]
-ci: format check-format (asan "debug") (ubsan "debug") (test "release") benchmarks
+ci: format check-format asan ubsan (test "release") benchmarks
     @echo "Complete CI pipeline finished successfully!"
 
 # Performance Benchmarks with proper environment
@@ -195,7 +187,6 @@ lint preset=preset: (build preset) (_validate-preset preset)
     @echo "Running clang-tidy analysis with {{preset}} preset..."
     cd {{build_dir}} && \
     find ../include ../tests ../apps -name "*.cpp" -o -name "*.hpp" | \
-    head -20 | \
     xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p . --config-file=../.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
     @echo "C++23 static analysis completed!"
 
@@ -204,7 +195,7 @@ lint-staged preset=preset *FILES:
     @echo "Running clang-tidy on staged files with {{preset}} preset..."
     @if [ "{{FILES}}" != "" ]; then \
         if [ -f "{{build_dir}}/compile_commands.json" ]; then \
-            echo "{{FILES}}" | tr ' ' '\n' | grep -E '\.(hpp|cpp)$' | head -10 | \
+            echo "{{FILES}}" | tr ' ' '\n' | grep -E '\.(hpp|cpp)$' | \
             xargs -r -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"; \
             echo "Staged files linting completed!"; \
         else \
@@ -217,8 +208,7 @@ lint-staged preset=preset *FILES:
 # Clean build artifacts - Dynamic preset-aware cleaning
 clean:
     @echo "Cleaning all build directories..."
-    rm -rf build
-    @find . -maxdepth 2 -type d -name "build*" -not -path "./build" -exec rm -rf {} + 2>/dev/null || true
+    rm -rf build build/debug build/release build/ninja-release build/debug-asan build/debug-ubsan build/debug-tsan build/debug-msan
     @echo "Clean completed!"
 
 clean-preset preset=preset:
@@ -276,11 +266,11 @@ help:
     @echo "  just ci                       # Complete CI pipeline (parallel)"
     @echo "  just quality-checks           # Parallel format + lint + security"
     @echo ""
-    @echo " Advanced Sanitizer Suite:"
-    @echo "  just asan debug              # AddressSanitizer (memory errors)"
-    @echo "  just ubsan debug             # UndefinedBehaviorSanitizer"
-    @echo "  just tsan debug              # ThreadSanitizer (race conditions)"
-    @echo "  just msan debug              # MemorySanitizer (uninitialized reads)"
+    @echo " Sanitizer Analysis (CMake Preset-based):"
+    @echo "  just asan                    # AddressSanitizer (memory errors)"
+    @echo "  just ubsan                   # UndefinedBehaviorSanitizer"
+    @echo "  just tsan                    # ThreadSanitizer (race conditions)"
+    @echo "  just msan                    # MemorySanitizer (uninitialized reads)"
     @echo ""
     @echo " Performance Optimizations:"
     @echo "  just ninja                   # Fast Ninja builds"
@@ -291,7 +281,7 @@ help:
     @echo "  PRESET=debug just b          # Override preset"
     @echo "  UNITY_BUILD=ON just build    # Enable Unity builds"
     @echo "  CPP23_MODULES=ON just build  # Enable C++23 modules"
-    @echo "  SANITIZER=thread just build  # Custom sanitizer config"
+    @echo "  just workflow debug-asan     # Direct preset workflow usage"
     @echo ""
     @echo " Modern C++23 Features (Industry Standard):"
     @echo "  just workflow release        # CMake workflow presets"
