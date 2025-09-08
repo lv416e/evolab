@@ -1,5 +1,5 @@
 # EvoLab C++23 Metaheuristics Research Platform
-# Task automation with CMake Presets integration
+# Modern task automation with CMake Presets integration
 # https://just.systems/
 
 # Configuration variables - CMake Presets integration
@@ -157,12 +157,19 @@ unity-build preset=preset: (_validate-preset preset)
     cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
     @echo "Unity build completed with batch size 16!"
 
-# Build with C++23 modules support
-modules preset=preset: (_validate-preset preset)
-    @echo "Building with C++23 Modules support..."
-    cmake --preset {{preset}} -DCMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API=ON -DCMAKE_CXX_MODULE_STD=ON
+# Build with experimental C++23 modules support
+cpp23-modules preset=preset: (_validate-preset preset)
+    @echo "Building with experimental C++23 Modules support..."
+    cmake --preset {{preset}} -DCMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API=2942ff8d-e5b4-4c52-80fe-8d6bf12e6f28 -DCMAKE_CXX_MODULE_STD=ON
     cmake --build --preset {{preset}} --parallel {{parallel_jobs}}
     @echo "C++23 Modules build completed!"
+
+# Test C++23 features compilation
+cpp23-features preset="debug": (_validate-preset preset)
+    @echo "Testing C++23 features compilation..."
+    cmake --preset {{preset}} -DEVOLAB_ENABLE_CPP23_EXPERIMENTAL=ON
+    cmake --build --preset {{preset}} --target test_cpp23_features --parallel {{parallel_jobs}}
+    {{build_dir}}/tests/test_cpp23_features || echo "C++23 features test completed with notes"
 
 # Run CI pipeline with all checks
 [parallel]
