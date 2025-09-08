@@ -128,8 +128,8 @@ static void test_performance_improvement() {
     std::cout << "Performance test configuration:\n";
     std::cout << "  TSP cities: " << tsp_cities << "\n";
     std::cout << "  Population size: " << population_size << "\n";
-    std::cout << "  Theoretical computation: ~" << (tsp_cities * tsp_cities * population_size)
-              << " distance calculations\n"
+    std::cout << "  Theoretical computation: ~" << (tsp_cities * population_size)
+              << " distance calculations (O(N_cities * Pop_size))\n"
               << std::endl;
 
     // Warm-up runs to prepare caches, branch predictors, and memory allocation
@@ -169,8 +169,20 @@ static void test_performance_improvement() {
     std::sort(sequential_times.begin(), sequential_times.end());
     std::sort(parallel_times.begin(), parallel_times.end());
 
-    auto sequential_median = sequential_times[benchmark_iterations / 2];
-    auto parallel_median = parallel_times[benchmark_iterations / 2];
+    // Robust median calculation for both odd and even sample sizes
+    auto get_median = [](const auto& times) {
+        const auto n = times.size();
+        if (n == 0)
+            return std::chrono::nanoseconds(0);
+        if (n % 2 == 1) {
+            return times[n / 2];
+        } else {
+            return (times[n / 2 - 1] + times[n / 2]) / 2;
+        }
+    };
+
+    auto sequential_median = get_median(sequential_times);
+    auto parallel_median = get_median(parallel_times);
 
     auto seq_microseconds =
         std::chrono::duration_cast<std::chrono::microseconds>(sequential_median);
