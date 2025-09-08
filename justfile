@@ -165,10 +165,30 @@ format:
     find include tests apps -name "*.hpp" -o -name "*.cpp" -print0 | xargs -0 -P {{parallel_jobs}} clang-format -i --style=file
     @echo "✅ Code formatting completed with {{parallel_jobs}} parallel jobs!"
 
+# 🎨 Format specific staged files (for git hooks)
+format-staged *FILES:
+    @echo "🎨 Formatting staged files..."
+    @if [ "{{FILES}}" != "" ]; then \
+        echo "{{FILES}}" | tr ' ' '\n' | xargs -r -P {{parallel_jobs}} clang-format -i --style=file; \
+        echo "✅ Staged files formatted with {{parallel_jobs}} parallel jobs!"; \
+    else \
+        echo "ℹ️ No files to format"; \
+    fi
+
 # 🔍 Check code formatting
 check-format:
     @echo "🔍 Checking code formatting..."
     find include tests apps -name "*.hpp" -o -name "*.cpp" -print0 | xargs -0 clang-format --dry-run --Werror
+
+# 🔍 Check formatting of specific staged files (for git hooks)
+check-format-staged *FILES:
+    @echo "🔍 Checking formatting of staged files..."
+    @if [ "{{FILES}}" != "" ]; then \
+        echo "{{FILES}}" | tr ' ' '\n' | xargs -r clang-format --dry-run --Werror; \
+        echo "✅ Staged files formatting check completed!"; \
+    else \
+        echo "ℹ️ No files to check"; \
+    fi
 
 # 📝 Enhanced static analysis with modern C++23 checks
 lint preset=preset: (build preset) (_validate-preset preset)
@@ -178,6 +198,21 @@ lint preset=preset: (build preset) (_validate-preset preset)
     head -20 | \
     xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p . --config-file=../.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
     @echo "✅ Modern C++23 static analysis completed!"
+
+# 📝 Lint specific staged files (for git hooks)
+lint-staged preset=preset *FILES:
+    @echo "📝 Running clang-tidy on staged files with {{preset}} preset..."
+    @if [ "{{FILES}}" != "" ]; then \
+        if [ -f "{{build_dir}}/compile_commands.json" ]; then \
+            echo "{{FILES}}" | tr ' ' '\n' | grep -E '\.(hpp|cpp)$' | head -10 | \
+            xargs -r -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"; \
+            echo "✅ Staged files linting completed!"; \
+        else \
+            echo "⚠️ No compilation database found. Run 'just build {{preset}}' first."; \
+        fi; \
+    else \
+        echo "ℹ️ No files to lint"; \
+    fi
 
 # 🧹 Clean build artifacts - Dynamic preset-aware cleaning
 clean:

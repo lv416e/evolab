@@ -1,5 +1,5 @@
 # EvoLab Git Hooks Configuration with Lefthook
-# Fast, parallel git hooks for C++23 development
+# Modern C++23 development with justfile integration (2025 Best Practices)
 
 # Pre-commit hooks - run before each commit
 pre-commit:
@@ -7,23 +7,23 @@ pre-commit:
   commands:
     format:
       glob: "*.{cpp,hpp,cc,cxx,h}"
-      run: clang-format -i --style=file {staged_files}
+      run: just format-staged {staged_files}
       stage_fixed: true
       fail_text: "Code formatting failed. Files have been auto-formatted, please stage and commit again."
 
+    check-format:
+      glob: "*.{cpp,hpp,cc,cxx,h}"
+      run: just check-format-staged {staged_files}
+      fail_text: "Code formatting check failed. Run 'just format' to fix."
+
     build-check:
-      run: cmake --build build --parallel 4 --config Release 2>/dev/null || (echo "Build failed! Fix compilation errors before committing." && exit 1)
+      run: PRESET=${PRESET:-default} just build
       fail_text: "Build failed! Please fix compilation errors."
 
     lint:
       glob: "*.{hpp,h}"
-      run: |
-        if [ -f build/compile_commands.json ]; then
-          find {staged_files} -name "*.hpp" 2>/dev/null | head -10 | xargs -r clang-tidy --config-file=.clang-tidy -p build --quiet || true
-        else
-          echo "⚠️  No compilation database found. Run: cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
-        fi
-      fail_text: "Static analysis found issues (non-blocking)."
+      run: just lint-staged ${PRESET:-default} {staged_files}
+      fail_text: "Static analysis found issues."
 
 pre-push:
   parallel: true
@@ -31,26 +31,17 @@ pre-push:
     changed-check:
       run: |
         if ! git diff --name-only --cached | grep -Eq '^(src|include|apps|tests)/.*\.(c|cc|cpp|cxx|h|hpp)$'; then
-          echo "No code changes. Skipping build & tests."
+          echo "No code changes detected. Skipping build & tests."
           exit 0
         fi
 
-    cmake-configure:
-      run: |
-        if [ ! -d build ]; then
-          cmake -S . -B build -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        fi
-
     build:
-      run: cmake --build build --parallel
+      run: PRESET=${PRESET:-release} just build
+      fail_text: "Pre-push build failed! Fix compilation errors before pushing."
 
     test:
-      run: |
-        CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
-        ctest --test-dir build --output-on-failure --stop-on-failure -j "${CORES:-4}" --timeout 120 -L smoke
+      run: PRESET=${PRESET:-release} just test
+      fail_text: "Tests failed! Fix failing tests before pushing."
 
 # Skip hooks for specific scenarios
 skip_output:
