@@ -5,7 +5,6 @@
 #include <atomic>
 #include <cstdint>
 #include <random>
-#include <thread>
 #include <vector>
 
 #include <tbb/blocked_range.h>

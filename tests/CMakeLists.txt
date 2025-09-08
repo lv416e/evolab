@@ -34,9 +34,12 @@ if(TBB_FOUND)
     add_executable(test_parallel test_parallel.cpp)
     target_link_libraries(test_parallel PRIVATE evolab)
     target_compile_features(test_parallel PRIVATE cxx_std_23)
+    
+    # Register parallel test with CTest
+    add_test(NAME ParallelTests COMMAND test_parallel)
 endif()
 
-# Register tests with CTest
+# Register core tests with CTest
 add_test(NAME CoreTests COMMAND test_core)
 add_test(NAME TSPTests COMMAND test_tsp)
 add_test(NAME OperatorTests COMMAND test_operators)
@@ -44,7 +47,3 @@ add_test(NAME SchedulerTests COMMAND test_schedulers)
 add_test(NAME TSPLIBTests COMMAND test_tsplib)
 add_test(NAME ConfigTests COMMAND test_config)
 add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)
-
-if(TBB_FOUND)
-    add_test(NAME ParallelTests COMMAND test_parallel)
-endif()
