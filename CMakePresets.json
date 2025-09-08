@@ -46,7 +46,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "EVOLAB_BUILD_BENCHMARKS": "OFF",
-        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0"
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0 -fno-omit-frame-pointer"
       }
     },
     {
@@ -96,7 +96,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "EVOLAB_BUILD_BENCHMARKS": "OFF",
-        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g3 -O1"
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
@@ -133,50 +133,42 @@
     {
       "name": "default",
       "displayName": "Default Build",
-      "configurePreset": "default",
-      "jobs": 0
+      "configurePreset": "default"
     },
     {
       "name": "debug",
       "displayName": "Debug Build",
-      "configurePreset": "debug",
-      "jobs": 0
+      "configurePreset": "debug"
     },
     {
       "name": "release",
       "displayName": "Release Build",
-      "configurePreset": "release",
-      "jobs": 0
+      "configurePreset": "release"
     },
     {
       "name": "ninja-release",
       "displayName": "Ninja Release Build",
-      "configurePreset": "ninja-release",
-      "jobs": 0
+      "configurePreset": "ninja-release"
     },
     {
       "name": "debug-asan",
       "displayName": "AddressSanitizer Build",
-      "configurePreset": "debug-asan",
-      "jobs": 0
+      "configurePreset": "debug-asan"
     },
     {
       "name": "debug-ubsan",
       "displayName": "UndefinedBehaviorSanitizer Build",
-      "configurePreset": "debug-ubsan",
-      "jobs": 0
+      "configurePreset": "debug-ubsan"
     },
     {
       "name": "debug-tsan",
       "displayName": "ThreadSanitizer Build",
-      "configurePreset": "debug-tsan",
-      "jobs": 0
+      "configurePreset": "debug-tsan"
     },
     {
       "name": "debug-msan",
       "displayName": "MemorySanitizer Build",
-      "configurePreset": "debug-msan",
-      "jobs": 0
+      "configurePreset": "debug-msan"
     }
   ],
   "testPresets": [
@@ -188,9 +180,7 @@
         "outputOnFailure": true,
         "shortProgress": true
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "debug",
@@ -201,9 +191,7 @@
         "shortProgress": true,
         "verbosity": "verbose"
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "release",
@@ -213,9 +201,7 @@
         "outputOnFailure": true,
         "shortProgress": true
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "ninja-release",
@@ -225,9 +211,7 @@
         "outputOnFailure": true,
         "shortProgress": true
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "debug-asan",
@@ -238,9 +222,7 @@
         "shortProgress": true,
         "verbosity": "verbose"
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "debug-ubsan",
@@ -251,9 +233,7 @@
         "shortProgress": true,
         "verbosity": "verbose"
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "debug-tsan",
@@ -264,9 +244,7 @@
         "shortProgress": true,
         "verbosity": "verbose"
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     },
     {
       "name": "debug-msan",
@@ -277,9 +255,7 @@
         "shortProgress": true,
         "verbosity": "verbose"
       },
-      "execution": {
-        "jobs": 0
-      }
+      "execution": {}
     }
   ],
   "workflowPresets": [

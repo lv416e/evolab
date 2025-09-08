@@ -96,9 +96,14 @@ _tool-versions:
     @echo "Just: $(just --version 2>/dev/null | cut -d' ' -f2 || echo 'not found')"
     @echo "System: $(uname -sm 2>/dev/null || echo 'unknown')"
 
-# Validate preset parameter (simplified approach)
+# Validate preset parameter and ensure it exists
 _validate-preset preset:
     @echo "Using preset: {{preset}}"
+    @if ! cmake --list-presets=configure 2>/dev/null | grep -q '"{{preset}}"'; then \
+        echo "Warning: Preset '{{preset}}' not found in CMakePresets.json"; \
+        echo "Available presets:"; \
+        cmake --list-presets=configure 2>/dev/null || echo "No presets available"; \
+    fi
 
 # Complete development cycle (clean + build + test + quality checks)
 [parallel]
@@ -205,9 +210,8 @@ check-format-staged *FILES:
 # Run static analysis with clang-tidy
 lint preset=preset: (build preset) (_validate-preset preset)
     @echo "Running clang-tidy analysis with {{preset}} preset..."
-    cd {{build_dir}} && \
-    find ../include ../tests ../apps -name "*.cpp" -o -name "*.hpp" | \
-    xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p . --config-file=../.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
+    find include tests apps -name "*.cpp" -o -name "*.hpp" | \
+    xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
     @echo "C++23 static analysis completed!"
 
 # Lint specific staged files
