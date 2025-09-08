@@ -63,7 +63,14 @@ class TBBExecutor {
 
               // Apply multiplicative hashing with large prime for better seed distribution
               // This prevents correlation between adjacent thread seeds and improves randomness
-              constexpr std::uint64_t mixing_prime = 0x9e3779b97f4a7c15ULL; // Golden ratio prime
+              //
+              // Golden ratio prime (2^64 / φ): Optimal for hash distribution due to mathematical
+              // properties
+              // - φ (golden ratio) = (1 + √5)/2 ≈ 1.618... provides maximum entropy in modular
+              // arithmetic
+              // - This specific prime minimizes collision clustering in hash table implementations
+              // - Ensures uniform distribution across the 64-bit space for sequential inputs
+              constexpr std::uint64_t mixing_prime = 0x9e3779b97f4a7c15ULL;
               const std::uint64_t thread_seed = base_seed_ + (thread_idx * mixing_prime);
 
               return std::mt19937(thread_seed);
