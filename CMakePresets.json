@@ -1,0 +1,415 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "description": "Hidden base preset with common C++23 settings",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EVOLAB_BUILD_TESTS": "ON",
+        "EVOLAB_USE_TBB": "ON",
+        "EVOLAB_USE_OPENMP": "ON"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    },
+    {
+      "name": "default",
+      "inherits": "base",
+      "displayName": "Default Configuration",
+      "description": "Default build configuration with Release optimizations",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "EVOLAB_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
+      "name": "debug-base",
+      "hidden": true,
+      "inherits": "base",
+      "description": "Base debug configuration for all debug variants with common settings",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "EVOLAB_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "debug-base",
+      "displayName": "Debug Configuration",
+      "description": "Debug build with sanitizers and full debugging information",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0 -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "release-common",
+      "hidden": true,
+      "inherits": "base",
+      "description": "Base release configuration with optimizations for all release variants",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "EVOLAB_BUILD_BENCHMARKS": "ON",
+        "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
+      }
+    },
+    {
+      "name": "debug-asan",
+      "inherits": "debug-base",
+      "displayName": "AddressSanitizer Debug",
+      "description": "Debug build with AddressSanitizer for memory error detection",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug-asan",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -g3 -O1 -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "debug-ubsan",
+      "inherits": "debug-base",
+      "displayName": "UndefinedBehaviorSanitizer Debug",
+      "description": "Debug build with UndefinedBehaviorSanitizer for UB detection",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug-ubsan",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -g3 -O1 -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "debug-tsan",
+      "inherits": "debug-base",
+      "displayName": "ThreadSanitizer Debug",
+      "description": "Debug build with ThreadSanitizer for race condition detection",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug-tsan",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g3 -O1 -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "debug-msan",
+      "inherits": "debug-base",
+      "displayName": "MemorySanitizer Debug",
+      "description": "Debug build with MemorySanitizer for uninitialized memory detection",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/debug-msan",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -g3 -O1 -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "release-common",
+      "displayName": "Release Configuration",
+      "description": "Optimized release build with maximum performance",
+      "generator": "Unix Makefiles", 
+      "binaryDir": "build/release"
+    },
+    {
+      "name": "ninja-release",
+      "inherits": "release-common",
+      "displayName": "Ninja Release Configuration",
+      "description": "Fast Ninja-based release build for maximum performance",
+      "generator": "Ninja",
+      "binaryDir": "build/ninja-release"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Build",
+      "configurePreset": "default"
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Build",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "configurePreset": "release"
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Build",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "debug-asan",
+      "displayName": "AddressSanitizer Build",
+      "configurePreset": "debug-asan"
+    },
+    {
+      "name": "debug-ubsan",
+      "displayName": "UndefinedBehaviorSanitizer Build",
+      "configurePreset": "debug-ubsan"
+    },
+    {
+      "name": "debug-tsan",
+      "displayName": "ThreadSanitizer Build",
+      "configurePreset": "debug-tsan"
+    },
+    {
+      "name": "debug-msan",
+      "displayName": "MemorySanitizer Build",
+      "configurePreset": "debug-msan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Tests",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {}
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Tests",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {}
+    },
+    {
+      "name": "release",
+      "displayName": "Release Tests",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {}
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Tests",
+      "configurePreset": "ninja-release",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true
+      },
+      "execution": {}
+    },
+    {
+      "name": "debug-asan",
+      "displayName": "AddressSanitizer Tests",
+      "configurePreset": "debug-asan",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {}
+    },
+    {
+      "name": "debug-ubsan",
+      "displayName": "UndefinedBehaviorSanitizer Tests",
+      "configurePreset": "debug-ubsan",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {}
+    },
+    {
+      "name": "debug-tsan",
+      "displayName": "ThreadSanitizer Tests",
+      "configurePreset": "debug-tsan",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {}
+    },
+    {
+      "name": "debug-msan",
+      "displayName": "MemorySanitizer Tests",
+      "configurePreset": "debug-msan",
+      "output": {
+        "outputOnFailure": true,
+        "shortProgress": true,
+        "verbosity": "verbose"
+      },
+      "execution": {}
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Workflow",
+      "description": "Complete build and test cycle with default settings",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Workflow",
+      "description": "Debug build cycle with sanitizers and verbose testing",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "displayName": "Release Workflow",
+      "description": "Optimized release build and test cycle",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release"
+        },
+        {
+          "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release Workflow",
+      "description": "Fast ninja-based release workflow for maximum performance",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ninja-release"
+        },
+        {
+          "type": "build", 
+          "name": "ninja-release"
+        },
+        {
+          "type": "test",
+          "name": "ninja-release"
+        }
+      ]
+    },
+    {
+      "name": "debug-asan",
+      "displayName": "AddressSanitizer Workflow",
+      "description": "Complete workflow with AddressSanitizer for memory error detection",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-asan"
+        },
+        {
+          "type": "build",
+          "name": "debug-asan"
+        },
+        {
+          "type": "test",
+          "name": "debug-asan"
+        }
+      ]
+    },
+    {
+      "name": "debug-ubsan",
+      "displayName": "UndefinedBehaviorSanitizer Workflow",
+      "description": "Complete workflow with UndefinedBehaviorSanitizer for UB detection",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-ubsan"
+        },
+        {
+          "type": "build",
+          "name": "debug-ubsan"
+        },
+        {
+          "type": "test",
+          "name": "debug-ubsan"
+        }
+      ]
+    },
+    {
+      "name": "debug-tsan",
+      "displayName": "ThreadSanitizer Workflow",
+      "description": "Complete workflow with ThreadSanitizer for race condition detection",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-tsan"
+        },
+        {
+          "type": "build",
+          "name": "debug-tsan"
+        },
+        {
+          "type": "test",
+          "name": "debug-tsan"
+        }
+      ]
+    },
+    {
+      "name": "debug-msan",
+      "displayName": "MemorySanitizer Workflow",
+      "description": "Complete workflow with MemorySanitizer for uninitialized memory detection",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-msan"
+        },
+        {
+          "type": "build",
+          "name": "debug-msan"
+        },
+        {
+          "type": "test",
+          "name": "debug-msan"
+        }
+      ]
+    }
+  ]
+}
