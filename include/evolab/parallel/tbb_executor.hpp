@@ -51,14 +51,13 @@ class TBBExecutor {
     ///             Each thread derives its unique seed from this base value and sequential
     ///             thread initialization index, ensuring cross-execution consistency
     explicit TBBExecutor(std::uint64_t seed = 1)
-        : base_seed_(seed), thread_rngs_([this]() {
+        : base_seed_(seed), thread_rngs_([seed = base_seed_, &counter = rng_init_count_]() {
               // Generate truly deterministic per-thread seed using sequential thread indexing
               // This approach guarantees identical results across program executions by:
               // 1. Using atomic counter to assign sequential thread indices (0, 1, 2, ...)
               // 2. Combining base_seed with thread index using multiplicative hashing
               // 3. Avoiding std::hash<thread::id> which is non-deterministic across executions
-              const std::uint64_t thread_idx =
-                  rng_init_count_.fetch_add(1, std::memory_order_relaxed);
+              const std::uint64_t thread_idx = counter.fetch_add(1, std::memory_order_relaxed);
 
               // Apply multiplicative hashing with large prime for better seed distribution
               // This prevents correlation between adjacent thread seeds and improves randomness
@@ -70,7 +69,7 @@ class TBBExecutor {
               // - This specific prime minimizes collision clustering in hash table implementations
               // - Ensures uniform distribution across the 64-bit space for sequential inputs
               constexpr std::uint64_t mixing_prime = 0x9e3779b97f4a7c15ULL;
-              const std::uint64_t thread_seed = base_seed_ + (thread_idx * mixing_prime);
+              const std::uint64_t thread_seed = seed + (thread_idx * mixing_prime);
 
               return std::mt19937(thread_seed);
           }) {}
