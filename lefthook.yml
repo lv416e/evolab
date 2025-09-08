@@ -1,5 +1,5 @@
 # EvoLab Git Hooks Configuration with Lefthook
-# Modern C++23 development with justfile integration (2025 Best Practices)
+# C++23 development with justfile integration
 
 # Pre-commit hooks - run before each commit
 pre-commit:
