@@ -114,7 +114,6 @@ _validate-preset preset:
     fi
 
 # Full development workflow: clean slate + build + test + code quality
-[parallel]
 dev: clean (workflow preset) (quality-checks preset)
     @echo "Development cycle completed successfully!"
 

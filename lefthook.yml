@@ -30,9 +30,10 @@ pre-commit:
       fail_text: "Static analysis found issues."
 
 pre-push:
-  parallel: true
+  piped: true
   commands:
     changed-check:
+      priority: 1
       run: |
         if ! git diff --name-only @{u}..HEAD | grep -Eq '^(src|include|apps|tests)/.*\.(c|cc|cpp|cxx|h|hpp)$'; then
           echo "No code changes detected. Skipping build & tests."
@@ -40,11 +41,13 @@ pre-push:
         fi
 
     build:
+      priority: 2
       # Use release preset for pre-push to catch optimization-related issues before sharing
       run: PRESET=${PRESET:-release} just build
       fail_text: "Pre-push build failed! Fix compilation errors before pushing."
 
     test:
+      priority: 3
       # Use release preset for comprehensive testing with optimizations enabled
       run: PRESET=${PRESET:-release} just test
       fail_text: "Tests failed! Fix failing tests before pushing."
