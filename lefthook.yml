@@ -3,15 +3,17 @@
 
 # Pre-commit hooks - run before each commit
 pre-commit:
-  parallel: true
+  piped: true
   commands:
     format:
+      priority: 1
       glob: "*.{cpp,hpp,cc,cxx,h}"
       run: just format-staged {staged_files}
       stage_fixed: true
       fail_text: "Code formatting failed. Files have been auto-formatted, please stage and commit again."
 
     check-format:
+      priority: 2
       glob: "*.{cpp,hpp,cc,cxx,h}"
       run: just check-format-staged {staged_files}
       fail_text: "Code formatting check failed. Run 'just format' to fix."

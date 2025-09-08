@@ -14,6 +14,12 @@ unity_build := env_var_or_default('UNITY_BUILD', 'OFF')
 cpp23_modules := env_var_or_default('CPP23_MODULES', 'OFF')
 sanitizer := env_var_or_default('SANITIZER', 'address')
 
+# C++23 static analysis configuration
+clang_tidy_args := '--config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers"'
+
+# Dynamic build directory resolution
+build_dir := if preset == "default" { "build" } else { "build/" + preset }
+
 # Convenient shortcuts for frequently used commands
 alias b := build
 alias t := test
@@ -80,9 +86,6 @@ test-config preset=preset: (build preset)
 run preset=preset *ARGS: (build preset)
     @echo "Running TSP application with {{preset}} preset..."
     {{build_dir}}/apps/evolab-tsp {{ARGS}}
-
-# Dynamic build directory resolution
-build_dir := if preset == "default" { "build" } else { "build/" + preset }
 
 # === INTERNAL FUNCTIONS (Hidden Recipes) ===
 
@@ -223,7 +226,7 @@ check-format-staged *FILES:
 lint preset=preset: (build preset) (_validate-preset preset)
     @echo "Running clang-tidy analysis with {{preset}} preset..."
     find include tests apps -name "*.cpp" -o -name "*.hpp" -print0 | \
-    xargs -0 -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
+    xargs -0 -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} {{clang_tidy_args}} || echo "clang-tidy completed with warnings"
     @echo "C++23 static analysis completed!"
 
 # Lint specific staged files
@@ -232,7 +235,7 @@ lint-staged preset=preset *FILES:
     @if [ "{{FILES}}" != "" ]; then \
         if [ -f "{{build_dir}}/compile_commands.json" ]; then \
             echo "{{FILES}}" | tr ' ' '\n' | grep -E '\.(hpp|cpp)$' | \
-            xargs -r -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"; \
+            xargs -r -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} {{clang_tidy_args}} || echo "clang-tidy completed with warnings"; \
             echo "Staged files linting completed!"; \
         else \
             echo "No compilation database found. Run 'just build {{preset}}' first."; \
