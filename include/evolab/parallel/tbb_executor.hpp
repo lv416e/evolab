@@ -33,13 +33,13 @@ class TBBExecutor {
     // Atomic counter for deterministic thread index assignment across program executions
     // This ensures reproducible results by providing each thread with a sequential,
     // deterministic identifier rather than relying on non-portable thread ID hashing
-    mutable std::atomic<std::uint64_t> rng_init_count_{0};
+    std::atomic<std::uint64_t> rng_init_count_{0};
 
     // Thread-local RNG storage with guaranteed deterministic seeding
     // Each thread receives a unique, reproducible seed derived from base_seed and
     // sequential thread initialization order, ensuring identical results across
     // multiple program executions with the same base seed
-    mutable tbb::combinable<std::mt19937> thread_rngs_;
+    tbb::combinable<std::mt19937> thread_rngs_;
 
   public:
     /// Constructs a thread-safe parallel executor with deterministic seeding
