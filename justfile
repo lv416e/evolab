@@ -210,8 +210,8 @@ check-format-staged *FILES:
 # Run static analysis with clang-tidy
 lint preset=preset: (build preset) (_validate-preset preset)
     @echo "Running clang-tidy analysis with {{preset}} preset..."
-    find include tests apps -name "*.cpp" -o -name "*.hpp" | \
-    xargs -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
+    find include tests apps -name "*.cpp" -o -name "*.hpp" -print0 | \
+    xargs -0 -I {} -P {{parallel_jobs}} clang-tidy {} -p {{build_dir}} --config-file=.clang-tidy --checks="*,-fuchsia-*,-google-readability-*,-readability-magic-numbers" || echo "clang-tidy completed with warnings"
     @echo "C++23 static analysis completed!"
 
 # Lint specific staged files
