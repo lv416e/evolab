@@ -2,24 +2,20 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 22,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Default Configuration",
-      "description": "Default build configuration with Release optimizations",
-      "generator": "Unix Makefiles",
-      "binaryDir": "build",
+      "name": "base",
+      "hidden": true,
+      "description": "Hidden base preset with common C++23 settings",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "23",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "EVOLAB_BUILD_TESTS": "ON",
-        "EVOLAB_BUILD_BENCHMARKS": "ON",
         "EVOLAB_USE_TBB": "ON",
         "EVOLAB_USE_OPENMP": "ON"
       },
@@ -29,72 +25,54 @@
       }
     },
     {
+      "name": "default",
+      "inherits": "base",
+      "displayName": "Default Configuration",
+      "description": "Default build configuration with Release optimizations",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "EVOLAB_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
       "name": "debug",
+      "inherits": "base",
       "displayName": "Debug Configuration",
       "description": "Debug build with sanitizers and full debugging information",
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_STANDARD": "23",
-        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-        "CMAKE_CXX_EXTENSIONS": "OFF",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "EVOLAB_BUILD_TESTS": "ON",
         "EVOLAB_BUILD_BENCHMARKS": "OFF",
-        "EVOLAB_USE_TBB": "ON",
-        "EVOLAB_USE_OPENMP": "ON",
         "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0"
-      },
-      "environment": {
-        "CC": "clang",
-        "CXX": "clang++"
       }
     },
     {
       "name": "release",
+      "inherits": "base",
       "displayName": "Release Configuration",
       "description": "Optimized release build with maximum performance",
       "generator": "Unix Makefiles", 
       "binaryDir": "build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_STANDARD": "23",
-        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-        "CMAKE_CXX_EXTENSIONS": "OFF",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "EVOLAB_BUILD_TESTS": "ON",
         "EVOLAB_BUILD_BENCHMARKS": "ON",
-        "EVOLAB_USE_TBB": "ON",
-        "EVOLAB_USE_OPENMP": "ON",
         "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
-      },
-      "environment": {
-        "CC": "clang",
-        "CXX": "clang++"
       }
     },
     {
       "name": "ninja-release",
+      "inherits": "base",
       "displayName": "Ninja Release Configuration",
       "description": "Fast Ninja-based release build for maximum performance",
       "generator": "Ninja",
       "binaryDir": "build/ninja-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_STANDARD": "23",
-        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-        "CMAKE_CXX_EXTENSIONS": "OFF",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "EVOLAB_BUILD_TESTS": "ON",
         "EVOLAB_BUILD_BENCHMARKS": "ON",
-        "EVOLAB_USE_TBB": "ON",
-        "EVOLAB_USE_OPENMP": "ON",
         "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
-      },
-      "environment": {
-        "CC": "clang",
-        "CXX": "clang++"
       }
     }
   ],
