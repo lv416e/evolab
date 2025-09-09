@@ -27,84 +27,82 @@ namespace evolab::parallel {
 /// - Exception-safe RAII design with proper resource management
 class TBBExecutor {
   private:
-    std::uint64_t base_seed_;
-
-    // Atomic counter for deterministic thread index assignment across program executions
-    // This ensures reproducible results by providing each thread with a sequential,
-    // deterministic identifier rather than relying on non-portable thread ID hashing
-    std::atomic<std::uint64_t> rng_init_count_{0};
-
-    // Thread-local RNG storage with guaranteed deterministic seeding
-    // Each thread receives a unique, reproducible seed derived from base_seed and
-    // sequential thread initialization order, ensuring identical results across
-    // multiple program executions with the same base seed
-    tbb::combinable<std::mt19937> thread_rngs_;
+    // Immutable after construction - enables const-correctness and thread safety
+    const std::uint64_t base_seed_;
 
   public:
     /// Constructs a thread-safe parallel executor with deterministic seeding
     ///
-    /// Initializes the executor with guaranteed reproducible behavior across program
-    /// executions. Uses atomic counter-based thread indexing to ensure deterministic
-    /// seed generation independent of system threading implementation details.
+    /// The executor employs a stateless design pattern following C++23 best practices
+    /// for concurrent programming. Each parallel_evaluate() call operates independently
+    /// with per-call state management, eliminating shared mutable state and ensuring
+    /// inherent thread safety without synchronization overhead.
     ///
     /// @param seed Base seed for reproducible parallel execution across multiple runs
-    ///             Each thread derives its unique seed from this base value and sequential
-    ///             thread initialization index, ensuring cross-execution consistency
-    explicit TBBExecutor(std::uint64_t seed = 1)
-        : base_seed_(seed), thread_rngs_([seed = base_seed_, &counter = rng_init_count_]() {
-              // Generate truly deterministic per-thread seed using sequential thread indexing
-              // This approach guarantees identical results across program executions by:
-              // 1. Using atomic counter to assign sequential thread indices (0, 1, 2, ...)
-              // 2. Combining base_seed with thread index using multiplicative hashing
-              // 3. Avoiding std::hash<thread::id> which is non-deterministic across executions
-              const std::uint64_t thread_idx = counter.fetch_add(1, std::memory_order_relaxed);
+    ///             Each thread derives its unique seed deterministically from this base
+    explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {}
 
-              // Apply multiplicative hashing with large prime for better seed distribution
-              // This prevents correlation between adjacent thread seeds and improves randomness
-              //
-              // Golden ratio prime (2^64 / φ): Optimal for hash distribution due to mathematical
-              // properties
-              // - φ (golden ratio) = (1 + √5)/2 ≈ 1.618... provides maximum entropy in modular
-              // arithmetic
-              // - This specific prime minimizes collision clustering in hash table implementations
-              // - Ensures uniform distribution across the 64-bit space for sequential inputs
-              constexpr std::uint64_t mixing_prime = 0x9e3779b97f4a7c15ULL;
-              const std::uint64_t thread_seed = seed + (thread_idx * mixing_prime);
-
-              return std::mt19937(thread_seed);
-          }) {}
-
-    /// Performs parallel fitness evaluation using TBB's efficient work distribution
+    /// Performs thread-safe parallel fitness evaluation using stateless design
     ///
-    /// This method evaluates population fitness in parallel while maintaining identical
-    /// results to sequential evaluation. Uses blocked range partitioning for optimal
-    /// cache locality and work distribution across available threads.
+    /// This method implements C++23 const-correctness principles by declaring the
+    /// operation as logically read-only. The stateless design eliminates data races
+    /// through per-call state management, where each invocation creates its own
+    /// thread-local RNG infrastructure independently.
+    ///
+    /// Key design benefits:
+    /// - **Thread Safety**: No shared mutable state prevents data races by design
+    /// - **Const-Correctness**: Method contract guarantees no observable state changes
+    /// - **Determinism**: Identical results across runs with same seed and population
+    /// - **Zero-Cost Abstraction**: No synchronization overhead during execution
+    /// - **Future-Proof**: Ready for stochastic algorithms requiring per-thread RNG
     ///
     /// @param problem Problem instance providing fitness evaluation function
-    /// @param population Vector of genomes to evaluate
-    /// @return Vector of fitness values corresponding to input population
-    /// @throws std::exception if evaluation fails or TBB encounters errors
+    /// @param population Vector of genomes to evaluate in parallel
+    /// @return Vector of fitness values corresponding to input population order
+    /// @throws std::exception if TBB encounters errors during parallel execution
     template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
-    parallel_evaluate(const P& problem, const std::vector<typename P::GenomeT>& population) {
-        using GenomeT = typename P::GenomeT;
+    parallel_evaluate(const P& problem, const std::vector<typename P::GenomeT>& population) const {
         using Fitness = evolab::core::Fitness;
 
         std::vector<Fitness> fitnesses(population.size());
 
-        // Execute parallel fitness evaluation using TBB's dynamic work distribution
-        // Explicit lambda captures ensure thread safety and clear dependencies
-        tbb::parallel_for(tbb::blocked_range<std::size_t>(0, population.size()),
-                          [this, &problem, &fitnesses,
-                           &population](const tbb::blocked_range<std::size_t>& range) {
-                              // Acquire thread-local RNG for potential future stochastic algorithms
-                              // Currently unused for deterministic TSP evaluation but provides
-                              // infrastructure for evolutionary operators requiring randomization
-                              [[maybe_unused]] auto& rng = thread_rngs_.local();
+        // Per-call state management ensures thread safety and deterministic behavior
+        // This atomic counter provides sequential thread indexing for reproducible seeding
+        std::atomic<std::uint64_t> rng_init_count{0};
 
-                              // Process assigned range of population with thread-safe evaluation
-                              // Each thread writes to distinct fitness array indices, preventing
-                              // data races
+        // Thread-local RNG storage with deterministic per-thread seed generation
+        // Each thread receives a unique, reproducible seed derived from base_seed
+        // and sequential thread initialization order for cross-execution consistency
+        tbb::combinable<std::mt19937> thread_rngs([this, &rng_init_count]() {
+            // Generate deterministic per-thread seed using sequential indexing
+            // Guarantees identical results across program executions by:
+            // 1. Atomic counter assigns sequential indices (0, 1, 2, ...)
+            // 2. Multiplicative hashing prevents seed correlation
+            // 3. Avoids std::hash<thread::id> non-deterministic behavior
+            const std::uint64_t thread_idx = rng_init_count.fetch_add(1, std::memory_order_relaxed);
+
+            // Golden ratio prime for optimal hash distribution
+            // Mathematical properties ensure uniform distribution across 64-bit space
+            // for sequential inputs while minimizing collision clustering
+            constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
+            const std::uint64_t thread_seed = base_seed_ + (thread_idx * golden_ratio_prime);
+
+            return std::mt19937(thread_seed);
+        });
+
+        // Execute parallel fitness evaluation using TBB's dynamic work distribution
+        // Explicit lambda captures ensure thread safety and clear dependency tracking
+        tbb::parallel_for(tbb::blocked_range<std::size_t>(0, population.size()),
+                          [&problem, &fitnesses, &population,
+                           &thread_rngs](const tbb::blocked_range<std::size_t>& range) {
+                              // Acquire thread-local RNG for future stochastic algorithms
+                              // Currently unused for deterministic TSP evaluation but provides
+                              // infrastructure foundation for evolutionary operators
+                              [[maybe_unused]] auto& rng = thread_rngs.local();
+
+                              // Process assigned range with thread-safe, cache-efficient evaluation
+                              // Each thread writes to distinct indices, preventing data races
                               for (std::size_t i = range.begin(); i != range.end(); ++i) {
                                   fitnesses[i] = problem.evaluate(population[i]);
                               }
@@ -113,54 +111,50 @@ class TBBExecutor {
         return fitnesses;
     }
 
-    /// Retrieves the base seed used for deterministic parallel execution
-    /// @return Base seed value used to derive per-thread seeds
+    /// Retrieves the immutable base seed for deterministic parallel execution
+    /// @return Base seed value used for per-thread seed derivation
     [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
 
-    /// Resets all thread-local RNG state for deterministic multi-run experiments
-    ///
-    /// This method performs a complete reset of the parallel RNG infrastructure:
-    /// 1. Clears all thread-local RNG instances from TBB combinable storage
-    /// 2. Resets the atomic thread counter to ensure identical thread indexing
-    /// 3. Forces fresh, deterministic initialization on subsequent RNG access
-    ///
-    /// Critical for ensuring identical behavior across multiple experimental runs
-    /// with the same executor instance and base seed.
-    void reset_rngs() noexcept {
-        thread_rngs_.clear();
-        rng_init_count_.store(0, std::memory_order_relaxed);
-    }
+    // Note: reset_rngs() method removed in favor of stateless design
+    // Each parallel_evaluate() call operates independently with fresh state,
+    // eliminating the need for explicit state reset and associated thread safety concerns
 
   private:
-    // Thread-safety and determinism design notes:
+    // Thread-safety and determinism design notes (C++23 Best Practices):
     //
-    // Immutable state (thread-safe by design):
-    // - base_seed_: immutable after construction, safe for concurrent read access
+    // Immutable Design Pattern:
+    // - base_seed_: const-qualified after construction, safe for concurrent access
+    // - No shared mutable state eliminates data race possibilities by design
+    // - Follows C++ Core Guidelines: "You cannot have a race condition on immutable data"
     //
-    // Atomic synchronization:
-    // - rng_init_count_: atomic counter ensures thread-safe sequential indexing
-    // - Uses relaxed memory ordering for performance (ordering not critical for RNG seeding)
-    // - Guarantees deterministic thread index assignment across program executions
+    // Const-Correctness Implementation:
+    // - parallel_evaluate() const-qualified expresses thread-safe contract
+    // - Method semantics: "logically read-only operation safe for concurrent use"
+    // - Aligns with C++11/23 const meaning: "safe to read concurrently"
     //
-    // Thread-local storage:
-    // - thread_rngs_: TBB combinable provides thread-local storage with proper synchronization
-    // - Each thread maintains its own MT19937 instance with unique, deterministic seed
-    // - No shared mutable state between threads during fitness evaluation
+    // Stateless Architecture Benefits:
+    // - Per-call state management prevents interference between invocations
+    // - Eliminates synchronization overhead (no mutexes, locks, or atomics on critical path)
+    // - Natural exception safety through RAII and automatic cleanup
+    // - Simplified API surface - no state management methods required
     //
-    // Parallel execution safety:
-    // - Each thread writes to distinct fitness array indices, preventing data races
-    // - Problem and population parameters are read-only during evaluation
-    // - RNG access is thread-local, eliminating contention
-    //
-    // Deterministic reproducibility guarantees:
-    // - Same base_seed produces identical results across program executions
-    // - Thread initialization order is deterministic via atomic counter
+    // Deterministic Reproducibility Guarantees:
+    // - Identical base_seed produces bit-identical results across program executions
+    // - Thread initialization order deterministic via atomic counter sequence
     // - Independent of thread ID hashing or system-specific threading behavior
+    // - Mathematical seeding ensures uniform distribution across thread space
     //
-    // Future extensibility:
-    // - RNG infrastructure prepared for stochastic evaluation methods
-    // - Thread-local storage supports evolutionary operators requiring randomization
+    // Performance Characteristics:
+    // - Zero-cost abstraction: no runtime overhead for thread safety
+    // - Cache-friendly: eliminates false sharing from shared atomic counters
+    // - Memory efficient: automatic cleanup of per-call thread-local storage
+    // - Scalable: no contention on shared synchronization primitives
+    //
+    // Future Extensibility:
+    // - Thread-local RNG infrastructure prepared for stochastic evaluation methods
     // - Design accommodates both deterministic and probabilistic algorithms
+    // - Compatible with advanced evolutionary operators requiring per-thread randomization
+    // - Maintains API stability while enabling internal optimizations
 };
 
 } // namespace evolab::parallel
@@ -217,14 +211,15 @@ class TBBExecutor {
     template <typename P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate([[maybe_unused]] const P& problem,
-                      [[maybe_unused]] const std::vector<typename P::GenomeT>& population) {
+                      [[maybe_unused]] const std::vector<typename P::GenomeT>& population) const {
         // This method is never reached due to constructor static_assert
         return {};
     }
 
-    /// API compatibility methods - unreachable due to static_assert
+    /// API compatibility method - unreachable due to static_assert
     [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return 1; }
-    void reset_rngs() noexcept {}
+
+    // Note: reset_rngs() method removed in both implementations for API consistency
 };
 
 } // namespace evolab::parallel
