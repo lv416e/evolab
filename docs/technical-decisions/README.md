@@ -8,8 +8,8 @@ This directory contains detailed technical analysis and decision documentation f
 
 | Document ID | Title | Status | Date | Summary |
 |-------------|-------|--------|------|---------|
-| [TDD-2025-001](./tbb-executor-concurrent-determinism-analysis.md) | TBBExecutor Concurrent Determinism Analysis | Deferred | 2025-09-09 | Analysis of proposed const-correctness and stateless design improvements for parallel executor |
-| [TDD-2025-002](./tbb-executor-thread-safety-analysis.md) | TBBExecutor Thread Safety Analysis and Design Improvement Strategy | Separate Implementation Recommended | 2025-09-09 | Evidence-based analysis of thread safety concerns with comprehensive implementation strategy for const-correct stateless design improvements |
+| [TDD-2025-001](./tbb-executor-concurrent-determinism-analysis.md) | TBBExecutor Concurrent Determinism Analysis | Implemented | 2025-09-09 | Const-correctness and stateless design improvements implemented in PR #17 |
+| [TDD-2025-002](./tbb-executor-thread-safety-analysis.md) | TBBExecutor Thread Safety Analysis and Design Improvement Strategy | Implemented | 2025-09-09 | Thread safety analysis and stateless design implementation completed in PR #17 |
 
 ## Document Categories
 
