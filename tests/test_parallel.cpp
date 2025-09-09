@@ -118,6 +118,34 @@ static void test_rng_reproducibility_and_reset() {
                 ", actual: " + std::to_string(fitnesses3[i].value) + ")");
     }
 
+    // Enhanced stateless verification: Multiple calls on same executor instance
+    // Tests that each parallel_evaluate() call on the same executor produces identical,
+    // independent results due to per-call state management (const-correct stateless design)
+    TBBExecutor executor4(456); // Same seed for deterministic behavior
+    auto first_call = executor4.parallel_evaluate(tsp, population);
+    auto second_call = executor4.parallel_evaluate(tsp, population);
+    auto third_call = executor4.parallel_evaluate(tsp, population);
+
+    result.assert_eq(first_call.size(), second_call.size(),
+                     "Same executor multiple calls: first and second call sizes must match");
+    result.assert_eq(second_call.size(), third_call.size(),
+                     "Same executor multiple calls: second and third call sizes must match");
+
+    // Verify all three calls on same executor produce identical results
+    for (std::size_t i = 0; i < first_call.size(); ++i) {
+        result.assert_true(first_call[i].value == second_call[i].value,
+                           "Same executor stateless: first vs second call must be identical " +
+                               std::to_string(i) +
+                               " (first: " + std::to_string(first_call[i].value) +
+                               ", second: " + std::to_string(second_call[i].value) + ")");
+
+        result.assert_true(second_call[i].value == third_call[i].value,
+                           "Same executor stateless: second vs third call must be identical " +
+                               std::to_string(i) +
+                               " (second: " + std::to_string(second_call[i].value) +
+                               ", third: " + std::to_string(third_call[i].value) + ")");
+    }
+
     result.print_summary();
 }
 
