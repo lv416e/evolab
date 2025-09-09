@@ -74,7 +74,10 @@ class TBBExecutor {
         // Thread-local RNG storage with deterministic per-thread seed generation
         // Each thread receives a unique, reproducible seed derived from base_seed
         // and sequential thread initialization order for cross-execution consistency
-        tbb::combinable<std::mt19937> thread_rngs([this, &rng_init_count]() {
+        //
+        // C++23 Best Practice: Explicit capture following principle of least privilege
+        // Captures only the specific value needed (seed) rather than entire object (this)
+        tbb::combinable<std::mt19937> thread_rngs([seed = base_seed_, &rng_init_count]() {
             // Generate deterministic per-thread seed using sequential indexing
             // Guarantees identical results across program executions by:
             // 1. Atomic counter assigns sequential indices (0, 1, 2, ...)
@@ -86,7 +89,7 @@ class TBBExecutor {
             // Mathematical properties ensure uniform distribution across 64-bit space
             // for sequential inputs while minimizing collision clustering
             constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
-            const std::uint64_t thread_seed = base_seed_ + (thread_idx * golden_ratio_prime);
+            const std::uint64_t thread_seed = seed + (thread_idx * golden_ratio_prime);
 
             return std::mt19937(thread_seed);
         });
