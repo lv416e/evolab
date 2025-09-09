@@ -1,4 +1,5 @@
 #include <chrono>
+#include <format>
 #include <iomanip>
 #include <random>
 #include <thread>
@@ -68,10 +69,10 @@ static void test_parallel_evaluation_correctness() {
 
     for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
         result.assert_true(sequential_fitnesses[i].value == parallel_fitnesses[i].value,
-                           "Parallel and sequential fitness should be identical " +
-                               std::to_string(i) +
-                               " (expected: " + std::to_string(sequential_fitnesses[i].value) +
-                               ", actual: " + std::to_string(parallel_fitnesses[i].value) + ")");
+                           std::format("Parallel and sequential fitness should be identical {} "
+                                       "(expected: {}, actual: {})",
+                                       i, sequential_fitnesses[i].value,
+                                       parallel_fitnesses[i].value));
     }
 
     result.print_summary();
@@ -94,11 +95,11 @@ static void test_rng_reproducibility_and_statelessness() {
                      "RNG reproducibility: fitness vector sizes should match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_true(fitnesses1[i].value == fitnesses2[i].value,
-                           "RNG reproducibility: results should be identical with same seed " +
-                               std::to_string(i) +
-                               " (expected: " + std::to_string(fitnesses1[i].value) +
-                               ", actual: " + std::to_string(fitnesses2[i].value) + ")");
+        result.assert_true(
+            fitnesses1[i].value == fitnesses2[i].value,
+            std::format("RNG reproducibility: results should be identical with same seed {} "
+                        "(expected: {}, actual: {})",
+                        i, fitnesses1[i].value, fitnesses2[i].value));
     }
 
     // Test stateless design: multiple calls on the same executor must be identical
@@ -110,11 +111,11 @@ static void test_rng_reproducibility_and_statelessness() {
                      "Statelessness: subsequent call result size must match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_true(fitnesses1[i].value == fitnesses1_run2[i].value,
-                           "Statelessness: subsequent call on same executor must be identical " +
-                               std::to_string(i) +
-                               " (expected: " + std::to_string(fitnesses1[i].value) +
-                               ", actual: " + std::to_string(fitnesses1_run2[i].value) + ")");
+        result.assert_true(
+            fitnesses1[i].value == fitnesses1_run2[i].value,
+            std::format("Statelessness: subsequent call on same executor must be identical {} "
+                        "(expected: {}, actual: {})",
+                        i, fitnesses1[i].value, fitnesses1_run2[i].value));
     }
 
     // Enhanced stateless verification: Multiple calls on same executor instance
