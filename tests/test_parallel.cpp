@@ -77,7 +77,7 @@ static void test_parallel_evaluation_correctness() {
     result.print_summary();
 }
 
-static void test_rng_reproducibility_and_reset() {
+static void test_rng_reproducibility_and_statelessness() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -268,7 +268,7 @@ int main() {
         test_parallel_evaluation_correctness();
         std::cout << std::endl;
 
-        test_rng_reproducibility_and_reset();
+        test_rng_reproducibility_and_statelessness();
         std::cout << std::endl;
 
         test_performance_improvement();
