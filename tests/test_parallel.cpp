@@ -101,21 +101,20 @@ static void test_rng_reproducibility_and_reset() {
                                ", actual: " + std::to_string(fitnesses2[i].value) + ")");
     }
 
-    // Test stateless design: Fresh executor instance with same seed behaves identically
-    // The new stateless design eliminates the need for reset_rngs() by ensuring
-    // each parallel_evaluate() call operates independently with per-call state management
-    TBBExecutor executor3(456); // Same seed as executor1
-    auto fitnesses3 = executor3.parallel_evaluate(tsp, population);
+    // Test stateless design: multiple calls on the same executor must be identical
+    // This verifies that each parallel_evaluate() call is independent and does not
+    // alter the executor's state in a way that affects subsequent calls.
+    auto fitnesses1_run2 = executor1.parallel_evaluate(tsp, population);
 
-    result.assert_eq(fitnesses1.size(), fitnesses3.size(),
-                     "Stateless reproducibility: fitness vector sizes must match");
+    result.assert_eq(fitnesses1.size(), fitnesses1_run2.size(),
+                     "Statelessness: subsequent call result size must match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_true(
-            fitnesses1[i].value == fitnesses3[i].value,
-            "Stateless reproducibility: fresh executor with same seed must be identical " +
-                std::to_string(i) + " (expected: " + std::to_string(fitnesses1[i].value) +
-                ", actual: " + std::to_string(fitnesses3[i].value) + ")");
+        result.assert_true(fitnesses1[i].value == fitnesses1_run2[i].value,
+                           "Statelessness: subsequent call on same executor must be identical " +
+                               std::to_string(i) +
+                               " (expected: " + std::to_string(fitnesses1[i].value) +
+                               ", actual: " + std::to_string(fitnesses1_run2[i].value) + ")");
     }
 
     // Enhanced stateless verification: Multiple calls on same executor instance
