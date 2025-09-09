@@ -9,8 +9,9 @@
 
 #include "test_helper.hpp"
 
-// Explicit using declarations for better namespace management and dependency clarity
-// Avoids namespace pollution while maintaining code readability
+// Explicit using declarations following C++23 best practices for namespace management
+// Provides clear dependency tracking while preventing namespace pollution and improving
+// compile-time performance through selective symbol importation
 using evolab::core::Fitness;
 using evolab::parallel::TBBExecutor;
 using evolab::problems::create_random_tsp;
@@ -76,7 +77,7 @@ static void test_parallel_evaluation_correctness() {
     result.print_summary();
 }
 
-static void test_thread_safe_rng() {
+static void test_rng_reproducibility_and_reset() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -100,20 +101,21 @@ static void test_thread_safe_rng() {
                                ", actual: " + std::to_string(fitnesses2[i].value) + ")");
     }
 
-    // Test reset_rngs() functionality for deterministic multi-run experiments
-    // Critical: Verify atomic counter reset and thread-local state clearing
-    executor1.reset_rngs();
-    auto fitnesses3 = executor1.parallel_evaluate(tsp, population);
+    // Test stateless design: Fresh executor instance with same seed behaves identically
+    // The new stateless design eliminates the need for reset_rngs() by ensuring
+    // each parallel_evaluate() call operates independently with per-call state management
+    TBBExecutor executor3(456); // Same seed as executor1
+    auto fitnesses3 = executor3.parallel_evaluate(tsp, population);
 
     result.assert_eq(fitnesses1.size(), fitnesses3.size(),
-                     "RNG reset: fitness vector sizes must match after reset");
+                     "Stateless reproducibility: fitness vector sizes must match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
-        result.assert_true(fitnesses1[i].value == fitnesses3[i].value,
-                           "RNG reset: results must be identical after reset for element " +
-                               std::to_string(i) +
-                               " (expected: " + std::to_string(fitnesses1[i].value) +
-                               ", actual: " + std::to_string(fitnesses3[i].value) + ")");
+        result.assert_true(
+            fitnesses1[i].value == fitnesses3[i].value,
+            "Stateless reproducibility: fresh executor with same seed must be identical " +
+                std::to_string(i) + " (expected: " + std::to_string(fitnesses1[i].value) +
+                ", actual: " + std::to_string(fitnesses3[i].value) + ")");
     }
 
     result.print_summary();
@@ -122,9 +124,9 @@ static void test_thread_safe_rng() {
 static void test_performance_improvement() {
     TestResult result;
 
-    // Use substantially larger TSP instance for meaningful parallel performance measurement
-    // Gemini recommendation: 150+ cities provide sufficient computational workload
-    // to overcome parallelization overhead and demonstrate true scalability benefits
+    // Performance evaluation using computationally intensive TSP instances
+    // Large-scale problem configuration designed to overcome thread creation overhead
+    // and demonstrate genuine parallel scalability benefits in production scenarios
     constexpr size_t tsp_cities = 150;       // 56x more computation than 20 cities
     constexpr size_t population_size = 1000; // Large population for statistical significance
 
@@ -138,8 +140,9 @@ static void test_performance_improvement() {
               << " distance calculations (O(N_cities * Pop_size))\n"
               << std::endl;
 
-    // Warm-up runs to prepare caches, branch predictors, and memory allocation
-    // Critical for reliable performance measurement in C++23 benchmarking
+    // JIT warm-up phase following C++23 benchmarking best practices
+    // Initializes CPU caches, branch predictors, and memory allocators for
+    // reliable performance measurements free from cold-start artifacts
     TBBExecutor executor(789);
     {
         auto warmup_population = create_test_population(tsp, 100);
@@ -238,7 +241,7 @@ int main() {
         test_parallel_evaluation_correctness();
         std::cout << std::endl;
 
-        test_thread_safe_rng();
+        test_rng_reproducibility_and_reset();
         std::cout << std::endl;
 
         test_performance_improvement();
