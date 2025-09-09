@@ -133,17 +133,17 @@ static void test_rng_reproducibility_and_statelessness() {
 
     // Verify all three calls on same executor produce identical results
     for (std::size_t i = 0; i < first_call.size(); ++i) {
-        result.assert_true(first_call[i].value == second_call[i].value,
-                           "Same executor stateless: first vs second call must be identical " +
-                               std::to_string(i) +
-                               " (first: " + std::to_string(first_call[i].value) +
-                               ", second: " + std::to_string(second_call[i].value) + ")");
+        result.assert_true(
+            first_call[i].value == second_call[i].value,
+            std::format("Same executor stateless: first vs second call must be identical {} "
+                        "(first: {}, second: {})",
+                        i, first_call[i].value, second_call[i].value));
 
-        result.assert_true(second_call[i].value == third_call[i].value,
-                           "Same executor stateless: second vs third call must be identical " +
-                               std::to_string(i) +
-                               " (second: " + std::to_string(second_call[i].value) +
-                               ", third: " + std::to_string(third_call[i].value) + ")");
+        result.assert_true(
+            second_call[i].value == third_call[i].value,
+            std::format("Same executor stateless: second vs third call must be identical {} "
+                        "(second: {}, third: {})",
+                        i, second_call[i].value, third_call[i].value));
     }
 
     result.print_summary();
@@ -250,11 +250,12 @@ static void test_performance_improvement() {
                      "Performance test: fitness vector sizes must match");
 
     for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
-        result.assert_true(
-            sequential_fitnesses[i].value == parallel_fitnesses[i].value,
-            "Performance test: parallel and sequential fitness must be identical for element " +
-                std::to_string(i) + " (expected: " + std::to_string(sequential_fitnesses[i].value) +
-                ", actual: " + std::to_string(parallel_fitnesses[i].value) + ")");
+        result.assert_true(sequential_fitnesses[i].value == parallel_fitnesses[i].value,
+                           std::format("Performance test: parallel and sequential fitness must be "
+                                       "identical for element {} "
+                                       "(expected: {}, actual: {})",
+                                       i, sequential_fitnesses[i].value,
+                                       parallel_fitnesses[i].value));
     }
 
     result.print_summary();
