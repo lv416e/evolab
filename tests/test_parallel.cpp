@@ -172,7 +172,7 @@ static bool test_performance_improvement() {
     std::sort(sequential_times.begin(), sequential_times.end());
     std::sort(parallel_times.begin(), parallel_times.end());
 
-    // Robust median calculation for both odd and even sample sizes
+    // Overflow-safe median calculation using midpoint formula: a + (b - a) / 2
     auto get_median = [](const auto& times) {
         const auto n = times.size();
         if (n == 0)
@@ -180,7 +180,7 @@ static bool test_performance_improvement() {
         if (n % 2 == 1) {
             return times[n / 2];
         } else {
-            return (times[n / 2 - 1] + times[n / 2]) / 2;
+            return times[n / 2 - 1] + (times[n / 2] - times[n / 2 - 1]) / 2;
         }
     };
 
