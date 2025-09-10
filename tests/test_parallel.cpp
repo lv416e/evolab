@@ -169,8 +169,8 @@ static bool test_performance_improvement() {
     }
 
     // Calculate statistics (median for robustness against outliers)
-    std::sort(sequential_times.begin(), sequential_times.end());
-    std::sort(parallel_times.begin(), parallel_times.end());
+    std::ranges::sort(sequential_times);
+    std::ranges::sort(parallel_times);
 
     // Overflow-safe median calculation using midpoint formula: a + (b - a) / 2
     auto get_median = [](const auto& times) {

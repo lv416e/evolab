@@ -85,7 +85,7 @@ class TBBExecutor {
         // Simplified implementation optimized for deterministic algorithms (e.g., TSP)
         tbb::parallel_for(
             tbb::blocked_range<std::size_t>(0, population.size()),
-            [&problem, &fitnesses, &population](const tbb::blocked_range<std::size_t>& range) {
+            [&problem, &fitnesses, population](const tbb::blocked_range<std::size_t>& range) {
                 // Process assigned range with thread-safe, cache-efficient evaluation
                 // Each thread writes to distinct indices, preventing data races
                 for (std::size_t i = range.begin(); i != range.end(); ++i) {
