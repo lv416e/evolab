@@ -172,14 +172,18 @@ static bool test_performance_improvement() {
     std::ranges::sort(sequential_times);
     std::ranges::sort(parallel_times);
 
-    // Overflow-safe median calculation using midpoint formula: a + (b - a) / 2
-    auto get_median = [](const auto& times) {
+    // Performance benchmark utility: calculates median duration from timing measurements
+    // Explicit type specification for clarity and performance in benchmark context
+    // Avoids false genericity anti-pattern while maintaining optimal benchmark performance
+    auto get_median =
+        [](const std::vector<std::chrono::nanoseconds>& times) -> std::chrono::nanoseconds {
         const auto n = times.size();
         if (n == 0)
-            return std::chrono::nanoseconds(0);
+            return std::chrono::nanoseconds{0};
         if (n % 2 == 1) {
             return times[n / 2];
         } else {
+            // Overflow-safe midpoint calculation: a + (b - a) / 2
             return times[n / 2 - 1] + (times[n / 2] - times[n / 2 - 1]) / 2;
         }
     };
