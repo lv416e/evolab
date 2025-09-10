@@ -72,7 +72,8 @@ class TBBExecutor {
     /// @param problem Problem instance providing fitness evaluation function
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
-    /// @throws std::exception if TBB encounters errors during parallel execution
+    /// @throws std::exception if TBB encounters errors during parallel execution, or propagates
+    /// exceptions from problem.evaluate()
     template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
