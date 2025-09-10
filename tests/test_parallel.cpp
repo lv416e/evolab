@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <format>
 #include <iomanip>
@@ -20,31 +21,21 @@ using evolab::problems::TSP;
 
 namespace {
 
-// Generate test population
+// Generate test population using C++20 ranges for modern, expressive code
 std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t population_size,
                                                  std::uint64_t seed = 123) {
-    std::vector<TSP::GenomeT> population;
-    population.reserve(population_size);
-
+    std::vector<TSP::GenomeT> population(population_size);
     std::mt19937 rng(seed);
-
-    for (std::size_t i = 0; i < population_size; ++i) {
-        population.push_back(tsp.random_genome(rng));
-    }
-
+    std::ranges::generate(population, [&] { return tsp.random_genome(rng); });
     return population;
 }
 
-// Sequential evaluation for comparison
+// Sequential evaluation for comparison using C++20 ranges for functional-style processing
 std::vector<Fitness> evaluate_sequential(const TSP& tsp,
                                          const std::vector<TSP::GenomeT>& population) {
-    std::vector<Fitness> fitnesses;
-    fitnesses.reserve(population.size());
-
-    for (const auto& genome : population) {
-        fitnesses.push_back(tsp.evaluate(genome));
-    }
-
+    std::vector<Fitness> fitnesses(population.size());
+    std::ranges::transform(population, fitnesses.begin(),
+                           [&](const auto& genome) { return tsp.evaluate(genome); });
     return fitnesses;
 }
 
