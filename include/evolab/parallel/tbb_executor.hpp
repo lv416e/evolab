@@ -3,6 +3,7 @@
 #ifdef EVOLAB_HAVE_TBB
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
@@ -50,26 +51,31 @@ class TBBExecutor {
     /// @param seed Base seed maintained for API compatibility and potential future extensions
     explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {}
 
-    /// Performs thread-safe parallel fitness evaluation using stateless design
+    /// Performs thread-safe parallel fitness evaluation using modern C++20 API design
     ///
-    /// This method implements C++23 const-correctness principles by declaring the
-    /// operation as logically read-only. The stateless design eliminates data races
-    /// through per-call state management with deterministic work distribution.
+    /// This method implements C++23 const-correctness principles with std::span parameter
+    /// following C++ Core Guidelines F.16. The span-based interface provides enhanced
+    /// flexibility, accepting any contiguous container while maintaining zero overhead.
     ///
-    /// Key design benefits:
+    /// Modern API benefits:
+    /// - **Universal Interface**: Accepts std::vector, std::array, C-arrays via std::span
+    /// - **Enhanced Safety**: Bounds-aware view prevents common pointer+size errors
+    /// - **Const-Correctness**: span<const T> clearly expresses read-only intent
+    /// - **Zero Cost**: Direct conversion from containers with no performance overhead
+    /// - **Subrange Support**: Enables efficient partial population processing via .subspan()
+    ///
+    /// Technical implementation:
     /// - **Thread Safety**: No shared mutable state prevents data races by design
-    /// - **Const-Correctness**: Method contract guarantees no observable state changes
     /// - **Reproducible Determinism**: static_partitioner ensures identical work distribution
     /// - **Scientific Computing Ready**: Guarantees bit-identical results across runs
-    /// - **Specialized Design**: Optimized for deterministic algorithms with maximum performance
     ///
     /// @param problem Problem instance providing fitness evaluation function
-    /// @param population Vector of genomes to evaluate in parallel
+    /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
     /// @throws std::exception if TBB encounters errors during parallel execution
     template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
-    parallel_evaluate(const P& problem, const std::vector<typename P::GenomeT>& population) const {
+    parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
         using Fitness = evolab::core::Fitness;
 
         std::vector<Fitness> fitnesses(population.size());
