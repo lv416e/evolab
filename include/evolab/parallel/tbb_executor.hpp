@@ -189,12 +189,16 @@ namespace evolab::parallel {
 /// when parallel execution is attempted without proper TBB installation.
 /// Use cmake configuration options to resolve dependency issues.
 class TBBExecutor {
+  private:
+    // API compatibility - store seed for consistent get_seed() behavior
+    const std::uint64_t base_seed_;
+
   public:
     /// Constructor that triggers standards-compliant compile-time error
     ///
-    /// @param seed Unused parameter for API compatibility
+    /// @param seed Seed value for API compatibility with TBB implementation
     /// @note This implementation uses template-dependent false for C++23 standard compliance
-    explicit TBBExecutor([[maybe_unused]] std::uint64_t seed = 1) {
+    explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {
         static_assert(always_false_v<>,
                       "\n"
                       "====================================================================\n"
@@ -225,8 +229,9 @@ class TBBExecutor {
         return {};
     }
 
-    /// API compatibility method - unreachable due to static_assert
-    [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return 1; }
+    /// API compatibility method - returns the seed passed to constructor
+    /// @return Base seed value for consistency with TBB implementation
+    [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
 
     // Note: reset_rngs() method removed in both implementations for API consistency
 };
