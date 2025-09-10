@@ -50,7 +50,7 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
 
 } // anonymous namespace
 
-static void test_parallel_evaluation_correctness() {
+static bool test_parallel_evaluation_correctness() {
     TestResult result;
 
     auto tsp = create_random_tsp(12, 100.0, 42);
@@ -76,9 +76,10 @@ static void test_parallel_evaluation_correctness() {
     }
 
     result.print_summary();
+    return result.all_passed();
 }
 
-static void test_reproducibility_and_statelessness() {
+static bool test_reproducibility_and_statelessness() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -147,9 +148,10 @@ static void test_reproducibility_and_statelessness() {
     }
 
     result.print_summary();
+    return result.all_passed();
 }
 
-static void test_performance_improvement() {
+static bool test_performance_improvement() {
     TestResult result;
 
     // Performance evaluation using computationally intensive TSP instances
@@ -259,6 +261,7 @@ static void test_performance_improvement() {
     }
 
     result.print_summary();
+    return result.all_passed();
 }
 
 int main() {
@@ -266,14 +269,16 @@ int main() {
     std::cout << "==============================" << std::endl;
     std::cout << std::endl;
 
+    bool all_tests_passed = true;
+
     try {
-        test_parallel_evaluation_correctness();
+        all_tests_passed &= test_parallel_evaluation_correctness();
         std::cout << std::endl;
 
-        test_reproducibility_and_statelessness();
+        all_tests_passed &= test_reproducibility_and_statelessness();
         std::cout << std::endl;
 
-        test_performance_improvement();
+        all_tests_passed &= test_performance_improvement();
         std::cout << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed with exception: " << e.what() << std::endl;
@@ -283,5 +288,5 @@ int main() {
     std::cout << "==============================" << std::endl;
     std::cout << "Parallel tests completed." << std::endl;
 
-    return 0;
+    return all_tests_passed ? 0 : 1;
 }
