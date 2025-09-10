@@ -145,7 +145,6 @@ class TBBExecutor {
 #else
 
 #include <cstdint>
-#include <type_traits>
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
