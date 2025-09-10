@@ -47,23 +47,21 @@ class TBBExecutor {
     /// with per-call state management, eliminating shared mutable state and ensuring
     /// inherent thread safety without synchronization overhead.
     ///
-    /// @param seed Base seed for reproducible parallel execution across multiple runs
-    ///             Each thread derives its unique seed deterministically from this base
+    /// @param seed Base seed maintained for API compatibility and potential future extensions
     explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {}
 
     /// Performs thread-safe parallel fitness evaluation using stateless design
     ///
     /// This method implements C++23 const-correctness principles by declaring the
     /// operation as logically read-only. The stateless design eliminates data races
-    /// through per-call state management, where each invocation creates its own
-    /// thread-local RNG infrastructure independently.
+    /// through per-call state management with deterministic work distribution.
     ///
     /// Key design benefits:
     /// - **Thread Safety**: No shared mutable state prevents data races by design
     /// - **Const-Correctness**: Method contract guarantees no observable state changes
     /// - **Reproducible Determinism**: static_partitioner ensures identical work distribution
     /// - **Scientific Computing Ready**: Guarantees bit-identical results across runs
-    /// - **Future-Proof**: Supports both deterministic and stochastic algorithms reproducibly
+    /// - **Specialized Design**: Optimized for deterministic algorithms with maximum performance
     ///
     /// @param problem Problem instance providing fitness evaluation function
     /// @param population Vector of genomes to evaluate in parallel

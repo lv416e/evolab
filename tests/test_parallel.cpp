@@ -78,7 +78,7 @@ static void test_parallel_evaluation_correctness() {
     result.print_summary();
 }
 
-static void test_rng_reproducibility_and_statelessness() {
+static void test_reproducibility_and_statelessness() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -92,12 +92,12 @@ static void test_rng_reproducibility_and_statelessness() {
     auto fitnesses2 = executor2.parallel_evaluate(tsp, population);
 
     result.assert_eq(fitnesses1.size(), fitnesses2.size(),
-                     "RNG reproducibility: fitness vector sizes should match");
+                     "Reproducibility: fitness vector sizes should match");
 
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
         result.assert_true(
             fitnesses1[i].value == fitnesses2[i].value,
-            std::format("RNG reproducibility: results should be identical with same seed {} "
+            std::format("Reproducibility: results should be identical with same seed {} "
                         "(expected: {}, actual: {})",
                         i, fitnesses1[i].value, fitnesses2[i].value));
     }
@@ -270,7 +270,7 @@ int main() {
         test_parallel_evaluation_correctness();
         std::cout << std::endl;
 
-        test_rng_reproducibility_and_statelessness();
+        test_reproducibility_and_statelessness();
         std::cout << std::endl;
 
         test_performance_improvement();
