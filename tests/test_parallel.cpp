@@ -11,15 +11,15 @@
 
 #include "test_helper.hpp"
 
-// Explicit using declarations following C++23 best practices for namespace management
+namespace {
+
+// Explicit using declarations in narrowest possible scope following C++23 best practices
 // Provides clear dependency tracking while preventing namespace pollution and improving
 // compile-time performance through selective symbol importation
 using evolab::core::Fitness;
 using evolab::parallel::TBBExecutor;
 using evolab::problems::create_random_tsp;
 using evolab::problems::TSP;
-
-namespace {
 
 // Generate test population using C++20 ranges for modern, expressive code
 std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t population_size,
@@ -39,9 +39,9 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
     return fitnesses;
 }
 
-} // anonymous namespace
-
-static bool test_parallel_evaluation_correctness() {
+// Test functions using modern C++ anonymous namespace idiom instead of static
+// for internal linkage, providing better consistency and type definition support
+bool test_parallel_evaluation_correctness() {
     TestResult result;
 
     auto tsp = create_random_tsp(12, 100.0, 42);
@@ -70,7 +70,7 @@ static bool test_parallel_evaluation_correctness() {
     return result.all_passed();
 }
 
-static bool test_reproducibility_and_statelessness() {
+bool test_reproducibility_and_statelessness() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -115,7 +115,7 @@ static bool test_reproducibility_and_statelessness() {
     return result.all_passed();
 }
 
-static bool test_performance_improvement() {
+bool test_performance_improvement() {
     TestResult result;
 
     // Performance evaluation using computationally intensive TSP instances
@@ -231,6 +231,8 @@ static bool test_performance_improvement() {
     result.print_summary();
     return result.all_passed();
 }
+
+} // anonymous namespace
 
 int main() {
     std::cout << "Running EvoLab Parallel Tests" << std::endl;
