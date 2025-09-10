@@ -66,7 +66,10 @@ class TBBExecutor {
     /// - **Reproducible Determinism**: static_partitioner ensures identical work distribution
     /// - **Scientific Computing Ready**: Guarantees bit-identical results across runs
     ///
-    /// @param problem Problem instance providing fitness evaluation function
+    /// @param problem Problem instance providing fitness evaluation function.
+    ///                The evaluate() method must be thread-safe for concurrent execution
+    ///                on const objects (no mutable state modifications without proper
+    ///                synchronization)
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
     /// @throws std::exception if TBB encounters errors during parallel execution, or propagates
