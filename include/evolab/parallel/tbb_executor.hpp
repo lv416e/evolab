@@ -3,12 +3,10 @@
 #ifdef EVOLAB_HAVE_TBB
 
 #include <cstdint>
-#include <random>
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
 #include <tbb/blocked_range.h>
-#include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
 #include <tbb/partitioner.h>
 
@@ -17,27 +15,25 @@ namespace evolab::parallel {
 /// Thread-safe parallel executor using Intel TBB for deterministic fitness evaluation
 ///
 /// This executor provides reproducible parallel fitness evaluation with identical results
-/// across multiple runs using the same seed. The implementation uses static_partitioner
-/// to ensure deterministic work distribution combined with per-genome RNG seeding
-/// for maximum stochastic reproducibility, prioritizing scientific computing
-/// requirements over performance optimization.
+/// across multiple runs. The implementation uses static_partitioner to ensure deterministic
+/// work distribution, optimized for performance-critical scientific computing applications.
 ///
-/// Stochastic Reproducibility Architecture:
-/// - **Per-genome seeding**: Each genome gets deterministic seed (base_seed + i *
-/// golden_ratio_prime)
+/// Deterministic Execution Architecture:
+/// - **Static partitioning**: Consistent work distribution across all executions
 /// - **Thread-assignment independence**: Identical results regardless of thread-to-genome mapping
 /// - **Cross-execution consistency**: Same results across different systems, TBB versions, thread
 /// counts
-/// - **Mathematical seed distribution**: Golden ratio prime ensures optimal seed spacing
+/// - **Performance optimization**: Minimal overhead design for computation-intensive algorithms
 ///
 /// Key features:
 /// - Deterministic work distribution ensures reproducible results across all runs
-/// - Per-genome RNG seeding guarantees stochastic algorithm reproducibility
 /// - Static range partitioning for consistent chunk-to-thread mapping
 /// - Exception-safe RAII design with proper resource management
+/// - Optimized for deterministic algorithms (e.g., TSP, graph algorithms)
 ///
-/// Design Choice: Prioritizes scientific reproducibility over performance optimization.
-/// Trade-offs: Per-genome reseeding cost vs guaranteed cross-execution determinism.
+/// Design Choice: Prioritizes performance and simplicity for deterministic algorithms.
+/// Trade-offs: Specialized for deterministic evaluation, requires separate design for stochastic
+/// algorithms.
 class TBBExecutor {
   private:
     // Immutable after construction - enables const-correctness and thread safety
@@ -80,47 +76,17 @@ class TBBExecutor {
 
         std::vector<Fitness> fitnesses(population.size());
 
-        // Golden ratio prime for optimal seed distribution across genome space
-        // Mathematical properties ensure uniform distribution across 64-bit space
-        // for sequential inputs while minimizing collision clustering
-        constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
-
-        // Thread-local RNG storage optimized for per-genome seeding
-        // Each thread maintains its own RNG instance for performance optimization
-        // while actual determinism comes from per-genome reseeding
-        //
-        // C++23 Best Practice: Explicit capture following principle of least privilege
-        // Captures only the specific values needed for RNG initialization
-        tbb::combinable<std::mt19937> thread_rngs([seed = base_seed_]() {
-            // Initialize thread-local RNG with base seed
-            // Per-genome seeding will override this for each evaluation
-            // Initial seed value is not critical for determinism
-            return std::mt19937(seed);
-        });
-
         // Execute parallel fitness evaluation using TBB's deterministic work distribution
         // static_partitioner ensures reproducible chunk-to-thread mapping for scientific computing
-        // Explicit lambda captures ensure thread safety and clear dependency tracking
+        // Simplified implementation optimized for deterministic algorithms (e.g., TSP)
         tbb::parallel_for(
             tbb::blocked_range<std::size_t>(0, population.size()),
-            [&problem, &fitnesses, &population, seed = base_seed_,
-             &thread_rngs](const tbb::blocked_range<std::size_t>& range) {
-                // Acquire thread-local RNG for performance optimization
-                // Reseeded per-genome for maximum stochastic reproducibility
-                auto& rng = thread_rngs.local();
-
+            [&problem, &fitnesses, &population](const tbb::blocked_range<std::size_t>& range) {
                 // Process assigned range with thread-safe, cache-efficient evaluation
                 // Each thread writes to distinct indices, preventing data races
                 for (std::size_t i = range.begin(); i != range.end(); ++i) {
-                    // Per-genome deterministic seeding for true stochastic reproducibility
-                    // Ensures population[i] always gets identical RNG state across all runs
-                    // regardless of thread assignment or system conditions
-                    const std::uint64_t genome_seed = seed + (i * golden_ratio_prime);
-                    rng.seed(genome_seed);
-
-                    // Fitness evaluation with genome-specific RNG state available
-                    // Currently unused for deterministic TSP but guarantees reproducible
-                    // stochastic evaluation for future evolutionary algorithms
+                    // Direct fitness evaluation for deterministic algorithms
+                    // Optimized for performance-critical scientific computing
                     fitnesses[i] = problem.evaluate(population[i]);
                 }
             },
@@ -130,12 +96,12 @@ class TBBExecutor {
     }
 
     /// Retrieves the immutable base seed for deterministic parallel execution
-    /// @return Base seed value used for per-thread seed derivation
+    /// @return Base seed value for API compatibility and potential future extensions
     [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
 
-    // Note: reset_rngs() method removed in favor of stateless design
-    // Each parallel_evaluate() call operates independently with fresh state,
-    // eliminating the need for explicit state reset and associated thread safety concerns
+    // Note: RNG infrastructure removed following YAGNI principle
+    // Simplified design optimized for deterministic algorithms,
+    // eliminating unused overhead for performance-critical scientific computing
 
   private:
     // Thread-safety and determinism design notes (C++23 Best Practices):
@@ -158,27 +124,22 @@ class TBBExecutor {
     //
     // Deterministic Reproducibility Guarantees:
     // - static_partitioner ensures identical work distribution across executions
-    // - Per-genome RNG seeding guarantees stochastic algorithm reproducibility
-    // - Thread-assignment independence: population[i] gets same RNG state regardless of thread
+    // - Thread-assignment independence: deterministic results regardless of thread mapping
     // - Cross-execution consistency: identical results across systems, TBB versions, thread counts
-    // - Mathematical seeding ensures uniform distribution across genome space using golden ratio
-    // prime
-    // - Identical base_seed + population produces bit-identical results across all program
-    // executions
+    // - Identical population produces bit-identical results across all program executions
     //
     // Performance Characteristics:
     // - Predictable performance: deterministic work distribution
     // - Well-suited for balanced workloads like TSP fitness evaluation
     // - Cache-friendly: eliminates false sharing from shared atomic counters
-    // - Memory efficient: automatic cleanup of per-call thread-local storage
-    // - Trade-offs: Static partitioning and per-genome reseeding prioritize reproducibility over
-    // performance
+    // - Memory efficient: minimal overhead design without unused infrastructure
+    // - Optimized for deterministic algorithms: maximum performance for scientific computing
     //
-    // Future Extensibility:
-    // - Thread-local RNG infrastructure prepared for stochastic evaluation methods
-    // - Design accommodates both deterministic and probabilistic algorithms
-    // - Compatible with advanced evolutionary operators requiring per-thread randomization
-    // - Maintains API stability while enabling internal optimizations
+    // Design Philosophy (YAGNI Principle Applied):
+    // - Simplified implementation focusing on current requirements (deterministic evaluation)
+    // - Eliminated unused RNG infrastructure for performance optimization
+    // - Specialized for deterministic algorithms rather than general-purpose design
+    // - Future stochastic support requires dedicated implementation with different trade-offs
 };
 
 } // namespace evolab::parallel
@@ -254,7 +215,7 @@ class TBBExecutor {
     /// @return Base seed value for consistency with TBB implementation
     [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
 
-    // Note: reset_rngs() method removed in both implementations for API consistency
+    // Note: RNG infrastructure removed following YAGNI principle in both implementations
 };
 
 } // namespace evolab::parallel
