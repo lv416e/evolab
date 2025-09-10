@@ -81,31 +81,22 @@ class TBBExecutor {
 
         std::vector<Fitness> fitnesses(population.size());
 
-        // Per-call state management ensures thread safety and deterministic behavior
-        // This atomic counter provides sequential thread indexing for reproducible seeding
-        std::atomic<std::uint64_t> rng_init_count{0};
+        // Golden ratio prime for optimal seed distribution across genome space
+        // Mathematical properties ensure uniform distribution across 64-bit space
+        // for sequential inputs while minimizing collision clustering
+        constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
 
-        // Thread-local RNG storage with deterministic per-thread seed generation
-        // Each thread receives a unique, reproducible seed derived from base_seed
-        // and sequential thread initialization order for cross-execution consistency
+        // Thread-local RNG storage optimized for per-genome seeding
+        // Each thread maintains its own RNG instance for performance optimization
+        // while actual determinism comes from per-genome reseeding
         //
         // C++23 Best Practice: Explicit capture following principle of least privilege
-        // Captures only the specific value needed (seed) rather than entire object (this)
-        tbb::combinable<std::mt19937> thread_rngs([seed = base_seed_, &rng_init_count]() {
-            // Generate deterministic per-thread seed using sequential indexing
-            // Guarantees identical results across program executions by:
-            // 1. Atomic counter assigns sequential indices (0, 1, 2, ...)
-            // 2. Multiplicative hashing prevents seed correlation
-            // 3. Avoids std::hash<thread::id> non-deterministic behavior
-            const std::uint64_t thread_idx = rng_init_count.fetch_add(1, std::memory_order_relaxed);
-
-            // Golden ratio prime for optimal hash distribution
-            // Mathematical properties ensure uniform distribution across 64-bit space
-            // for sequential inputs while minimizing collision clustering
-            constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
-            const std::uint64_t thread_seed = seed + (thread_idx * golden_ratio_prime);
-
-            return std::mt19937(thread_seed);
+        // Captures only the specific values needed for RNG initialization
+        tbb::combinable<std::mt19937> thread_rngs([seed = base_seed_]() {
+            // Initialize thread-local RNG with base seed
+            // Per-genome seeding will override this for each evaluation
+            // Initial seed value is not critical for determinism
+            return std::mt19937(seed);
         });
 
         // Execute parallel fitness evaluation using TBB's deterministic work distribution
@@ -125,10 +116,6 @@ class TBBExecutor {
                     // Per-genome deterministic seeding for true stochastic reproducibility
                     // Ensures population[i] always gets identical RNG state across all runs
                     // regardless of thread assignment or system conditions
-                    //
-                    // Golden ratio prime ensures optimal seed distribution for sequential indices
-                    // while maintaining mathematical properties for uniform random generation
-                    constexpr std::uint64_t golden_ratio_prime = 0x9e3779b97f4a7c15ULL;
                     const std::uint64_t genome_seed = seed + (i * golden_ratio_prime);
                     rng.seed(genome_seed);
 
