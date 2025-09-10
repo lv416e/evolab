@@ -111,10 +111,6 @@ static bool test_reproducibility_and_statelessness() {
                         i, fitnesses1[i].value, fitnesses1_run2[i].value));
     }
 
-    // Note: Removed redundant fresh instance test block following Gemini code review.
-    // The stateless TBBExecutor design with const base_seed_ makes fresh instances
-    // functionally identical to reused instances, making separate testing redundant.
-
     result.print_summary();
     return result.all_passed();
 }
