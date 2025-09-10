@@ -217,7 +217,7 @@ class TBBExecutor {
 
     /// Placeholder method for API compatibility - never actually called
     /// @return Empty vector (unreachable due to static_assert)
-    template <typename P>
+    template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate([[maybe_unused]] const P& problem,
                       [[maybe_unused]] const std::vector<typename P::GenomeT>& population) const {
