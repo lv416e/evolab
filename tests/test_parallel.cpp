@@ -121,7 +121,7 @@ static bool test_performance_improvement() {
     // Performance evaluation using computationally intensive TSP instances
     // Large-scale problem configuration designed to overcome thread creation overhead
     // and demonstrate genuine parallel scalability benefits in production scenarios
-    constexpr size_t tsp_cities = 150;       // 56x more computation than 20 cities
+    constexpr size_t tsp_cities = 150; // O(N) evaluation complexity: ~7.5x computation vs 20 cities
     constexpr size_t population_size = 1000; // Large population for statistical significance
 
     auto tsp = create_random_tsp(tsp_cities, 100.0, 42);
