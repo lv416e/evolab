@@ -144,71 +144,31 @@ class TBBExecutor {
 
 #else
 
-#include <cstdint>
-#include <vector>
-
-#include <evolab/core/concepts.hpp>
-
-// Standards-compliant fallback implementation when TBB is not available
+// Dependency resolution design: Use #error for immediate, clear feedback on missing TBB
 //
-// This fallback provides clear compile-time error messages when TBB parallel
-// execution is requested but the library is not found during configuration.
-// The implementation follows C++23 best practices for conditional compilation.
-namespace evolab::parallel {
-
-/// Compile-time error stub for TBBExecutor when Intel TBB is unavailable
-///
-/// This class intentionally fails compilation with a descriptive error message
-/// when parallel execution is attempted without proper TBB installation.
-/// Use cmake configuration options to resolve dependency issues.
-class TBBExecutor {
-  private:
-    // API compatibility - store seed for consistent get_seed() behavior
-    const std::uint64_t base_seed_;
-
-  public:
-    /// Constructor that triggers standards-compliant compile-time error
-    ///
-    /// @param seed Seed value for API compatibility with TBB implementation
-    /// @note This implementation uses `static_assert(false)` for C++23 standard compliance
-    explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {
-        static_assert(false,
-                      "\n"
-                      "====================================================================\n"
-                      " TBB (Threading Building Blocks) is required for parallel execution\n"
-                      " but was not found during configuration.\n"
-                      "\n"
-                      " Resolution options:\n"
-                      "   1. Install Intel TBB development package:\n"
-                      "      - Ubuntu/Debian: apt install libtbb-dev\n"
-                      "      - RHEL/CentOS:   yum install tbb-devel\n"
-                      "      - macOS:         brew install tbb\n"
-                      "      - Windows:       vcpkg install tbb\n"
-                      "\n"
-                      "   2. Disable parallel execution:\n"
-                      "      cmake -DEVOLAB_USE_TBB=OFF .\n"
-                      "\n"
-                      " For more information, see project documentation.\n"
-                      "====================================================================\n");
-    }
-
-    /// Placeholder method for API compatibility - never actually called
-    /// @return Empty vector (unreachable due to static_assert)
-    template <evolab::core::Problem P>
-    [[nodiscard]] std::vector<evolab::core::Fitness>
-    parallel_evaluate([[maybe_unused]] const P& problem,
-                      [[maybe_unused]] const std::vector<typename P::GenomeT>& population) const {
-        // This method is never reached due to constructor static_assert
-        return {};
-    }
-
-    /// API compatibility method - returns the seed passed to constructor
-    /// @return Base seed value for consistency with TBB implementation
-    [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
-
-    // Note: RNG infrastructure removed following YAGNI principle in both implementations
-};
-
-} // namespace evolab::parallel
+// Technical decision rationale:
+// - Configuration dependency issue requires early compile-time detection
+// - #error preprocessor provides immediate feedback with detailed resolution steps
+// - Alternative approaches (deleted constructors, static_assert) delay error to instantiation
+// - Standard-compliant approach avoiding static_assert(false) in non-template contexts
+//
+// Reference: C++23 best practices for conditional compilation and dependency management
+#error "\n" \
+       "====================================================================\n" \
+       " TBB (Threading Building Blocks) is required for parallel execution\n" \
+       " but was not found during configuration.\n" \
+       "\n" \
+       " Resolution options:\n" \
+       "   1. Install Intel TBB development package:\n" \
+       "      - Ubuntu/Debian: apt install libtbb-dev\n" \
+       "      - RHEL/CentOS:   yum install tbb-devel\n" \
+       "      - macOS:         brew install tbb\n" \
+       "      - Windows:       vcpkg install tbb\n" \
+       "\n" \
+       "   2. Disable parallel execution:\n" \
+       "      cmake -DEVOLAB_USE_TBB=OFF .\n" \
+       "\n" \
+       " For more information, see project documentation.\n" \
+       "===================================================================="
 
 #endif // EVOLAB_HAVE_TBB
