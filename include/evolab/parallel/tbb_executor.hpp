@@ -11,20 +11,26 @@
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
+#include <tbb/partitioner.h>
 
 namespace evolab::parallel {
 
-/// Thread-safe parallel executor using Intel TBB for high-performance fitness evaluation
+/// Thread-safe parallel executor using Intel TBB for deterministic fitness evaluation
 ///
-/// This executor provides deterministic parallel fitness evaluation with reproducible results
-/// across multiple runs using the same seed. Thread-local RNG infrastructure supports
-/// future stochastic algorithms while maintaining thread safety in concurrent environments.
+/// This executor provides reproducible parallel fitness evaluation with identical results
+/// across multiple runs using the same seed. The implementation uses static_partitioner
+/// to ensure deterministic work distribution, prioritizing scientific reproducibility
+/// over dynamic load balancing. Thread-local RNG infrastructure supports future
+/// stochastic algorithms while maintaining deterministic execution guarantees.
 ///
 /// Key features:
-/// - Deterministic seeding ensures reproducible results independent of thread scheduling
-/// - Thread-local RNG management for future stochastic algorithm support
-/// - Blocked range partitioning for optimal work distribution
+/// - Deterministic work distribution ensures reproducible results across all runs
+/// - Thread-local RNG management ready for future stochastic algorithm support
+/// - Static range partitioning for consistent chunk-to-thread mapping
 /// - Exception-safe RAII design with proper resource management
+///
+/// Design Choice: Uses static_partitioner for scientific computing reproducibility.
+/// Trade-off: Sacrifices dynamic load balancing for guaranteed determinism.
 class TBBExecutor {
   private:
     // Immutable after construction - enables const-correctness and thread safety
@@ -52,9 +58,9 @@ class TBBExecutor {
     /// Key design benefits:
     /// - **Thread Safety**: No shared mutable state prevents data races by design
     /// - **Const-Correctness**: Method contract guarantees no observable state changes
-    /// - **Determinism**: Identical results across runs with same seed and population
-    /// - **Zero-Cost Abstraction**: No synchronization overhead during execution
-    /// - **Future-Proof**: Ready for stochastic algorithms requiring per-thread RNG
+    /// - **Reproducible Determinism**: static_partitioner ensures identical work distribution
+    /// - **Scientific Computing Ready**: Guarantees bit-identical results across runs
+    /// - **Future-Proof**: Supports both deterministic and stochastic algorithms reproducibly
     ///
     /// @param problem Problem instance providing fitness evaluation function
     /// @param population Vector of genomes to evaluate in parallel
@@ -94,22 +100,25 @@ class TBBExecutor {
             return std::mt19937(thread_seed);
         });
 
-        // Execute parallel fitness evaluation using TBB's dynamic work distribution
+        // Execute parallel fitness evaluation using TBB's deterministic work distribution
+        // static_partitioner ensures reproducible chunk-to-thread mapping for scientific computing
         // Explicit lambda captures ensure thread safety and clear dependency tracking
-        tbb::parallel_for(tbb::blocked_range<std::size_t>(0, population.size()),
-                          [&problem, &fitnesses, &population,
-                           &thread_rngs](const tbb::blocked_range<std::size_t>& range) {
-                              // Acquire thread-local RNG for future stochastic algorithms
-                              // Currently unused for deterministic TSP evaluation but provides
-                              // infrastructure foundation for evolutionary operators
-                              [[maybe_unused]] auto& rng = thread_rngs.local();
+        tbb::parallel_for(
+            tbb::blocked_range<std::size_t>(0, population.size()),
+            [&problem, &fitnesses, &population,
+             &thread_rngs](const tbb::blocked_range<std::size_t>& range) {
+                // Acquire thread-local RNG for future stochastic algorithms
+                // Currently unused for deterministic TSP evaluation but provides
+                // infrastructure foundation for evolutionary operators
+                [[maybe_unused]] auto& rng = thread_rngs.local();
 
-                              // Process assigned range with thread-safe, cache-efficient evaluation
-                              // Each thread writes to distinct indices, preventing data races
-                              for (std::size_t i = range.begin(); i != range.end(); ++i) {
-                                  fitnesses[i] = problem.evaluate(population[i]);
-                              }
-                          });
+                // Process assigned range with thread-safe, cache-efficient evaluation
+                // Each thread writes to distinct indices, preventing data races
+                for (std::size_t i = range.begin(); i != range.end(); ++i) {
+                    fitnesses[i] = problem.evaluate(population[i]);
+                }
+            },
+            tbb::static_partitioner{});
 
         return fitnesses;
     }
@@ -142,16 +151,18 @@ class TBBExecutor {
     // - Simplified API surface - no state management methods required
     //
     // Deterministic Reproducibility Guarantees:
-    // - Identical base_seed produces bit-identical results across program executions
-    // - Thread initialization order deterministic via atomic counter sequence
-    // - Independent of thread ID hashing or system-specific threading behavior
+    // - static_partitioner ensures identical work distribution across executions
+    // - Deterministic chunk-to-thread mapping independent of system threading behavior
+    // - Thread-local RNG seeding maintains reproducibility for future stochastic algorithms
     // - Mathematical seeding ensures uniform distribution across thread space
+    // - Identical base_seed + population produces bit-identical results across runs
     //
     // Performance Characteristics:
-    // - Zero-cost abstraction: no runtime overhead for thread safety
+    // - Predictable performance: deterministic work distribution
+    // - Well-suited for balanced workloads like TSP fitness evaluation
     // - Cache-friendly: eliminates false sharing from shared atomic counters
     // - Memory efficient: automatic cleanup of per-call thread-local storage
-    // - Scalable: no contention on shared synchronization primitives
+    // - Trade-off: Static partitioning sacrifices load balancing for reproducibility
     //
     // Future Extensibility:
     // - Thread-local RNG infrastructure prepared for stochastic evaluation methods
