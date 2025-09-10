@@ -94,9 +94,10 @@ static bool test_reproducibility_and_statelessness() {
                         i, fitnesses1[i].value, fitnesses2[i].value));
     }
 
-    // Test stateless design: multiple calls on the same executor must be identical
-    // This verifies that each parallel_evaluate() call is independent and does not
-    // alter the executor's state in a way that affects subsequent calls.
+    // Regression test: stateless instance reuse verification
+    // Tests that an executor instance maintains no mutable state between calls.
+    // This would catch bugs where internal state gets corrupted during execution.
+    // Distinct from fresh-instance tests below - different failure modes.
     auto fitnesses1_run2 = executor1.parallel_evaluate(tsp, population);
 
     result.assert_eq(fitnesses1.size(), fitnesses1_run2.size(),
@@ -110,9 +111,11 @@ static bool test_reproducibility_and_statelessness() {
                         i, fitnesses1[i].value, fitnesses1_run2[i].value));
     }
 
-    // Enhanced stateless verification: Multiple calls on same executor instance
-    // Tests that each parallel_evaluate() call on the same executor produces identical,
-    // independent results due to per-call state management (const-correct stateless design)
+    // Regression test: fresh instance deterministic initialization verification
+    // Tests that a newly constructed executor with the same seed produces identical
+    // results across multiple calls. This catches non-deterministic initialization
+    // bugs and validates reproducible behavior across fresh instances.
+    // Complements instance-reuse tests above - protects against different failure modes.
     TBBExecutor executor4(456); // Same seed for deterministic behavior
     auto first_call = executor4.parallel_evaluate(tsp, population);
     auto second_call = executor4.parallel_evaluate(tsp, population);
