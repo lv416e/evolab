@@ -36,20 +36,17 @@ namespace evolab::parallel {
 /// Trade-offs: Specialized for deterministic evaluation, requires separate design for stochastic
 /// algorithms.
 class TBBExecutor {
-  private:
-    // Immutable after construction - enables const-correctness and thread safety
-    const std::uint64_t base_seed_;
-
   public:
-    /// Constructs a thread-safe parallel executor with deterministic seeding
+    /// Constructs a thread-safe parallel executor for deterministic evaluation
     ///
     /// The executor employs a stateless design pattern following C++23 best practices
     /// for concurrent programming. Each parallel_evaluate() call operates independently
     /// with per-call state management, eliminating shared mutable state and ensuring
     /// inherent thread safety without synchronization overhead.
     ///
-    /// @param seed Base seed maintained for API compatibility and potential future extensions
-    explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {}
+    /// Future extensions for stochastic algorithms will add seed parameter with
+    /// default value, maintaining backward compatibility per YAGNI principle.
+    TBBExecutor() = default;
 
     /// Performs thread-safe parallel fitness evaluation using modern C++20 API design
     ///
@@ -100,20 +97,16 @@ class TBBExecutor {
         return fitnesses;
     }
 
-    /// Retrieves the immutable base seed for deterministic parallel execution
-    /// @return Base seed value for API compatibility and potential future extensions
-    [[nodiscard]] constexpr std::uint64_t get_seed() const noexcept { return base_seed_; }
-
-    // Note: RNG infrastructure removed following YAGNI principle
-    // Simplified design optimized for deterministic algorithms,
-    // eliminating unused overhead for performance-critical scientific computing
+    // Note: Stateless design following YAGNI principle
+    // Eliminates unused complexity for current deterministic algorithms.
+    // Future extensions for stochastic algorithms will add necessary state
+    // without breaking existing code (non-breaking API evolution)
 
   private:
     // Thread-safety and determinism design notes (C++23 Best Practices):
     //
-    // Immutable Design Pattern:
-    // - base_seed_: const-qualified after construction, safe for concurrent access
-    // - No shared mutable state eliminates data race possibilities by design
+    // Stateless Design Pattern:
+    // - No mutable state eliminates data race possibilities by design
     // - Follows C++ Core Guidelines: "You cannot have a race condition on immutable data"
     //
     // Const-Correctness Implementation:

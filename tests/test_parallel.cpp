@@ -51,7 +51,7 @@ static bool test_parallel_evaluation_correctness() {
     auto sequential_fitnesses = evaluate_sequential(tsp, population);
 
     // Parallel evaluation using TBB executor
-    TBBExecutor executor(123); // Same seed for reproducibility
+    TBBExecutor executor; // Stateless deterministic executor
     auto parallel_fitnesses = executor.parallel_evaluate(tsp, population);
 
     // Results should be identical
@@ -77,8 +77,8 @@ static bool test_reproducibility_and_statelessness() {
     auto population = create_test_population(tsp, 100);
 
     // Multiple parallel runs with same seed should produce identical results
-    TBBExecutor executor1(456);
-    TBBExecutor executor2(456);
+    TBBExecutor executor1;
+    TBBExecutor executor2;
 
     auto fitnesses1 = executor1.parallel_evaluate(tsp, population);
     auto fitnesses2 = executor2.parallel_evaluate(tsp, population);
@@ -137,7 +137,7 @@ static bool test_performance_improvement() {
     // JIT warm-up phase following C++23 benchmarking best practices
     // Initializes CPU caches, branch predictors, and memory allocators for
     // reliable performance measurements free from cold-start artifacts
-    TBBExecutor executor(789);
+    TBBExecutor executor;
     {
         auto warmup_population = create_test_population(tsp, 100);
         [[maybe_unused]] auto warmup_seq = evaluate_sequential(tsp, warmup_population);
