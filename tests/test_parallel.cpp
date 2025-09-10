@@ -111,35 +111,9 @@ static bool test_reproducibility_and_statelessness() {
                         i, fitnesses1[i].value, fitnesses1_run2[i].value));
     }
 
-    // Regression test: fresh instance deterministic initialization verification
-    // Tests that a newly constructed executor with the same seed produces identical
-    // results across multiple calls. This catches non-deterministic initialization
-    // bugs and validates reproducible behavior across fresh instances.
-    // Complements instance-reuse tests above - protects against different failure modes.
-    TBBExecutor executor4(456); // Same seed for deterministic behavior
-    auto first_call = executor4.parallel_evaluate(tsp, population);
-    auto second_call = executor4.parallel_evaluate(tsp, population);
-    auto third_call = executor4.parallel_evaluate(tsp, population);
-
-    result.assert_eq(first_call.size(), second_call.size(),
-                     "Same executor multiple calls: first and second call sizes must match");
-    result.assert_eq(second_call.size(), third_call.size(),
-                     "Same executor multiple calls: second and third call sizes must match");
-
-    // Verify all three calls on same executor produce identical results
-    for (std::size_t i = 0; i < first_call.size(); ++i) {
-        result.assert_true(
-            first_call[i].value == second_call[i].value,
-            std::format("Same executor stateless: first vs second call must be identical {} "
-                        "(first: {}, second: {})",
-                        i, first_call[i].value, second_call[i].value));
-
-        result.assert_true(
-            second_call[i].value == third_call[i].value,
-            std::format("Same executor stateless: second vs third call must be identical {} "
-                        "(second: {}, third: {})",
-                        i, second_call[i].value, third_call[i].value));
-    }
+    // Note: Removed redundant fresh instance test block following Gemini code review.
+    // The stateless TBBExecutor design with const base_seed_ makes fresh instances
+    // functionally identical to reused instances, making separate testing redundant.
 
     result.print_summary();
     return result.all_passed();
