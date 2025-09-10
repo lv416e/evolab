@@ -2,7 +2,6 @@
 
 #ifdef EVOLAB_HAVE_TBB
 
-#include <atomic>
 #include <cstdint>
 #include <random>
 #include <vector>
