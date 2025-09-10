@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Refactored `TBBExecutor` to eliminate shared mutable state and achieve const-correctness. The new stateless design uses method-scoped RNG initialization instead of instance-level shared state, ensuring deterministic behavior under concurrent access while maintaining performance.
+Refactored `TBBExecutor` to eliminate shared mutable state and achieve const-correctness. The new stateless design completely removes RNG infrastructure for deterministic evaluation, ensuring deterministic behavior under concurrent access while maintaining performance.
 
 ## Problem Statement
 
@@ -15,7 +15,7 @@ Original implementation used shared `rng_init_count_` and `thread_rngs_` members
 ## Decision
 
 **Implemented**: Stateless const-qualified `parallel_evaluate()` method
-- RNG state moved to method scope
+- RNG infrastructure completely eliminated for deterministic evaluation
 - Eliminated shared mutable state (`rng_init_count_`, `thread_rngs_`)  
 - Simplified architecture removes `reset_rngs()` complexity
 

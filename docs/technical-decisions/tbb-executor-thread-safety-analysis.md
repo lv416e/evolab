@@ -23,7 +23,7 @@ Intel TBB documentation: *"Methods of class combinable are not thread-safe, exce
 **Implemented**: Complete elimination of shared state
 - Removed `combinable<std::mt19937> thread_rngs_` member
 - Removed `reset_rngs()` method entirely  
-- Method-scoped RNG initialization ensures thread safety
+- Elimination of shared RNG state ensures thread safety by design
 
 ## Result
 

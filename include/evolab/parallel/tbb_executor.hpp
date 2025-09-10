@@ -150,12 +150,6 @@ class TBBExecutor {
 
 #include <evolab/core/concepts.hpp>
 
-namespace {
-/// Template-dependent false for C++23-compliant static_assert
-template <typename = void>
-constexpr bool always_false_v = false;
-} // namespace
-
 // Standards-compliant fallback implementation when TBB is not available
 //
 // This fallback provides clear compile-time error messages when TBB parallel
@@ -177,9 +171,9 @@ class TBBExecutor {
     /// Constructor that triggers standards-compliant compile-time error
     ///
     /// @param seed Seed value for API compatibility with TBB implementation
-    /// @note This implementation uses template-dependent false for C++23 standard compliance
+    /// @note This implementation uses `static_assert(false)` for C++23 standard compliance
     explicit TBBExecutor(std::uint64_t seed = 1) : base_seed_(seed) {
-        static_assert(always_false_v<>,
+        static_assert(false,
                       "\n"
                       "====================================================================\n"
                       " TBB (Threading Building Blocks) is required for parallel execution\n"
