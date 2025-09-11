@@ -169,8 +169,7 @@ bool test_performance_improvement() {
     }
 
     // Calculate statistics (median for robustness against outliers)
-    std::ranges::sort(sequential_times);
-    std::ranges::sort(parallel_times);
+    // Note: get_median handles sorting internally as documented below
 
     // Performance benchmark utility: calculates median duration from timing measurements
     // Self-contained function that sorts internally for robustness and reusability
