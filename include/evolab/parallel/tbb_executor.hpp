@@ -83,10 +83,10 @@ class TBBExecutor {
 
         // Execute parallel fitness evaluation using TBB's deterministic work distribution
         // static_partitioner ensures reproducible chunk-to-thread mapping for scientific computing
-        // Simplified implementation optimized for deterministic algorithms (e.g., TSP)
+        // Explicit capture follows C++23 best practices for maintainability and safety
         tbb::parallel_for(
             tbb::blocked_range<std::size_t>(0, population.size()),
-            [&](const tbb::blocked_range<std::size_t>& range) {
+            [&problem, &fitnesses, &population](const tbb::blocked_range<std::size_t>& range) {
                 // Process assigned range with thread-safe, cache-efficient evaluation
                 // Each thread writes to distinct indices, preventing data races
                 for (std::size_t i = range.begin(); i != range.end(); ++i) {
