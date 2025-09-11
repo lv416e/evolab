@@ -173,13 +173,16 @@ bool test_performance_improvement() {
     std::ranges::sort(parallel_times);
 
     // Performance benchmark utility: calculates median duration from timing measurements
-    // Explicit type specification for clarity and performance in benchmark context
-    // Avoids false genericity anti-pattern while maintaining optimal benchmark performance
-    auto get_median =
-        [](const std::vector<std::chrono::nanoseconds>& times) -> std::chrono::nanoseconds {
-        const auto n = times.size();
-        if (n == 0)
+    // Self-contained function that sorts internally for robustness and reusability
+    // Takes vector by value to avoid modifying the original while ensuring thread safety
+    auto get_median = [](std::vector<std::chrono::nanoseconds> times) -> std::chrono::nanoseconds {
+        if (times.empty()) {
             return std::chrono::nanoseconds{0};
+        }
+
+        std::ranges::sort(times);
+        const auto n = times.size();
+
         if (n % 2 == 1) {
             return times[n / 2];
         } else {
