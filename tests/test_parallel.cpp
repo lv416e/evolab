@@ -241,24 +241,25 @@ int main() {
     std::cout << "==============================" << std::endl;
     std::cout << std::endl;
 
-    bool all_tests_passed = true;
-
     try {
-        all_tests_passed &= test_parallel_evaluation_correctness();
+        const bool correctness_passed = test_parallel_evaluation_correctness();
         std::cout << std::endl;
 
-        all_tests_passed &= test_reproducibility_and_statelessness();
+        const bool reproducibility_passed = test_reproducibility_and_statelessness();
         std::cout << std::endl;
 
-        all_tests_passed &= test_performance_improvement();
+        const bool performance_passed = test_performance_improvement();
         std::cout << std::endl;
+
+        const bool all_tests_passed =
+            correctness_passed && reproducibility_passed && performance_passed;
+
+        std::cout << "==============================" << std::endl;
+        std::cout << "Parallel tests completed." << std::endl;
+
+        return all_tests_passed ? 0 : 1;
     } catch (const std::exception& e) {
         std::cerr << "Test failed with exception: " << e.what() << std::endl;
         return 1;
     }
-
-    std::cout << "==============================" << std::endl;
-    std::cout << "Parallel tests completed." << std::endl;
-
-    return all_tests_passed ? 0 : 1;
 }
