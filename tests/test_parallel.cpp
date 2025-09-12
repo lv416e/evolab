@@ -26,7 +26,7 @@ std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t pop
                                                  std::uint64_t seed = 123) {
     std::vector<TSP::GenomeT> population(population_size);
     std::mt19937 rng(seed);
-    std::ranges::generate(population, [&] { return tsp.random_genome(rng); });
+    std::ranges::generate(population, [&tsp, &rng] { return tsp.random_genome(rng); });
     return population;
 }
 
@@ -35,7 +35,7 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
                                          const std::vector<TSP::GenomeT>& population) {
     std::vector<Fitness> fitnesses(population.size());
     std::ranges::transform(population, fitnesses.begin(),
-                           [&](const auto& genome) { return tsp.evaluate(genome); });
+                           [&tsp](const auto& genome) { return tsp.evaluate(genome); });
     return fitnesses;
 }
 
