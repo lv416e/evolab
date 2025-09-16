@@ -171,9 +171,9 @@ bool test_performance_improvement() {
     // Calculate statistics (median for robustness against outliers)
     // Note: get_median handles sorting internally as documented below
 
-    // Performance benchmark utility: calculates median duration from timing measurements
-    // Self-contained function that sorts internally for robustness and reusability
-    // Takes vector by value to avoid modifying the original while ensuring thread safety
+    // Calculates median duration from benchmark measurements.
+    // Takes vector by value to avoid modifying original data.
+    // Uses overflow-safe midpoint calculation for even-sized collections.
     auto get_median = [](std::vector<std::chrono::nanoseconds> times) -> std::chrono::nanoseconds {
         if (times.empty()) {
             return std::chrono::nanoseconds{0};
