@@ -146,7 +146,7 @@ bool test_performance_improvement() {
     }
 
     // Multiple iterations for statistical reliability
-    constexpr int benchmark_iterations = 3;
+    constexpr int benchmark_iterations = 5;
     std::vector<std::chrono::nanoseconds> sequential_times;
     std::vector<std::chrono::nanoseconds> parallel_times;
     sequential_times.reserve(benchmark_iterations);
