@@ -131,8 +131,7 @@ bool test_performance_improvement() {
     std::cout << "  TSP cities: " << tsp_cities << "\n";
     std::cout << "  Population size: " << population_size << "\n";
     std::cout << "  Theoretical computation: ~" << (tsp_cities * population_size)
-              << " distance calculations (O(N_cities * Pop_size))\n"
-              << std::endl;
+              << " distance calculations (O(N_cities * Pop_size))\n\n";
 
     // JIT warm-up phase following C++23 benchmarking best practices
     // Initializes CPU caches, branch predictors, and memory allocators for
@@ -216,7 +215,7 @@ bool test_performance_improvement() {
                       << "% (on " << hardware_threads << " cores)\n";
         }
     }
-    std::cout << std::endl;
+    std::cout << '\n';
 
     // Verify correctness across all implementations
     // Critical: Ensure performance optimizations don't compromise result accuracy
@@ -239,29 +238,29 @@ bool test_performance_improvement() {
 } // anonymous namespace
 
 int main() {
-    std::cout << "Running EvoLab Parallel Tests" << std::endl;
-    std::cout << "==============================" << std::endl;
-    std::cout << std::endl;
+    std::cout << "Running EvoLab Parallel Tests" << '\n';
+    std::cout << "==============================" << '\n';
+    std::cout << '\n';
 
     try {
         const bool correctness_passed = test_parallel_evaluation_correctness();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         const bool reproducibility_passed = test_reproducibility_and_statelessness();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         const bool performance_passed = test_performance_improvement();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         const bool all_tests_passed =
             correctness_passed && reproducibility_passed && performance_passed;
 
-        std::cout << "==============================" << std::endl;
-        std::cout << "Parallel tests completed." << std::endl;
+        std::cout << "==============================" << '\n';
+        std::cout << "Parallel tests completed." << '\n';
 
         return all_tests_passed ? 0 : 1;
     } catch (const std::exception& e) {
-        std::cerr << "Test failed with exception: " << e.what() << std::endl;
+        std::cerr << "Test failed with exception: " << e.what() << '\n';
         return 1;
     }
 }
