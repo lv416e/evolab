@@ -136,7 +136,9 @@ bool test_performance_improvement() {
 
     // JIT warm-up phase following C++23 benchmarking best practices
     // Initializes CPU caches, branch predictors, and memory allocators for
-    // reliable performance measurements free from cold-start artifacts
+    // reliable performance measurements free from cold-start artifacts.
+    // Uses smaller dataset to avoid measurement bias from data reuse while
+    // still providing adequate TBB thread pool initialization and cache warming.
     TBBExecutor executor;
     {
         auto warmup_population = create_test_population(tsp, 100);
