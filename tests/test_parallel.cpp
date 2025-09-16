@@ -192,8 +192,8 @@ bool test_performance_improvement() {
         }
     };
 
-    auto sequential_median = get_median(sequential_times);
-    auto parallel_median = get_median(parallel_times);
+    auto sequential_median = get_median(std::move(sequential_times));
+    auto parallel_median = get_median(std::move(parallel_times));
 
     auto seq_microseconds =
         std::chrono::duration_cast<std::chrono::microseconds>(sequential_median);
