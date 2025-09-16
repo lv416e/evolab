@@ -141,7 +141,7 @@ bool test_performance_improvement() {
     // still providing adequate TBB thread pool initialization and cache warming.
     TBBExecutor executor;
     {
-        auto warmup_population = create_test_population(tsp, 100);
+        auto warmup_population = create_test_population(tsp, 100, 124);
         [[maybe_unused]] auto warmup_seq = evaluate_sequential(tsp, warmup_population);
         [[maybe_unused]] auto warmup_par = executor.parallel_evaluate(tsp, warmup_population);
     }
