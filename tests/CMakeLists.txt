@@ -37,6 +37,10 @@ if(TBB_FOUND)
     
     # Register parallel test with CTest
     add_test(NAME ParallelTests COMMAND test_parallel)
+    # Helpful labels for filtering in CI dashboards
+    set_tests_properties(ParallelTests PROPERTIES LABELS "parallel;TBB")
+else()
+    message(STATUS "TBB not found: parallel tests disabled (ParallelTests not built)")
 endif()
 
 # Register core tests with CTest
