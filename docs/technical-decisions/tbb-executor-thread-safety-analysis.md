@@ -1,8 +1,8 @@
 # Technical Decision Document: TBBExecutor Thread Safety Analysis
 
-**Document ID**: TDD-2025-002  
-**Status**: Implemented  
-**Date**: 2025-09-09  
+**Document ID**: TDD-2025-002
+**Status**: Implemented
+**Date**: 2025-09-09
 
 ## Executive Summary
 
@@ -10,9 +10,9 @@ Addressed potential thread safety concern in `TBBExecutor` where concurrent exec
 
 ## Problem Classification
 
-**Issue**: Theoretical race condition between `reset_rngs()` and `parallel_evaluate()`  
-**Assessment**: Design improvement opportunity (not critical bug)  
-**Risk**: Very Low probability, Low-Medium impact  
+**Issue**: Theoretical race condition between `reset_rngs()` and `parallel_evaluate()`
+**Assessment**: Design improvement opportunity (not critical bug)
+**Risk**: Very Low probability, Low-Medium impact
 
 ## Technical Foundation
 
@@ -22,12 +22,12 @@ Intel TBB documentation: *"Methods of class combinable are not thread-safe, exce
 
 **Implemented**: Complete elimination of shared state
 - Removed `combinable<std::mt19937> thread_rngs_` member
-- Removed `reset_rngs()` method entirely  
+- Removed `reset_rngs()` method entirely
 - Elimination of shared RNG state ensures thread safety by design
 
 ## Result
 
-✅ Thread-safe by design  
-✅ Simplified API (no reset method needed)  
-✅ Const-correct implementation  
+✅ Thread-safe by design
+✅ Simplified API (no reset method needed)
+✅ Const-correct implementation
 ✅ Eliminated theoretical race conditions
