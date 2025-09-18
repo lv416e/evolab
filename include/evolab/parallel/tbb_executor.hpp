@@ -2,7 +2,6 @@
 
 #ifdef EVOLAB_HAVE_TBB
 
-#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -22,8 +21,8 @@ namespace evolab::parallel {
 /// Deterministic Execution Architecture:
 /// - **Static partitioning**: Consistent work distribution across all executions
 /// - **Thread-assignment independence**: Identical results regardless of thread-to-genome mapping
-/// - **Cross-execution consistency**: Same results across different systems, TBB versions, thread
-/// counts
+/// - **Cross-execution consistency**: Same results across runs (given deterministic evaluate()),
+///   independent of thread counts when using identical configurations
 /// - **Performance optimization**: Minimal overhead design for computation-intensive algorithms
 ///
 /// Key features:
@@ -64,7 +63,8 @@ class TBBExecutor {
     /// Technical implementation:
     /// - **Thread Safety**: No shared mutable state prevents data races by design
     /// - **Reproducible Determinism**: static_partitioner ensures identical work distribution
-    /// - **Scientific Computing Ready**: Guarantees bit-identical results across runs
+    /// - **Scientific Computing Ready**: Guarantees reproducible results across runs
+    ///   (bit-identical when evaluate() is deterministic and compiled with consistent FP settings)
     ///
     /// @param problem Problem instance providing fitness evaluation function.
     ///                The evaluate() method must be thread-safe for concurrent execution
@@ -106,41 +106,8 @@ class TBBExecutor {
     // without breaking existing code (non-breaking API evolution)
 
   private:
-    // Thread-safety and determinism design notes (C++23 Best Practices):
-    //
-    // Stateless Design Pattern:
-    // - No mutable state eliminates data race possibilities by design
-    // - Follows C++ Core Guidelines: "You cannot have a race condition on immutable data"
-    //
-    // Const-Correctness Implementation:
-    // - parallel_evaluate() const-qualified expresses thread-safe contract
-    // - Method semantics: "logically read-only operation safe for concurrent use"
-    // - Aligns with C++11/23 const meaning: "safe to read concurrently"
-    //
-    // Stateless Architecture Benefits:
-    // - Per-call state management prevents interference between invocations
-    // - Eliminates synchronization overhead (no mutexes, locks, or atomics on critical path)
-    // - Natural exception safety through RAII and automatic cleanup
-    // - Simplified API surface - no state management methods required
-    //
-    // Deterministic Reproducibility Guarantees:
-    // - static_partitioner ensures identical work distribution across executions
-    // - Thread-assignment independence: deterministic results regardless of thread mapping
-    // - Cross-execution consistency: identical results across systems, TBB versions, thread counts
-    // - Identical population produces bit-identical results across all program executions
-    //
-    // Performance Characteristics:
-    // - Predictable performance: deterministic work distribution
-    // - Well-suited for balanced workloads like TSP fitness evaluation
-    // - Cache-friendly: eliminates false sharing from shared atomic counters
-    // - Memory efficient: minimal overhead design without unused infrastructure
-    // - Optimized for deterministic algorithms: maximum performance for scientific computing
-    //
-    // Design Philosophy (YAGNI Principle Applied):
-    // - Simplified implementation focusing on current requirements (deterministic evaluation)
-    // - Eliminated unused RNG infrastructure for performance optimization
-    // - Specialized for deterministic algorithms rather than general-purpose design
-    // - Future stochastic support requires dedicated implementation with different trade-offs
+    // See docs/technical-decisions/{tbb-executor-*.md} for detailed rationale
+    // (thread safety, determinism, partitioner choice, and future stochastic design).
 };
 
 } // namespace evolab::parallel
