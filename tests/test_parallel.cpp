@@ -3,6 +3,7 @@
 #include <format>
 #include <iomanip>
 #include <random>
+#include <ranges>
 #include <thread>
 #include <vector>
 
@@ -23,9 +24,13 @@ using evolab::problems::TSP;
 
 // Generate test population using C++20 ranges for modern, expressive code
 std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t population_size,
-                                                 std::uint64_t seed = 123) {
+                                                 std::uint32_t seed = 123) {
     std::vector<TSP::GenomeT> population(population_size);
-    std::mt19937 rng(seed);
+    // Use proper seeding strategy following C++23 best practices for mt19937
+    // Single-value seeding severely underseeds mt19937; use seed_seq for better entropy
+    std::random_device rd;
+    std::seed_seq seed_seq{seed, rd(), rd(), rd()};
+    std::mt19937 rng(seed_seq);
     std::ranges::generate(population, [&tsp, &rng] { return tsp.random_genome(rng); });
     return population;
 }
@@ -41,7 +46,7 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
 
 // Test functions using modern C++ anonymous namespace idiom instead of static
 // for internal linkage, providing better consistency and type definition support
-bool test_parallel_evaluation_correctness() {
+[[nodiscard]] bool test_parallel_evaluation_correctness() {
     TestResult result;
 
     auto tsp = create_random_tsp(12, 100.0, 42);
@@ -70,7 +75,7 @@ bool test_parallel_evaluation_correctness() {
     return result.all_passed();
 }
 
-bool test_reproducibility_and_statelessness() {
+[[nodiscard]] bool test_reproducibility_and_statelessness() {
     TestResult result;
 
     auto tsp = create_random_tsp(8, 100.0, 42);
@@ -115,7 +120,7 @@ bool test_reproducibility_and_statelessness() {
     return result.all_passed();
 }
 
-bool test_performance_improvement() {
+[[nodiscard]] bool test_performance_improvement() {
     TestResult result;
 
     // Performance evaluation using computationally intensive TSP instances
@@ -212,7 +217,7 @@ bool test_performance_improvement() {
         if (hardware_threads > 0) {
             double efficiency = speedup / hardware_threads * 100.0;
             std::cout << "  Efficiency: " << std::fixed << std::setprecision(1) << efficiency
-                      << "% (on " << hardware_threads << " cores)\n";
+                      << "% (on " << hardware_threads << " HW threads)\n";
         }
     }
     std::cout << '\n';
