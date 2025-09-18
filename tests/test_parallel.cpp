@@ -26,10 +26,9 @@ using evolab::problems::TSP;
 std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t population_size,
                                                  std::uint32_t seed = 123) {
     std::vector<TSP::GenomeT> population(population_size);
-    // Use proper seeding strategy following C++23 best practices for mt19937
-    // Single-value seeding severely underseeds mt19937; use seed_seq for better entropy
-    std::random_device rd;
-    std::seed_seq seed_seq{seed, rd(), rd(), rd()};
+    // Deterministic seeding for reproducible tests across runs
+    // Using seed_seq with deterministic values to properly initialize mt19937 state space
+    std::seed_seq seed_seq{seed, seed + 1, seed + 2, seed + 3};
     std::mt19937 rng(seed_seq);
     std::ranges::generate(population, [&tsp, &rng] { return tsp.random_genome(rng); });
     return population;
@@ -94,7 +93,7 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
     for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
         result.assert_true(
             fitnesses1[i].value == fitnesses2[i].value,
-            std::format("Reproducibility: results should be identical with same seed {} "
+            std::format("Reproducibility: results should be identical for identical inputs {} "
                         "(expected: {}, actual: {})",
                         i, fitnesses1[i].value, fitnesses2[i].value));
     }
