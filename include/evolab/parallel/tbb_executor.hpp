@@ -47,7 +47,7 @@ class TBBExecutor {
     /// default value, maintaining backward compatibility per YAGNI principle.
     TBBExecutor() = default;
 
-    /// Performs thread-safe parallel fitness evaluation using modern C++20 API design
+    /// Performs thread-safe parallel fitness evaluation using modern C++23 API design
     ///
     /// This method implements C++23 const-correctness principles with std::span parameter
     /// following C++ Core Guidelines F.16. The span-based interface provides enhanced
