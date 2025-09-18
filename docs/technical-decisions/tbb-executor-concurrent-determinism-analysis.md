@@ -25,3 +25,4 @@ Original implementation used shared `rng_init_count_` and `thread_rngs_` members
 ✅ Deterministic behavior preserved  
 ✅ Performance maintained  
 ✅ Simplified implementation
+ℹ️ Determinism holds provided `evaluate()` is side‑effect free and thread‑safe on a `const` instance.
