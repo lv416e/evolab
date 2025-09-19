@@ -27,7 +27,8 @@ namespace evolab::parallel {
 ///
 /// Key features:
 /// - Deterministic work distribution ensures reproducible results across all runs
-/// - Static range partitioning for consistent chunk-to-thread mapping
+/// - Static range partitioning for deterministic chunk boundaries; actual worker-thread
+///   assignment may vary across runs and platforms
 /// - Exception-safe RAII design with proper resource management
 /// - Optimized for deterministic algorithms (e.g., TSP, graph algorithms)
 ///
@@ -72,6 +73,7 @@ class TBBExecutor {
     /// written before the throw, but that buffer is destroyed during unwinding.
     /// For a strong guarantee, evaluate into a temporary buffer and commit on success.
     ///
+    /// @tparam P Problem type satisfying evolab::core::Problem.
     /// @param problem Problem instance providing fitness evaluation function.
     ///
     /// @warning The problem's evaluate() method MUST be thread-safe for concurrent
@@ -154,7 +156,8 @@ class TBBExecutor {
        "      cmake -DEVOLAB_USE_TBB=OFF .\n" \
        "\n" \
        " For more information, see project documentation\n" \
-       " (docs/technical-decisions/ and README.md).\n" \
+       " (docs/technical-decisions/ and README.md) and Intel oneTBB docs:\n" \
+       "   https://oneapi-src.github.io/oneTBB/\n" \
        "===================================================================="
 
 #endif // EVOLAB_HAVE_TBB
