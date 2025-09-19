@@ -239,6 +239,33 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
     return result.all_passed();
 }
 
+[[nodiscard]] bool test_edge_cases() {
+    TestResult result;
+
+    auto tsp = create_random_tsp(5, 100.0, 42);
+    TBBExecutor executor;
+
+    // Test empty population
+    std::vector<TSP::GenomeT> empty_population;
+    auto empty_fitnesses = executor.parallel_evaluate(tsp, empty_population);
+
+    result.assert_eq(empty_fitnesses.size(), 0UZ,
+                     "Empty population should return empty fitness vector");
+
+    // Test single-element population
+    auto single_population = create_test_population(tsp, 1);
+    auto single_fitnesses = executor.parallel_evaluate(tsp, single_population);
+    auto sequential_single = evaluate_sequential(tsp, single_population);
+
+    result.assert_eq(single_fitnesses.size(), 1UZ,
+                     "Single population should return single fitness value");
+    result.assert_true(single_fitnesses[0].value == sequential_single[0].value,
+                       "Single element parallel and sequential should match");
+
+    result.print_summary();
+    return result.all_passed();
+}
+
 } // anonymous namespace
 
 int main() {
@@ -256,8 +283,11 @@ int main() {
         const bool performance_passed = test_performance_improvement();
         std::cout << '\n';
 
+        const bool edge_cases_passed = test_edge_cases();
+        std::cout << '\n';
+
         const bool all_tests_passed =
-            correctness_passed && reproducibility_passed && performance_passed;
+            correctness_passed && reproducibility_passed && performance_passed && edge_cases_passed;
 
         std::cout << "==============================" << '\n';
         std::cout << "Parallel tests completed." << '\n';
