@@ -2,6 +2,7 @@
 #include <chrono>
 #include <format>
 #include <iomanip>
+#include <numeric>
 #include <random>
 #include <ranges>
 #include <thread>
@@ -189,10 +190,14 @@ std::vector<Fitness> evaluate_sequential(const TSP& tsp,
 
         if (n % 2 == 1) {
             return times[n / 2];
-        } else {
-            // Overflow-safe midpoint calculation: a + (b - a) / 2
-            return times[n / 2 - 1] + (times[n / 2] - times[n / 2 - 1]) / 2;
         }
+
+        // Even-sized set: use std::midpoint on underlying rep to avoid overflow and
+        // express intent with standard library facility (C++20).
+        const auto a = times[n / 2 - 1];
+        const auto b = times[n / 2];
+        auto mid_rep = std::midpoint(a.count(), b.count());
+        return std::chrono::nanoseconds{mid_rep};
     };
 
     auto sequential_median = get_median(std::move(sequential_times));
