@@ -21,8 +21,8 @@ namespace evolab::parallel {
 /// Deterministic Execution Architecture:
 /// - **Static partitioning**: Consistent work distribution across all executions
 /// - **Thread-assignment independence**: Identical results regardless of thread-to-genome mapping
-/// - **Cross-execution consistency**: Same results across runs (given deterministic evaluate()),
-///   independent of thread counts when using identical configurations
+/// - **Cross-run consistency**: Identical results for identical inputs and build settings
+///   regardless of worker-thread count or scheduling (assuming `evaluate()` is deterministic)
 /// - **Performance optimization**: Minimal overhead design for computation-intensive algorithms
 ///
 /// Key features:
@@ -67,11 +67,10 @@ class TBBExecutor {
     ///   (bit-identical when evaluate() is deterministic and compiled with consistent FP settings)
     ///
     /// Exception Safety:
-    /// This function provides a basic exception guarantee. If `problem.evaluate()` throws for any
-    /// genome, TBB propagates an exception. The returned `std::vector` will contain partial
-    /// results (fitnesses computed before the exception). Callers must be prepared to handle
-    /// this, for example, by discarding the results. For a strong guarantee, evaluate into a
-    /// temporary buffer and move on full success.
+    /// If `problem.evaluate()` throws for any genome, the exception is propagated out of this
+    /// function and no result is returned. Some elements of an internal buffer may have been
+    /// written before the throw, but that buffer is destroyed during unwinding.
+    /// For a strong guarantee, evaluate into a temporary buffer and commit on success.
     ///
     /// @param problem Problem instance providing fitness evaluation function.
     ///
@@ -81,10 +80,8 @@ class TBBExecutor {
     ///          evaluate() simultaneously.
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
-    /// @throws std::exception Propagates exceptions from `problem.evaluate()`. If an exception
-    /// is thrown, the operation is aborted, and the returned vector may contain partial results
-    /// from evaluations completed prior to the exception. Callers should discard the returned
-    /// vector on exception. Also throws if TBB encounters errors during parallel execution.
+    /// @throws std::exception Propagates exceptions from `problem.evaluate()`; no vector is
+    /// returned on throw. Also propagates TBB errors encountered during parallel execution.
     template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
