@@ -3,8 +3,6 @@
 #ifdef EVOLAB_HAVE_TBB
 
 #include <span>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
@@ -83,7 +81,8 @@ class TBBExecutor {
     ///          Multiple threads will call evaluate() simultaneously. Ensure no
     ///          mutable state modifications occur without proper synchronization.
     ///          Violating this requirement causes undefined behavior.
-    /// @param population Contiguous sequence of genomes to evaluate in parallel
+    /// @param population Contiguous sequence of genomes to evaluate in parallel.
+    ///        Must remain valid and not be mutated for the duration of this call.
     /// @return Vector of fitness values corresponding to input population order
     /// @throws std::exception Propagates exceptions from `problem.evaluate()`; no vector is
     /// returned on throw. Also propagates TBB errors encountered during parallel execution.
