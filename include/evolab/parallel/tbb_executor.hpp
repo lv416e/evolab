@@ -78,10 +78,11 @@ class TBBExecutor {
     /// @tparam P Problem type satisfying evolab::core::Problem.
     /// @param problem Problem instance providing fitness evaluation function.
     ///
-    /// @warning The problem's evaluate() method MUST be thread-safe for concurrent
-    ///          execution on const objects. Ensure no mutable state modifications
-    ///          occur without proper synchronization, as multiple threads will call
-    ///          evaluate() simultaneously.
+    /// @warning **THREAD-SAFETY REQUIREMENT**: The problem's evaluate() method
+    ///          MUST be thread-safe for concurrent execution on const objects.
+    ///          Multiple threads will call evaluate() simultaneously. Ensure no
+    ///          mutable state modifications occur without proper synchronization.
+    ///          Violating this requirement causes undefined behavior.
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
     /// @throws std::exception Propagates exceptions from `problem.evaluate()`; no vector is
