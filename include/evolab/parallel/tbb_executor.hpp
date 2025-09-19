@@ -90,9 +90,9 @@ class TBBExecutor {
     parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
         using Fitness = evolab::core::Fitness;
 
-        // Guard against empty population to prevent TBB edge cases
-        // Defensive programming: static_partitioner with empty ranges has documented issues
-        // (see TBB Issue #641, #1403). Return empty result for empty input.
+        // Guard against empty population for defensive programming
+        // While TBB blocked_range handles empty ranges correctly, this explicit check
+        // provides clear semantics and prevents potential edge cases in future TBB versions.
         if (population.empty()) {
             return std::vector<Fitness>{};
         }
@@ -156,7 +156,8 @@ class TBBExecutor {
        "   2. Disable parallel execution:\n" \
        "      cmake -DEVOLAB_USE_TBB=OFF .\n" \
        "\n" \
-       " For more information, see project documentation.\n" \
+       " For more information, see project documentation\n" \
+       " (docs/technical-decisions/ and README.md).\n" \
        "===================================================================="
 
 #endif // EVOLAB_HAVE_TBB
