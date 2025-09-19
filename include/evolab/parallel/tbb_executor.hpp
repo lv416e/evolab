@@ -66,14 +66,23 @@ class TBBExecutor {
     /// - **Scientific Computing Ready**: Guarantees reproducible results across runs
     ///   (bit-identical when evaluate() is deterministic and compiled with consistent FP settings)
     ///
+    /// Exception Safety:
+    /// This function provides a basic exception guarantee. If `problem.evaluate()` throws for any
+    /// genome, TBB propagates an exception. The returned `std::vector` will contain partial
+    /// results (fitnesses computed before the exception). Callers must be prepared to handle
+    /// this, for example, by discarding the results. For a strong guarantee, evaluate into a
+    /// temporary buffer and move on full success.
+    ///
     /// @param problem Problem instance providing fitness evaluation function.
     ///                The evaluate() method must be thread-safe for concurrent execution
     ///                on const objects (no mutable state modifications without proper
     ///                synchronization)
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
-    /// @throws std::exception if TBB encounters errors during parallel execution, or propagates
-    /// exceptions from problem.evaluate()
+    /// @throws std::exception Propagates exceptions from `problem.evaluate()`. If an exception
+    /// is thrown, the operation is aborted, and the returned vector may contain partial results
+    /// from evaluations completed prior to the exception. Callers should discard the returned
+    /// vector on exception. Also throws if TBB encounters errors during parallel execution.
     template <evolab::core::Problem P>
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
