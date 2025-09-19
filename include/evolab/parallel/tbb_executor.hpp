@@ -105,10 +105,7 @@ class TBBExecutor {
         // Explicit capture follows C++23 best practices for maintainability and safety
         tbb::parallel_for(
             tbb::blocked_range<std::size_t>(0, population.size()),
-            [&problem, &fitnesses, &population](
-                const tbb::blocked_range<std::size_t>&
-                    range) noexcept(noexcept(std::declval<P>()
-                                                 .evaluate(std::declval<typename P::GenomeT>()))) {
+            [&problem, &fitnesses, &population](const tbb::blocked_range<std::size_t>& range) {
                 // Process assigned range with thread-safe, cache-efficient evaluation
                 // Each thread writes to distinct indices, preventing data races
                 for (std::size_t i = range.begin(); i != range.end(); ++i) {
