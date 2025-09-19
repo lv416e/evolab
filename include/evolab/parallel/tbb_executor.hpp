@@ -74,9 +74,11 @@ class TBBExecutor {
     /// temporary buffer and move on full success.
     ///
     /// @param problem Problem instance providing fitness evaluation function.
-    ///                The evaluate() method must be thread-safe for concurrent execution
-    ///                on const objects (no mutable state modifications without proper
-    ///                synchronization)
+    ///
+    /// @warning The problem's evaluate() method MUST be thread-safe for concurrent
+    ///          execution on const objects. Ensure no mutable state modifications
+    ///          occur without proper synchronization, as multiple threads will call
+    ///          evaluate() simultaneously.
     /// @param population Contiguous sequence of genomes to evaluate in parallel
     /// @return Vector of fitness values corresponding to input population order
     /// @throws std::exception Propagates exceptions from `problem.evaluate()`. If an exception
@@ -87,6 +89,13 @@ class TBBExecutor {
     [[nodiscard]] std::vector<evolab::core::Fitness>
     parallel_evaluate(const P& problem, std::span<const typename P::GenomeT> population) const {
         using Fitness = evolab::core::Fitness;
+
+        // Guard against empty population to prevent TBB edge cases
+        // Defensive programming: static_partitioner with empty ranges has documented issues
+        // (see TBB Issue #641, #1403). Return empty result for empty input.
+        if (population.empty()) {
+            return std::vector<Fitness>{};
+        }
 
         std::vector<Fitness> fitnesses(population.size());
 
