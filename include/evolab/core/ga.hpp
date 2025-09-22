@@ -13,6 +13,7 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -201,12 +202,13 @@ class GeneticAlgorithm {
             }
 
             // Generate offspring
+            // Selection - extract data once for selection operators
+            auto genomes_span = population.genomes();
+            auto fitness_span = population.fitness_values();
+            std::vector<GenomeT> genome_vec(genomes_span.begin(), genomes_span.end());
+            std::vector<Fitness> fitness_vec(fitness_span.begin(), fitness_span.end());
+
             while (new_population.size() < config.population_size) {
-                // Selection - need to extract data for selection operators
-                auto genomes_span = population.genomes();
-                auto fitness_span = population.fitness_values();
-                std::vector<GenomeT> genome_vec(genomes_span.begin(), genomes_span.end());
-                std::vector<Fitness> fitness_vec(fitness_span.begin(), fitness_span.end());
 
                 auto parent1_idx = selection_.select(genome_vec, fitness_vec, rng_);
                 auto parent2_idx = selection_.select(genome_vec, fitness_vec, rng_);
@@ -294,12 +296,11 @@ class GeneticAlgorithm {
                 stats.worst_fitness =
                     *std::max_element(current_fitness_span.begin(), current_fitness_span.end());
 
-                // Convert Population to vector for diversity calculation (temporary compatibility)
-                auto genomes_span = population.genomes();
-                std::vector<GenomeT> genome_vec(genomes_span.begin(), genomes_span.end());
-                stats.diversity = config.enable_diversity_tracking
-                                      ? calculate_diversity(genome_vec, rng_, config)
-                                      : 0.0;
+                // Calculate diversity directly from spans (no copying needed)
+                stats.diversity =
+                    config.enable_diversity_tracking
+                        ? calculate_diversity<GenomeT>(population.genomes(), rng_, config)
+                        : 0.0;
                 stats.elapsed_time = elapsed;
 
                 result.history.push_back(stats);
@@ -337,7 +338,7 @@ class GeneticAlgorithm {
     }
 
     template <typename GenomeT>
-    double calculate_diversity(const std::vector<GenomeT>& population, std::mt19937& rng,
+    double calculate_diversity(std::span<const GenomeT> population, std::mt19937& rng,
                                const GAConfig& config) {
         if (population.size() < 2)
             return 0.0;
