@@ -391,6 +391,7 @@ class EAXCrossover {
 
         // Simplified EAX: randomly select edges from both parents
         std::unordered_set<Edge, EdgeHash> offspring_edges;
+        offspring_edges.reserve(n);
         std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
 
         // Combine edges from both parents with probability selection
@@ -438,16 +439,30 @@ class EAXCrossover {
         GenomeT tour;
         tour.reserve(n);
 
-        // Build adjacency list
+        // Build adjacency list with bounds checking
         std::vector<std::vector<int>> adj(n);
         for (const auto& edge : edges) {
+            // Validate edge indices to prevent out-of-bounds access
+            if (edge.from < 0 || edge.from >= static_cast<int>(n) || edge.to < 0 ||
+                edge.to >= static_cast<int>(n)) {
+                continue; // Skip invalid edges
+            }
             adj[edge.from].push_back(edge.to);
             adj[edge.to].push_back(edge.from);
         }
 
-        // Follow path starting from node 0
+        // Follow path starting from node 0 (with validation)
         std::vector<bool> visited(n, false);
         int current = 0;
+
+        // Validate starting node
+        if (current < 0 || current >= static_cast<int>(n)) {
+            // Fallback: use identity permutation if invalid
+            for (int i = 0; i < static_cast<int>(n); ++i) {
+                tour.push_back(i);
+            }
+            return tour;
+        }
         int path_iterations = 0;
         const int max_path_iterations = static_cast<int>(n * 2);
 
@@ -456,10 +471,10 @@ class EAXCrossover {
             visited[current] = true;
             path_iterations++;
 
-            // Find unvisited neighbor
+            // Find unvisited neighbor with bounds checking
             int next = -1;
             for (int neighbor : adj[current]) {
-                if (!visited[neighbor]) {
+                if (neighbor >= 0 && neighbor < static_cast<int>(n) && !visited[neighbor]) {
                     next = neighbor;
                     break;
                 }
@@ -483,7 +498,9 @@ class EAXCrossover {
         if (tour.size() < n) {
             std::vector<bool> in_tour(n, false);
             for (int city : tour) {
-                in_tour[city] = true;
+                if (city >= 0 && city < static_cast<int>(n)) {
+                    in_tour[city] = true;
+                }
             }
             for (int i = 0; i < static_cast<int>(n); ++i) {
                 if (!in_tour[i]) {
