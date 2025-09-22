@@ -29,7 +29,21 @@ add_executable(test_config_integration test_config_integration.cpp)
 target_link_libraries(test_config_integration PRIVATE evolab)
 target_compile_features(test_config_integration PRIVATE cxx_std_23)
 
-# Register tests with CTest
+# Conditional TBB parallel tests
+if(TBB_FOUND)
+    add_executable(test_parallel test_parallel.cpp)
+    target_link_libraries(test_parallel PRIVATE evolab)
+    target_compile_features(test_parallel PRIVATE cxx_std_23)
+    
+    # Register parallel test with CTest
+    add_test(NAME ParallelTests COMMAND test_parallel)
+    # Helpful labels for filtering in CI dashboards
+    set_tests_properties(ParallelTests PROPERTIES LABELS "parallel;TBB")
+else()
+    message(STATUS "TBB not found: parallel tests disabled (ParallelTests not built)")
+endif()
+
+# Register core tests with CTest
 add_test(NAME CoreTests COMMAND test_core)
 add_test(NAME TSPTests COMMAND test_tsp)
 add_test(NAME OperatorTests COMMAND test_operators)

@@ -1,0 +1,305 @@
+#include <algorithm>
+#include <chrono>
+#include <format>
+#include <iomanip>
+#include <numeric>
+#include <random>
+#include <ranges>
+#include <thread>
+#include <vector>
+
+#include <evolab/evolab.hpp>
+#include <evolab/parallel/tbb_executor.hpp>
+
+#include "test_helper.hpp"
+
+namespace {
+
+// Explicit using declarations in narrowest possible scope following C++23 best practices
+// Provides clear dependency tracking while preventing namespace pollution and improving
+// compile-time performance through selective symbol importation
+using evolab::core::Fitness;
+using evolab::parallel::TBBExecutor;
+using evolab::problems::create_random_tsp;
+using evolab::problems::TSP;
+
+// Generate test population using C++20 ranges for modern, expressive code
+std::vector<TSP::GenomeT> create_test_population(const TSP& tsp, std::size_t population_size,
+                                                 std::uint32_t seed = 123) {
+    std::vector<TSP::GenomeT> population(population_size);
+    // Deterministic seeding for reproducible tests across runs
+    // Using seed_seq with deterministic values to properly initialize mt19937 state space
+    std::seed_seq seed_seq{seed, seed + 1, seed + 2, seed + 3};
+    std::mt19937 rng(seed_seq);
+    std::ranges::generate(population, [&tsp, &rng] { return tsp.random_genome(rng); });
+    return population;
+}
+
+// Sequential evaluation for comparison using C++20 ranges for functional-style processing
+std::vector<Fitness> evaluate_sequential(const TSP& tsp,
+                                         const std::vector<TSP::GenomeT>& population) {
+    std::vector<Fitness> fitnesses(population.size());
+    std::ranges::transform(population, fitnesses.begin(),
+                           [&tsp](const auto& genome) { return tsp.evaluate(genome); });
+    return fitnesses;
+}
+
+// Test functions using modern C++ anonymous namespace idiom instead of static
+// for internal linkage, providing better consistency and type definition support
+[[nodiscard]] bool test_parallel_evaluation_correctness() {
+    TestResult result;
+
+    auto tsp = create_random_tsp(12, 100.0, 42);
+    auto population = create_test_population(tsp, 50);
+
+    // Sequential evaluation
+    auto sequential_fitnesses = evaluate_sequential(tsp, population);
+
+    // Parallel evaluation using TBB executor
+    TBBExecutor executor; // Stateless deterministic executor
+    auto parallel_fitnesses = executor.parallel_evaluate(tsp, population);
+
+    // Results should be identical
+    result.assert_eq(sequential_fitnesses.size(), parallel_fitnesses.size(),
+                     "Fitness vector sizes should match");
+
+    for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
+        result.assert_true(sequential_fitnesses[i].value == parallel_fitnesses[i].value,
+                           std::format("Parallel and sequential fitness should be identical {} "
+                                       "(expected: {}, actual: {})",
+                                       i, sequential_fitnesses[i].value,
+                                       parallel_fitnesses[i].value));
+    }
+
+    result.print_summary();
+    return result.all_passed();
+}
+
+[[nodiscard]] bool test_reproducibility_and_statelessness() {
+    TestResult result;
+
+    auto tsp = create_random_tsp(8, 100.0, 42);
+    auto population = create_test_population(tsp, 100);
+
+    // Multiple parallel runs with same seed should produce identical results
+    TBBExecutor executor1;
+    TBBExecutor executor2;
+
+    auto fitnesses1 = executor1.parallel_evaluate(tsp, population);
+    auto fitnesses2 = executor2.parallel_evaluate(tsp, population);
+
+    result.assert_eq(fitnesses1.size(), fitnesses2.size(),
+                     "Reproducibility: fitness vector sizes should match");
+
+    for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
+        result.assert_true(
+            fitnesses1[i].value == fitnesses2[i].value,
+            std::format("Reproducibility: results should be identical for identical inputs {} "
+                        "(expected: {}, actual: {})",
+                        i, fitnesses1[i].value, fitnesses2[i].value));
+    }
+
+    // Regression test: stateless instance reuse verification
+    // Tests that an executor instance maintains no mutable state between calls.
+    // This would catch bugs where internal state gets corrupted during execution.
+    // Distinct from fresh-instance tests below - different failure modes.
+    auto fitnesses1_run2 = executor1.parallel_evaluate(tsp, population);
+
+    result.assert_eq(fitnesses1.size(), fitnesses1_run2.size(),
+                     "Statelessness: subsequent call result size must match");
+
+    for (std::size_t i = 0; i < fitnesses1.size(); ++i) {
+        result.assert_true(
+            fitnesses1[i].value == fitnesses1_run2[i].value,
+            std::format("Statelessness: subsequent call on same executor must be identical {} "
+                        "(expected: {}, actual: {})",
+                        i, fitnesses1[i].value, fitnesses1_run2[i].value));
+    }
+
+    result.print_summary();
+    return result.all_passed();
+}
+
+[[nodiscard]] bool test_performance_improvement() {
+    TestResult result;
+
+    // Performance evaluation using computationally intensive TSP instances
+    // Large-scale problem configuration designed to overcome thread creation overhead
+    // and demonstrate genuine parallel scalability benefits in production scenarios
+    constexpr size_t tsp_cities = 150; // O(N) evaluation complexity: ~7.5x computation vs 20 cities
+    constexpr size_t population_size = 1000; // Large population for statistical significance
+
+    auto tsp = create_random_tsp(tsp_cities, 100.0, 42);
+    auto population = create_test_population(tsp, population_size);
+
+    std::cout << "Performance test configuration:\n";
+    std::cout << "  TSP cities: " << tsp_cities << "\n";
+    std::cout << "  Population size: " << population_size << "\n";
+    std::cout << "  Theoretical computation: ~" << (tsp_cities * population_size)
+              << " distance calculations (O(N_cities * Pop_size))\n\n";
+
+    // JIT warm-up phase following C++23 benchmarking best practices
+    // Initializes CPU caches, branch predictors, and memory allocators for
+    // reliable performance measurements free from cold-start artifacts.
+    // Uses smaller dataset to avoid measurement bias from data reuse while
+    // still providing adequate TBB thread pool initialization and cache warming.
+    TBBExecutor executor;
+    {
+        auto warmup_population = create_test_population(tsp, 100, 124);
+        [[maybe_unused]] auto warmup_seq = evaluate_sequential(tsp, warmup_population);
+        [[maybe_unused]] auto warmup_par = executor.parallel_evaluate(tsp, warmup_population);
+    }
+
+    // Multiple iterations for statistical reliability
+    constexpr int benchmark_iterations = 5;
+    std::vector<std::chrono::nanoseconds> sequential_times;
+    std::vector<std::chrono::nanoseconds> parallel_times;
+    sequential_times.reserve(benchmark_iterations);
+    parallel_times.reserve(benchmark_iterations);
+
+    std::vector<Fitness> sequential_fitnesses, parallel_fitnesses;
+
+    for (int iter = 0; iter < benchmark_iterations; ++iter) {
+        // Benchmark sequential evaluation using steady_clock (best practice for performance
+        // measurement)
+        auto start_seq = std::chrono::steady_clock::now();
+        sequential_fitnesses = evaluate_sequential(tsp, population);
+        auto end_seq = std::chrono::steady_clock::now();
+        sequential_times.push_back(end_seq - start_seq);
+
+        // Benchmark parallel evaluation
+        auto start_par = std::chrono::steady_clock::now();
+        parallel_fitnesses = executor.parallel_evaluate(tsp, population);
+        auto end_par = std::chrono::steady_clock::now();
+        parallel_times.push_back(end_par - start_par);
+    }
+
+    // Calculate statistics (median for robustness against outliers)
+    // Note: get_median handles sorting internally as documented below
+
+    // Calculates median duration from benchmark measurements.
+    // Takes vector by value to avoid modifying original data.
+    // Uses overflow-safe midpoint calculation for even-sized collections.
+    auto get_median = [](std::vector<std::chrono::nanoseconds> times) -> std::chrono::nanoseconds {
+        if (times.empty()) {
+            return std::chrono::nanoseconds{0};
+        }
+
+        std::ranges::sort(times);
+        const auto n = times.size();
+
+        if (n % 2 == 1) {
+            return times[n / 2];
+        }
+
+        // Even-sized set: use std::midpoint on underlying rep to avoid overflow and
+        // express intent with standard library facility (C++20).
+        const auto a = times[n / 2 - 1];
+        const auto b = times[n / 2];
+        auto mid_rep = std::midpoint(a.count(), b.count());
+        return std::chrono::nanoseconds{mid_rep};
+    };
+
+    auto sequential_median = get_median(std::move(sequential_times));
+    auto parallel_median = get_median(std::move(parallel_times));
+
+    auto seq_microseconds =
+        std::chrono::duration_cast<std::chrono::microseconds>(sequential_median);
+    auto par_microseconds = std::chrono::duration_cast<std::chrono::microseconds>(parallel_median);
+
+    // Detailed performance reporting
+    std::cout << "Benchmark results (median of " << benchmark_iterations << " runs):\n";
+    std::cout << "  Sequential: " << seq_microseconds.count() << " μs\n";
+    std::cout << "  Parallel:   " << par_microseconds.count() << " μs\n";
+
+    if (par_microseconds.count() > 0) {
+        double speedup = static_cast<double>(seq_microseconds.count()) / par_microseconds.count();
+        std::cout << "  Speedup:    " << std::fixed << std::setprecision(2) << speedup << "x\n";
+
+        // Performance efficiency analysis
+        auto hardware_threads = std::thread::hardware_concurrency();
+        if (hardware_threads > 0) {
+            double efficiency = speedup / hardware_threads * 100.0;
+            std::cout << "  Efficiency: " << std::fixed << std::setprecision(1) << efficiency
+                      << "% (on " << hardware_threads << " HW threads)\n";
+        }
+    }
+    std::cout << '\n';
+
+    // Verify correctness across all implementations
+    // Critical: Ensure performance optimizations don't compromise result accuracy
+    result.assert_eq(sequential_fitnesses.size(), parallel_fitnesses.size(),
+                     "Performance test: fitness vector sizes must match");
+
+    for (std::size_t i = 0; i < sequential_fitnesses.size(); ++i) {
+        result.assert_true(sequential_fitnesses[i].value == parallel_fitnesses[i].value,
+                           std::format("Performance test: parallel and sequential fitness must be "
+                                       "identical for element {} "
+                                       "(expected: {}, actual: {})",
+                                       i, sequential_fitnesses[i].value,
+                                       parallel_fitnesses[i].value));
+    }
+
+    result.print_summary();
+    return result.all_passed();
+}
+
+[[nodiscard]] bool test_edge_cases() {
+    TestResult result;
+
+    auto tsp = create_random_tsp(5, 100.0, 42);
+    TBBExecutor executor;
+
+    // Test empty population
+    std::vector<TSP::GenomeT> empty_population;
+    auto empty_fitnesses = executor.parallel_evaluate(tsp, empty_population);
+
+    result.assert_eq(empty_fitnesses.size(), 0UZ,
+                     "Empty population should return empty fitness vector");
+
+    // Test single-element population
+    auto single_population = create_test_population(tsp, 1);
+    auto single_fitnesses = executor.parallel_evaluate(tsp, single_population);
+    auto sequential_single = evaluate_sequential(tsp, single_population);
+
+    result.assert_eq(single_fitnesses.size(), 1UZ,
+                     "Single population should return single fitness value");
+    result.assert_true(single_fitnesses[0].value == sequential_single[0].value,
+                       "Single element parallel and sequential should match");
+
+    result.print_summary();
+    return result.all_passed();
+}
+
+} // anonymous namespace
+
+int main() {
+    std::cout << "Running EvoLab Parallel Tests" << '\n';
+    std::cout << "==============================" << '\n';
+    std::cout << '\n';
+
+    try {
+        const bool correctness_passed = test_parallel_evaluation_correctness();
+        std::cout << '\n';
+
+        const bool reproducibility_passed = test_reproducibility_and_statelessness();
+        std::cout << '\n';
+
+        const bool performance_passed = test_performance_improvement();
+        std::cout << '\n';
+
+        const bool edge_cases_passed = test_edge_cases();
+        std::cout << '\n';
+
+        const bool all_tests_passed =
+            correctness_passed && reproducibility_passed && performance_passed && edge_cases_passed;
+
+        std::cout << "==============================" << '\n';
+        std::cout << "Parallel tests completed." << '\n';
+
+        return all_tests_passed ? 0 : 1;
+    } catch (const std::exception& e) {
+        std::cerr << "Test failed with exception: " << e.what() << '\n';
+        return 1;
+    }
+}
