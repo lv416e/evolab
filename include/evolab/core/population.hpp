@@ -46,7 +46,7 @@ class Population {
     }
 
     /// Get the maximum capacity of this population
-    [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
+    [[nodiscard]] std::size_t capacity() const noexcept { return genomes_.capacity(); }
 
     /// Get the current number of individuals in the population
     [[nodiscard]] std::size_t size() const noexcept { return genomes_.size(); }
