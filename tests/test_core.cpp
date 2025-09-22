@@ -1,5 +1,7 @@
 #include <cassert>
 #include <iostream>
+#include <memory_resource>
+#include <span>
 #include <sstream>
 
 #include <evolab/evolab.hpp>
@@ -85,6 +87,97 @@ void test_ga_config() {
     result.print_summary();
 }
 
+void test_population_basic() {
+    TestResult result;
+
+    // Test basic Population construction and SoA layout
+    const size_t capacity = 100;
+    core::Population<std::vector<int>> population(capacity);
+
+    result.assert_eq(capacity, population.capacity(), "Population capacity matches constructor");
+    result.assert_eq(size_t{0}, population.size(), "Population starts empty");
+    result.assert_true(population.empty(), "Empty population returns true for empty()");
+
+    // Test adding individuals
+    std::vector<int> genome = {0, 1, 2, 3, 4};
+    core::Fitness fitness{100.0};
+
+    population.push_back(genome, fitness);
+    result.assert_eq(size_t{1}, population.size(), "Population size increases after push_back");
+    result.assert_true(!population.empty(), "Non-empty population returns false for empty()");
+
+    // Test SoA access patterns
+    auto& stored_genome = population.genome(0);
+    auto stored_fitness = population.fitness(0);
+
+    result.assert_eq(size_t{5}, stored_genome.size(), "Stored genome has correct size");
+    result.assert_eq(100.0, stored_fitness.value, "Stored fitness has correct value");
+
+    // Test batch access for vectorization
+    auto genomes_span = population.genomes();
+    auto fitness_span = population.fitness_values();
+
+    result.assert_eq(size_t{1}, genomes_span.size(), "Genomes span has correct size");
+    result.assert_eq(size_t{1}, fitness_span.size(), "Fitness span has correct size");
+
+    result.print_summary();
+}
+
+void test_population_memory_efficiency() {
+    TestResult result;
+
+    // Test pre-allocation prevents additional allocations
+    const size_t capacity = 1000;
+    core::Population<std::vector<int>> population(capacity);
+
+    // Fill to capacity - should not trigger reallocations
+    std::vector<int> test_genome = {0, 1, 2, 3, 4};
+    core::Fitness test_fitness{50.0};
+
+    for (size_t i = 0; i < capacity; ++i) {
+        population.push_back(test_genome, test_fitness);
+    }
+
+    result.assert_eq(capacity, population.size(), "Population filled to capacity");
+    result.assert_eq(capacity, population.capacity(), "Capacity unchanged after filling");
+
+    // Test memory layout for vectorization (addresses should be contiguous)
+    auto genomes_span = population.genomes();
+    auto fitness_span = population.fitness_values();
+
+    result.assert_eq(capacity, genomes_span.size(), "Genomes span covers all individuals");
+    result.assert_eq(capacity, fitness_span.size(), "Fitness span covers all individuals");
+
+    // Verify separate storage (SoA pattern)
+    void* genome_ptr = genomes_span.data();
+    void* fitness_ptr = fitness_span.data();
+    result.assert_true(genome_ptr != fitness_ptr, "Genomes and fitness stored separately");
+
+    result.print_summary();
+}
+
+void test_population_custom_allocator() {
+    TestResult result;
+
+    // Test Population with custom PMR allocator
+    std::pmr::monotonic_buffer_resource buffer_resource;
+
+    const size_t capacity = 50;
+    core::Population<std::vector<int>> population(capacity, &buffer_resource);
+
+    result.assert_eq(capacity, population.capacity(),
+                     "Population with custom allocator has correct capacity");
+
+    // Add some individuals using custom allocator
+    std::vector<int> genome = {0, 1, 2};
+    core::Fitness fitness{75.0};
+
+    population.push_back(genome, fitness);
+    result.assert_eq(size_t{1}, population.size(), "Population with custom allocator works");
+
+    result.print_summary();
+}
+
 void test_basic_ga() {
     TestResult result;
 
@@ -125,6 +218,15 @@ int main() {
 
     std::cout << "\nTesting GA Configuration...\n";
     test_ga_config();
+
+    std::cout << "\nTesting Population Basic Functionality...\n";
+    test_population_basic();
+
+    std::cout << "\nTesting Population Memory Efficiency...\n";
+    test_population_memory_efficiency();
+
+    std::cout << "\nTesting Population Custom Allocator...\n";
+    test_population_custom_allocator();
 
     std::cout << "\nTesting Basic GA...\n";
     test_basic_ga();
