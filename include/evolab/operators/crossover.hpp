@@ -1,14 +1,22 @@
 #pragma once
 
+/// @file crossover.hpp
+/// @brief Crossover operators for combinatorial optimization with C++23 optimizations
+///
+/// This header provides specialized crossover strategies for permutation-based problems
+/// including PMX, OX, EAX, and ERX. Implements modern C++23 patterns for performance.
+
 #include <algorithm>
 #include <cassert>
 #include <climits>
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
-#include "../core/concepts.hpp"
+// EvoLab core concepts - type constraints for crossover operator templates
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
 

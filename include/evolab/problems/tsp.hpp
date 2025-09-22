@@ -1,5 +1,12 @@
 #pragma once
 
+/// @file tsp.hpp
+/// @brief Traveling Salesman Problem implementation with modern C++23 optimizations
+///
+/// This header provides a high-performance TSP class supporting TSPLIB instances,
+/// candidate lists, and various distance calculation methods. Designed for research-grade
+/// metaheuristics with focus on cache efficiency and algorithmic performance.
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -9,9 +16,10 @@
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
-#include "../io/tsplib.hpp"
-#include "../utils/candidate_list.hpp"
+// EvoLab dependencies - core concepts and supporting utilities
+#include <evolab/core/concepts.hpp>        // Type constraints for problem interface
+#include <evolab/io/tsplib.hpp>            // TSPLIB file format support
+#include <evolab/utils/candidate_list.hpp> // Performance optimization for local search
 
 namespace evolab::problems {
 

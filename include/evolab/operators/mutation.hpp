@@ -1,10 +1,18 @@
 #pragma once
 
+/// @file mutation.hpp
+/// @brief Mutation operators for evolutionary algorithms following C++23 design patterns
+///
+/// This header provides various mutation strategies optimized for different problem types.
+/// All operators follow concept-based design for type safety and performance.
+
 #include <algorithm>
+#include <numeric>
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
+// EvoLab core concepts - required for template type constraints
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
 
@@ -126,10 +134,14 @@ class DisplacementMutation {
         // Remove subsequence from original position
         genome.erase(genome.begin() + start, genome.begin() + end + 1);
 
-        // Adjust insertion position
-        if (insert_pos > start) {
-            insert_pos -= (end - start + 1);
+        // Adjust insertion position relative to erased range
+        const std::size_t seg_len = end - start + 1;
+        if (insert_pos >= start && insert_pos <= end) {
+            insert_pos = start; // inserting the block at its former start
+        } else if (insert_pos > end) {
+            insert_pos -= seg_len;
         }
+        insert_pos = std::min<std::size_t>(insert_pos, genome.size());
 
         // Insert subsequence at new position
         genome.insert(genome.begin() + insert_pos, subsequence.begin(), subsequence.end());
@@ -155,7 +167,9 @@ class AdaptiveMutation {
 
         // Normalize weights
         double sum = std::accumulate(weights_.begin(), weights_.end(), 0.0);
-        if (sum > 0.0) {
+        if (sum <= 0.0) {
+            std::fill(weights_.begin(), weights_.end(), 1.0 / static_cast<double>(weights_.size()));
+        } else {
             for (auto& w : weights_)
                 w /= sum;
         }

@@ -1,11 +1,19 @@
 #pragma once
 
+/// @file selection.hpp
+/// @brief Selection operators for evolutionary algorithms with modern C++23 features
+///
+/// This header implements various selection strategies including tournament, roulette wheel,
+/// and rank-based selection. All operators use concepts for compile-time type validation.
+
 #include <algorithm>
+#include <cassert>
 #include <numeric>
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
+// EvoLab core concepts - fundamental type requirements for selection operators
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
 
@@ -43,7 +51,7 @@ class TournamentSelection {
     std::size_t tournament_size() const { return tournament_size_; }
 };
 
-/// Roulette wheel selection (for maximization problems)
+/// Roulette wheel selection (implemented for minimization by inverting weights)
 class RouletteWheelSelection {
   public:
     template <typename GenomeT>
@@ -160,6 +168,7 @@ class SteadyStateSelection {
 
         // Partial sort to get the best individuals
         std::size_t k = std::min(num_best_, population.size());
+        k = std::max<std::size_t>(1, k);
         std::partial_sort(
             indices.begin(), indices.begin() + k, indices.end(),
             [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });

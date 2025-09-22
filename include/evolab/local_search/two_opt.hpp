@@ -1,12 +1,21 @@
 #pragma once
 
+/// @file two_opt.hpp
+/// @brief 2-opt local search optimization with C++23 performance enhancements
+///
+/// This header implements high-performance 2-opt local search for TSP problems.
+/// Features first/best improvement modes, candidate list support, and modern C++23
+/// optimizations for research-grade memetic algorithms.
+
 #include <algorithm>
+#include <cstdlib>
 #include <limits>
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
-#include "../problems/tsp.hpp"
+// EvoLab dependencies - core concepts and TSP problem definition
+#include <evolab/core/concepts.hpp> // Type constraints for local search interface
+#include <evolab/problems/tsp.hpp>  // TSP problem class with distance calculations
 
 namespace evolab::local_search {
 
