@@ -1,31 +1,38 @@
 #pragma once
 
-// Core components
-#include "core/concepts.hpp"
-#include "core/ga.hpp"
+/// @file evolab.hpp
+/// @brief Umbrella header for EvoLab - Modern C++23 metaheuristics research platform
+///
+/// This header provides a convenient single-point import for all EvoLab functionality.
+/// Following C++23 best practices, all includes use explicit library paths for clarity
+/// and consistency across internal and external usage.
 
-// Problems
-#include "problems/tsp.hpp"
+// Core algorithmic components - fundamental concepts and GA implementation
+#include <evolab/core/concepts.hpp>
+#include <evolab/core/ga.hpp>
 
-// Genetic operators
-#include "operators/crossover.hpp"
-#include "operators/mutation.hpp"
-#include "operators/selection.hpp"
+// Problem domain implementations - currently focused on combinatorial optimization
+#include <evolab/problems/tsp.hpp>
 
-// Local search
-#include "local_search/two_opt.hpp"
+// Genetic operators - selection, crossover, and mutation strategies
+#include <evolab/operators/crossover.hpp>
+#include <evolab/operators/mutation.hpp>
+#include <evolab/operators/selection.hpp>
 
-// Schedulers
-#include "schedulers/mab.hpp"
+// Local search algorithms - memetic algorithm components
+#include <evolab/local_search/two_opt.hpp>
 
-// Utilities
-#include "utils/candidate_list.hpp"
+// Adaptive operator scheduling - multi-armed bandit approaches
+#include <evolab/schedulers/mab.hpp>
 
-// IO
-#include "io/tsplib.hpp"
+// Performance optimization utilities
+#include <evolab/utils/candidate_list.hpp>
 
-// Configuration
-#include "config/config.hpp"
+// Data I/O and format support
+#include <evolab/io/tsplib.hpp>
+
+// Configuration management and TOML parsing
+#include <evolab/config/config.hpp>
 
 /**
  * @file evolab.hpp
