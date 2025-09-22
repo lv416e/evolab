@@ -193,7 +193,7 @@ class CycleCrossover {
                 Gene target = parent2[pos];
                 pos = std::find(parent1.begin(), parent1.end(), target) - parent1.begin();
 
-            } while (!visited[pos] && pos < n);
+            } while (pos < n && !visited[pos]);
         }
 
         return {std::move(child1), std::move(child2)};
@@ -358,8 +358,8 @@ class EAXCrossover {
         auto edges2 = build_edge_set(parent2);
 
         // Generate offspring using EAX algorithm
-        auto offspring1 = generate_offspring(parent1, parent2, edges1, edges2, rng);
-        auto offspring2 = generate_offspring(parent2, parent1, edges2, edges1, rng);
+        auto offspring1 = generate_offspring(parent1, edges1, edges2, rng);
+        auto offspring2 = generate_offspring(parent2, edges2, edges1, rng);
 
         return {offspring1, offspring2};
     }
@@ -378,32 +378,31 @@ class EAXCrossover {
     }
 
     template <typename GenomeT>
-    GenomeT generate_offspring(const GenomeT& parent1, [[maybe_unused]] const GenomeT& parent2,
-                               const std::unordered_set<Edge, EdgeHash>& edges1,
-                               const std::unordered_set<Edge, EdgeHash>& edges2,
+    GenomeT generate_offspring(const GenomeT& main_parent,
+                               const std::unordered_set<Edge, EdgeHash>& main_parent_edges,
+                               const std::unordered_set<Edge, EdgeHash>& other_parent_edges,
                                std::mt19937& rng) const {
-        const std::size_t n = parent1.size();
+        const std::size_t n = main_parent.size();
 
         // Fallback to simpler crossover if problem is too small
         if (n <= 4) {
-            return parent1;
+            return main_parent;
         }
 
         // Simplified EAX: randomly select edges from both parents
-        // Note: parent2 genome not directly used as edges2 contains its preprocessed edge
-        // information
         std::unordered_set<Edge, EdgeHash> offspring_edges;
         std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
 
         // Combine edges from both parents with probability selection
-        for (const auto& edge : edges1) {
+        for (const auto& edge : main_parent_edges) {
             if (prob_dist(rng) < parent1_prob_) {
                 offspring_edges.insert(edge);
             }
         }
 
-        for (const auto& edge : edges2) {
-            if (edges1.find(edge) == edges1.end() && prob_dist(rng) < parent2_prob_) {
+        for (const auto& edge : other_parent_edges) {
+            if (main_parent_edges.find(edge) == main_parent_edges.end() &&
+                prob_dist(rng) < parent2_prob_) {
                 offspring_edges.insert(edge);
             }
         }
@@ -411,10 +410,11 @@ class EAXCrossover {
         // If we have too few edges, add some from parents to reach n
         if (offspring_edges.size() < n) {
             std::vector<Edge> candidate_edges;
-            candidate_edges.reserve(edges1.size() + edges2.size());
-            candidate_edges.insert(candidate_edges.end(), edges1.begin(), edges1.end());
-            for (const auto& edge : edges2) {
-                if (edges1.find(edge) == edges1.end()) {
+            candidate_edges.reserve(main_parent_edges.size() + other_parent_edges.size());
+            candidate_edges.insert(candidate_edges.end(), main_parent_edges.begin(),
+                                   main_parent_edges.end());
+            for (const auto& edge : other_parent_edges) {
+                if (main_parent_edges.find(edge) == main_parent_edges.end()) {
                     candidate_edges.push_back(edge);
                 }
             }
