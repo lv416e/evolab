@@ -10,7 +10,10 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
 #include <memory_resource>
+#include <mutex>
+#include <unordered_map>
 
 // Optional NUMA support - only include if available
 #ifdef EVOLAB_NUMA_SUPPORT
@@ -40,6 +43,15 @@ class NumaMemoryResource : public std::pmr::memory_resource {
   private:
     int numa_node_;       ///< NUMA node ID (-1 for local node)
     bool numa_available_; ///< Whether NUMA is available on this system
+
+    /// Track allocation method and original pointer for proper deallocation
+    struct AllocationInfo {
+        bool is_numa_allocated;
+        void* original_ptr;         ///< Original pointer for over-allocated NUMA memory
+        std::size_t original_bytes; ///< Original size for over-allocated NUMA memory
+    };
+    mutable std::unordered_map<void*, AllocationInfo> allocations_;
+    mutable std::mutex allocations_mutex_;
 
   public:
     /// Constructor for NUMA memory resource
@@ -117,23 +129,30 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 
 #ifdef EVOLAB_NUMA_SUPPORT
         if (numa_available_) {
-            void* ptr = nullptr;
+            // Over-allocate to ensure we can find an aligned pointer
+            std::size_t alloc_size = bytes + alignment - 1;
+            void* original_ptr = nullptr;
 
             if (numa_node_ == -1) {
                 // Allocate on local NUMA node
-                ptr = numa_alloc_local(bytes);
+                original_ptr = numa_alloc_local(alloc_size);
             } else {
                 // Allocate on specific NUMA node
-                ptr = numa_alloc_onnode(bytes, numa_node_);
+                original_ptr = numa_alloc_onnode(alloc_size, numa_node_);
             }
 
-            if (ptr != nullptr) {
-                // Check if alignment is satisfied
-                if (reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0) {
-                    return ptr;
+            if (original_ptr != nullptr) {
+                // Find aligned pointer within the over-allocated block
+                void* aligned_ptr = original_ptr;
+                std::size_t remaining_space = alloc_size;
+
+                if (std::align(alignment, bytes, aligned_ptr, remaining_space)) {
+                    std::lock_guard<std::mutex> lock(allocations_mutex_);
+                    allocations_[aligned_ptr] = {true, original_ptr, alloc_size};
+                    return aligned_ptr;
                 } else {
-                    // Free and fall back to aligned allocation
-                    numa_free(ptr, bytes);
+                    // Should not happen with proper over-allocation, but fallback
+                    numa_free(original_ptr, alloc_size);
                 }
             }
         }
@@ -144,6 +163,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         if (!ptr) {
             throw std::bad_alloc{};
         }
+        std::lock_guard<std::mutex> lock(allocations_mutex_);
+        allocations_[ptr] = {false, ptr, bytes};
         return ptr;
     }
 
@@ -154,14 +175,32 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @param alignment Alignment used for allocation
     void do_deallocate(void* ptr, [[maybe_unused]] std::size_t bytes,
                        [[maybe_unused]] std::size_t alignment) override {
+        AllocationInfo alloc_info{};
+        bool found = false;
+        {
+            std::lock_guard<std::mutex> lock(allocations_mutex_);
+            auto it = allocations_.find(ptr);
+            if (it != allocations_.end()) {
+                alloc_info = it->second;
+                found = true;
+                allocations_.erase(it);
+            }
+        }
+
+        if (!found) {
+            // Fallback for unknown allocations
+            std::free(ptr);
+            return;
+        }
+
 #ifdef EVOLAB_NUMA_SUPPORT
-        if (numa_available_) {
-            numa_free(ptr, bytes);
+        if (numa_available_ && alloc_info.is_numa_allocated) {
+            numa_free(alloc_info.original_ptr, alloc_info.original_bytes);
             return;
         }
 #endif
         // Fallback to standard deallocation
-        std::free(ptr);
+        std::free(alloc_info.original_ptr);
     }
 
     /// Check if this resource is equal to another
@@ -208,7 +247,8 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 /// @param island_id Island identifier (maps to NUMA node)
 /// @return Memory resource for the specified island/node
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
-    static thread_local std::vector<std::unique_ptr<NumaMemoryResource>> island_resources;
+    static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
+        island_resources;
 
     const int node_count = NumaMemoryResource::get_numa_node_count();
     if (node_count <= 1 || island_id < 0) {
@@ -218,16 +258,13 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Map island to NUMA node (round-robin)
     const int numa_node = island_id % node_count;
 
-    // Ensure we have enough resources
-    if (island_resources.size() <= static_cast<size_t>(island_id)) {
-        island_resources.resize(island_id + 1);
+    // Create resource if it doesn't exist
+    auto& resource = island_resources[island_id];
+    if (!resource) {
+        resource = NumaMemoryResource::create_on_node(numa_node);
     }
 
-    if (!island_resources[island_id]) {
-        island_resources[island_id] = NumaMemoryResource::create_on_node(numa_node);
-    }
-
-    return island_resources[island_id].get();
+    return resource.get();
 }
 
 } // namespace evolab::utils
