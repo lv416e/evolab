@@ -167,6 +167,7 @@ class GeneticAlgorithm {
 
         std::size_t evaluations = config.population_size;
         std::size_t stagnation_count = 0;
+        std::size_t gens_processed = 0;
 
         for (std::size_t gen = 0; gen < config.max_generations; ++gen) {
             // Check termination conditions
@@ -301,6 +302,9 @@ class GeneticAlgorithm {
                 result.converged = true;
                 break;
             }
+
+            // Mark this generation as completed regardless of logging cadence
+            gens_processed = gen + 1;
         }
 
         const auto end_time = std::chrono::steady_clock::now();
@@ -308,7 +312,7 @@ class GeneticAlgorithm {
         result.best_genome = std::move(best_genome);
         result.best_fitness = best_fitness;
         // Report total processed generations (1-based), independent of logging cadence
-        result.generations = result.history.empty() ? 0 : (result.history.back().generation + 1);
+        result.generations = gens_processed;
         result.evaluations = evaluations;
         result.total_time =
             std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
