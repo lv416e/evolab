@@ -440,6 +440,8 @@ class EAXCrossover {
         tour.reserve(n);
 
         // Build adjacency list with bounds checking
+        // TODO: For large/dense graphs, consider pre-computing node degrees
+        // and reserving adj[i].reserve(degree[i]) to avoid vector reallocations
         std::vector<std::vector<int>> adj(n);
         for (const auto& edge : edges) {
             // Validate edge indices to prevent out-of-bounds access
