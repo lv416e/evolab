@@ -1,10 +1,17 @@
 #pragma once
 
+/// @file mutation.hpp
+/// @brief Mutation operators for evolutionary algorithms following C++23 design patterns
+///
+/// This header provides various mutation strategies optimized for different problem types.
+/// All operators follow concept-based design for type safety and performance.
+
 #include <algorithm>
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
+// EvoLab core concepts - required for template type constraints
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
 

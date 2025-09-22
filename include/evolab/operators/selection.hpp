@@ -1,11 +1,18 @@
 #pragma once
 
+/// @file selection.hpp
+/// @brief Selection operators for evolutionary algorithms with modern C++23 features
+///
+/// This header implements various selection strategies including tournament, roulette wheel,
+/// and rank-based selection. All operators use concepts for compile-time type validation.
+
 #include <algorithm>
 #include <numeric>
 #include <random>
 #include <vector>
 
-#include "../core/concepts.hpp"
+// EvoLab core concepts - fundamental type requirements for selection operators
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
 
