@@ -68,6 +68,7 @@
 
 // Performance optimization utilities
 #include <evolab/utils/candidate_list.hpp>
+#include <evolab/utils/numa_allocator.hpp>
 
 // Data I/O and format support
 #include <evolab/io/tsplib.hpp>
