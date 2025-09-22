@@ -322,6 +322,7 @@ class EAXCrossover {
         : parent1_prob_(parent1_prob), parent2_prob_(parent2_prob) {
         assert(parent1_prob_ >= 0.0 && parent1_prob_ <= 1.0);
         assert(parent2_prob_ >= 0.0 && parent2_prob_ <= 1.0);
+        // Note: parent1_prob_ + parent2_prob_ can exceed 1.0 for intentional selection flexibility
     }
     struct Edge {
         int from, to;
@@ -453,9 +454,17 @@ class EAXCrossover {
             adj[edge.to].push_back(edge.from);
         }
 
-        // Follow path starting from node 0 (with validation)
+        // Follow path starting from a node with edges (avoid start-node bias)
         std::vector<bool> visited(n, false);
         int current = 0;
+
+        // Find first node with edges to avoid bias and immediate repair
+        for (int i = 0; i < static_cast<int>(n); ++i) {
+            if (!adj[i].empty()) {
+                current = i;
+                break;
+            }
+        }
 
         // Validate starting node
         if (current < 0 || current >= static_cast<int>(n)) {
