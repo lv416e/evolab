@@ -8,8 +8,14 @@
 
 #include <algorithm>
 #include <chrono>
+#include <concepts>
+#include <cstdint>
+#include <numeric>
 #include <optional>
 #include <random>
+#include <string>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 // EvoLab core concepts - fundamental type requirements for genetic algorithms
@@ -301,7 +307,8 @@ class GeneticAlgorithm {
 
         result.best_genome = std::move(best_genome);
         result.best_fitness = best_fitness;
-        result.generations = result.history.empty() ? 0 : result.history.back().generation;
+        // Report total processed generations (1-based), independent of logging cadence
+        result.generations = result.history.empty() ? 0 : (result.history.back().generation + 1);
         result.evaluations = evaluations;
         result.total_time =
             std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);

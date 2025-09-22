@@ -1,42 +1,12 @@
 #pragma once
 
-/// @file evolab.hpp
-/// @brief Umbrella header for EvoLab - Modern C++23 metaheuristics research platform
-///
-/// This header provides a convenient single-point import for all EvoLab functionality.
-/// Following C++23 best practices, all includes use explicit library paths for clarity
-/// and consistency across internal and external usage.
-
-// Core algorithmic components - fundamental concepts and GA implementation
-#include <evolab/core/concepts.hpp>
-#include <evolab/core/ga.hpp>
-
-// Problem domain implementations - currently focused on combinatorial optimization
-#include <evolab/problems/tsp.hpp>
-
-// Genetic operators - selection, crossover, and mutation strategies
-#include <evolab/operators/crossover.hpp>
-#include <evolab/operators/mutation.hpp>
-#include <evolab/operators/selection.hpp>
-
-// Local search algorithms - memetic algorithm components
-#include <evolab/local_search/two_opt.hpp>
-
-// Adaptive operator scheduling - multi-armed bandit approaches
-#include <evolab/schedulers/mab.hpp>
-
-// Performance optimization utilities
-#include <evolab/utils/candidate_list.hpp>
-
-// Data I/O and format support
-#include <evolab/io/tsplib.hpp>
-
-// Configuration management and TOML parsing
-#include <evolab/config/config.hpp>
-
 /**
  * @file evolab.hpp
  * @brief Main header for EvoLab - A modern C++23 metaheuristics research platform
+ *
+ * This header provides a convenient single-point import for all EvoLab functionality.
+ * Following C++23 best practices, all includes use explicit library paths for clarity
+ * and consistency across internal and external usage.
  *
  * EvoLab is a high-performance, research-grade genetic algorithm framework designed
  * for solving complex optimization problems like TSP, VRP, and QAP.
@@ -76,6 +46,33 @@
  * std::cout << "Best fitness: " << result.best_fitness.value << std::endl;
  * @endcode
  */
+
+// Core algorithmic components - fundamental concepts and GA implementation
+#include <evolab/core/concepts.hpp>
+#include <evolab/core/ga.hpp>
+
+// Problem domain implementations - currently focused on combinatorial optimization
+#include <evolab/problems/tsp.hpp>
+
+// Genetic operators - selection, crossover, and mutation strategies
+#include <evolab/operators/crossover.hpp>
+#include <evolab/operators/mutation.hpp>
+#include <evolab/operators/selection.hpp>
+
+// Local search algorithms - memetic algorithm components
+#include <evolab/local_search/two_opt.hpp>
+
+// Adaptive operator scheduling - multi-armed bandit approaches
+#include <evolab/schedulers/mab.hpp>
+
+// Performance optimization utilities
+#include <evolab/utils/candidate_list.hpp>
+
+// Data I/O and format support
+#include <evolab/io/tsplib.hpp>
+
+// Configuration management and TOML parsing
+#include <evolab/config/config.hpp>
 
 namespace evolab {
 
@@ -136,7 +133,7 @@ inline auto make_tsp_ga_from_config(const config::Config& cfg) {
 /// Create TSP GA with Edge Assembly Crossover (EAX)
 inline auto make_tsp_ga_eax_from_config(const config::Config& cfg) {
     return core::make_ga(operators::TournamentSelection{cfg.operators.selection.tournament_size},
-                         operators::EdgeRecombinationCrossover{}, operators::SwapMutation{});
+                         operators::EAXCrossover{}, operators::SwapMutation{});
 }
 
 /// Create TSP GA with Order Crossover (OX)
@@ -160,7 +157,7 @@ inline auto make_tsp_ga_with_local_search_from_config(const config::Config& cfg)
 inline auto make_tsp_ga_eax_with_local_search_from_config(const config::Config& cfg) {
     return core::make_ga(
         operators::TournamentSelection{cfg.operators.selection.tournament_size},
-        operators::EdgeRecombinationCrossover{}, operators::SwapMutation{},
+        operators::EAXCrossover{}, operators::SwapMutation{},
         local_search::TwoOpt{cfg.local_search.first_improvement, cfg.local_search.max_iterations});
 }
 

@@ -12,6 +12,7 @@
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 // EvoLab core concepts - type constraints for crossover operator templates
