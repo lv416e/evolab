@@ -1,12 +1,19 @@
 #pragma once
 
+/// @file ga.hpp
+/// @brief Genetic Algorithm core implementation with C++23 concepts and modern design patterns
+///
+/// This header provides the main genetic algorithm template class and configuration structures.
+/// Uses concept-based design for type safety and clear compile-time requirements.
+
 #include <algorithm>
 #include <chrono>
 #include <optional>
 #include <random>
 #include <vector>
 
-#include "concepts.hpp"
+// EvoLab core concepts - fundamental type requirements for genetic algorithms
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::core {
 
