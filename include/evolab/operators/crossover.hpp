@@ -393,18 +393,18 @@ class EAXCrossover {
         // Simplified EAX: randomly select edges from both parents
         std::unordered_set<Edge, EdgeHash> offspring_edges;
         offspring_edges.reserve(n);
-        std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+        std::bernoulli_distribution pick_main(parent1_prob_);
+        std::bernoulli_distribution pick_other(parent2_prob_);
 
         // Combine edges from both parents with probability selection
         for (const auto& edge : main_parent_edges) {
-            if (prob_dist(rng) < parent1_prob_) {
+            if (pick_main(rng)) {
                 offspring_edges.insert(edge);
             }
         }
 
         for (const auto& edge : other_parent_edges) {
-            if (main_parent_edges.find(edge) == main_parent_edges.end() &&
-                prob_dist(rng) < parent2_prob_) {
+            if (main_parent_edges.find(edge) == main_parent_edges.end() && pick_other(rng)) {
                 offspring_edges.insert(edge);
             }
         }
@@ -459,6 +459,8 @@ class EAXCrossover {
         int current = 0;
 
         // Find first node with edges to avoid bias and immediate repair
+        // TODO: For even better randomization, randomly select among all nodes with edges
+        // and randomly choose neighbors during path construction
         for (int i = 0; i < static_cast<int>(n); ++i) {
             if (!adj[i].empty()) {
                 current = i;
