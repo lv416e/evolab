@@ -193,7 +193,7 @@ class CycleCrossover {
                 Gene target = parent2[pos];
                 pos = std::find(parent1.begin(), parent1.end(), target) - parent1.begin();
 
-            } while (!visited[pos] && pos < n);
+            } while (pos < n && !visited[pos]);
         }
 
         return {std::move(child1), std::move(child2)};
@@ -322,6 +322,7 @@ class EAXCrossover {
         : parent1_prob_(parent1_prob), parent2_prob_(parent2_prob) {
         assert(parent1_prob_ >= 0.0 && parent1_prob_ <= 1.0);
         assert(parent2_prob_ >= 0.0 && parent2_prob_ <= 1.0);
+        // Note: parent1_prob_ + parent2_prob_ can exceed 1.0 for intentional selection flexibility
     }
     struct Edge {
         int from, to;
@@ -358,8 +359,8 @@ class EAXCrossover {
         auto edges2 = build_edge_set(parent2);
 
         // Generate offspring using EAX algorithm
-        auto offspring1 = generate_offspring(parent1, parent2, edges1, edges2, rng);
-        auto offspring2 = generate_offspring(parent2, parent1, edges2, edges1, rng);
+        auto offspring1 = generate_offspring(parent1, edges1, edges2, rng);
+        auto offspring2 = generate_offspring(parent2, edges2, edges1, rng);
 
         return {offspring1, offspring2};
     }
@@ -378,30 +379,32 @@ class EAXCrossover {
     }
 
     template <typename GenomeT>
-    GenomeT generate_offspring(const GenomeT& parent1, const GenomeT& parent2,
-                               const std::unordered_set<Edge, EdgeHash>& edges1,
-                               const std::unordered_set<Edge, EdgeHash>& edges2,
+    GenomeT generate_offspring(const GenomeT& main_parent,
+                               const std::unordered_set<Edge, EdgeHash>& main_parent_edges,
+                               const std::unordered_set<Edge, EdgeHash>& other_parent_edges,
                                std::mt19937& rng) const {
-        const std::size_t n = parent1.size();
+        const std::size_t n = main_parent.size();
 
         // Fallback to simpler crossover if problem is too small
         if (n <= 4) {
-            return parent1;
+            return main_parent;
         }
 
         // Simplified EAX: randomly select edges from both parents
         std::unordered_set<Edge, EdgeHash> offspring_edges;
-        std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+        offspring_edges.reserve(n);
+        std::bernoulli_distribution pick_main(parent1_prob_);
+        std::bernoulli_distribution pick_other(parent2_prob_);
 
         // Combine edges from both parents with probability selection
-        for (const auto& edge : edges1) {
-            if (prob_dist(rng) < parent1_prob_) {
+        for (const auto& edge : main_parent_edges) {
+            if (pick_main(rng)) {
                 offspring_edges.insert(edge);
             }
         }
 
-        for (const auto& edge : edges2) {
-            if (edges1.find(edge) == edges1.end() && prob_dist(rng) < parent2_prob_) {
+        for (const auto& edge : other_parent_edges) {
+            if (main_parent_edges.find(edge) == main_parent_edges.end() && pick_other(rng)) {
                 offspring_edges.insert(edge);
             }
         }
@@ -409,10 +412,11 @@ class EAXCrossover {
         // If we have too few edges, add some from parents to reach n
         if (offspring_edges.size() < n) {
             std::vector<Edge> candidate_edges;
-            candidate_edges.reserve(edges1.size() + edges2.size());
-            candidate_edges.insert(candidate_edges.end(), edges1.begin(), edges1.end());
-            for (const auto& edge : edges2) {
-                if (edges1.find(edge) == edges1.end()) {
+            candidate_edges.reserve(main_parent_edges.size() + other_parent_edges.size());
+            candidate_edges.insert(candidate_edges.end(), main_parent_edges.begin(),
+                                   main_parent_edges.end());
+            for (const auto& edge : other_parent_edges) {
+                if (main_parent_edges.find(edge) == main_parent_edges.end()) {
                     candidate_edges.push_back(edge);
                 }
             }
@@ -436,16 +440,42 @@ class EAXCrossover {
         GenomeT tour;
         tour.reserve(n);
 
-        // Build adjacency list
+        // Build adjacency list with bounds checking
+        // TODO: For large/dense graphs, consider pre-computing node degrees
+        // and reserving adj[i].reserve(degree[i]) to avoid vector reallocations
         std::vector<std::vector<int>> adj(n);
         for (const auto& edge : edges) {
+            // Validate edge indices to prevent out-of-bounds access
+            if (edge.from < 0 || edge.from >= static_cast<int>(n) || edge.to < 0 ||
+                edge.to >= static_cast<int>(n)) {
+                continue; // Skip invalid edges
+            }
             adj[edge.from].push_back(edge.to);
             adj[edge.to].push_back(edge.from);
         }
 
-        // Follow path starting from node 0
+        // Follow path starting from a node with edges (avoid start-node bias)
         std::vector<bool> visited(n, false);
         int current = 0;
+
+        // Find first node with edges to avoid bias and immediate repair
+        // TODO: For even better randomization, randomly select among all nodes with edges
+        // and randomly choose neighbors during path construction
+        for (int i = 0; i < static_cast<int>(n); ++i) {
+            if (!adj[i].empty()) {
+                current = i;
+                break;
+            }
+        }
+
+        // Validate starting node
+        if (current < 0 || current >= static_cast<int>(n)) {
+            // Fallback: use identity permutation if invalid
+            for (int i = 0; i < static_cast<int>(n); ++i) {
+                tour.push_back(i);
+            }
+            return tour;
+        }
         int path_iterations = 0;
         const int max_path_iterations = static_cast<int>(n * 2);
 
@@ -454,10 +484,10 @@ class EAXCrossover {
             visited[current] = true;
             path_iterations++;
 
-            // Find unvisited neighbor
+            // Find unvisited neighbor with bounds checking
             int next = -1;
             for (int neighbor : adj[current]) {
-                if (!visited[neighbor]) {
+                if (neighbor >= 0 && neighbor < static_cast<int>(n) && !visited[neighbor]) {
                     next = neighbor;
                     break;
                 }
@@ -481,7 +511,9 @@ class EAXCrossover {
         if (tour.size() < n) {
             std::vector<bool> in_tour(n, false);
             for (int city : tour) {
-                in_tour[city] = true;
+                if (city >= 0 && city < static_cast<int>(n)) {
+                    in_tour[city] = true;
+                }
             }
             for (int i = 0; i < static_cast<int>(n); ++i) {
                 if (!in_tour[i]) {
