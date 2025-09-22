@@ -378,7 +378,7 @@ class EAXCrossover {
     }
 
     template <typename GenomeT>
-    GenomeT generate_offspring(const GenomeT& parent1, const GenomeT& parent2,
+    GenomeT generate_offspring(const GenomeT& parent1, [[maybe_unused]] const GenomeT& parent2,
                                const std::unordered_set<Edge, EdgeHash>& edges1,
                                const std::unordered_set<Edge, EdgeHash>& edges2,
                                std::mt19937& rng) const {
@@ -390,6 +390,8 @@ class EAXCrossover {
         }
 
         // Simplified EAX: randomly select edges from both parents
+        // Note: parent2 genome not directly used as edges2 contains its preprocessed edge
+        // information
         std::unordered_set<Edge, EdgeHash> offspring_edges;
         std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
 
