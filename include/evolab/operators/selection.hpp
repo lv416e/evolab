@@ -10,6 +10,7 @@
 #include <cassert>
 #include <numeric>
 #include <random>
+#include <span>
 #include <vector>
 
 // EvoLab core concepts - fundamental type requirements for selection operators
@@ -25,14 +26,11 @@ class TournamentSelection {
     explicit TournamentSelection(std::size_t tournament_size = 4)
         : tournament_size_(tournament_size) {}
 
-    template <typename GenomeT>
-    std::size_t select(const std::vector<GenomeT>& population,
-                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
+    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
-        assert(!population.empty());
-        assert(population.size() == fitnesses.size());
+        assert(!fitnesses.empty());
 
-        std::uniform_int_distribution<std::size_t> dist(0, population.size() - 1);
+        std::uniform_int_distribution<std::size_t> dist(0, fitnesses.size() - 1);
 
         std::size_t best_idx = dist(rng);
         core::Fitness best_fitness = fitnesses[best_idx];
@@ -54,12 +52,9 @@ class TournamentSelection {
 /// Roulette wheel selection (implemented for minimization by inverting weights)
 class RouletteWheelSelection {
   public:
-    template <typename GenomeT>
-    std::size_t select(const std::vector<GenomeT>& population,
-                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
+    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
-        assert(!population.empty());
-        assert(population.size() == fitnesses.size());
+        assert(!fitnesses.empty());
 
         // Convert to positive weights (assume minimization, so invert)
         double max_fitness = std::max_element(fitnesses.begin(), fitnesses.end())->value;
@@ -88,7 +83,7 @@ class RouletteWheelSelection {
             }
         }
 
-        return population.size() - 1; // Fallback
+        return fitnesses.size() - 1; // Fallback
     }
 };
 
@@ -101,15 +96,12 @@ class RankSelection {
         assert(pressure >= 1.0 && pressure <= 2.0);
     }
 
-    template <typename GenomeT>
-    std::size_t select(const std::vector<GenomeT>& population,
-                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
+    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
-        assert(!population.empty());
-        assert(population.size() == fitnesses.size());
+        assert(!fitnesses.empty());
 
         // Create ranking
-        std::vector<std::size_t> indices(population.size());
+        std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
 
         // Sort by fitness (best first for minimization)
@@ -118,12 +110,12 @@ class RankSelection {
 
         // Calculate rank-based probabilities
         std::vector<double> probabilities;
-        probabilities.reserve(population.size());
+        probabilities.reserve(fitnesses.size());
 
-        const double n = static_cast<double>(population.size());
+        const double n = static_cast<double>(fitnesses.size());
         double total_prob = 0.0;
 
-        for (std::size_t rank = 0; rank < population.size(); ++rank) {
+        for (std::size_t rank = 0; rank < fitnesses.size(); ++rank) {
             // Rank 0 is best, rank n-1 is worst
             double prob = (2.0 - selection_pressure_) / n +
                           (2.0 * selection_pressure_ * (n - rank - 1)) / (n * (n - 1));
@@ -156,18 +148,15 @@ class SteadyStateSelection {
   public:
     explicit SteadyStateSelection(std::size_t num_best = 1) : num_best_(num_best) {}
 
-    template <typename GenomeT>
-    std::size_t select(const std::vector<GenomeT>& population,
-                       const std::vector<core::Fitness>& fitnesses, std::mt19937& rng) const {
+    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
-        assert(!population.empty());
-        assert(population.size() == fitnesses.size());
+        assert(!fitnesses.empty());
 
-        std::vector<std::size_t> indices(population.size());
+        std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
 
         // Partial sort to get the best individuals
-        std::size_t k = std::min(num_best_, population.size());
+        std::size_t k = std::min(num_best_, fitnesses.size());
         k = std::max<std::size_t>(1, k);
         std::partial_sort(
             indices.begin(), indices.begin() + k, indices.end(),

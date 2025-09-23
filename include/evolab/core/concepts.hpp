@@ -3,6 +3,7 @@
 #include <compare>
 #include <concepts>
 #include <random>
+#include <span>
 #include <vector>
 
 namespace evolab::core {
@@ -64,10 +65,10 @@ concept GeneticOperator =
 /// Concept for selection operators
 template <typename S, typename P>
 concept SelectionOperator =
-    Problem<P> && requires(const S& selector, const std::vector<typename P::GenomeT>& population,
-                           const std::vector<Fitness>& fitnesses, std::mt19937& rng) {
-        // Select parents for reproduction
-        { selector.select(population, fitnesses, rng) } -> std::same_as<std::size_t>;
+    Problem<P> &&
+    requires(const S& selector, std::span<const Fitness> fitnesses, std::mt19937& rng) {
+        // Select parents for reproduction (selection only needs fitness values, not genomes)
+        { selector.select(fitnesses, rng) } -> std::same_as<std::size_t>;
     };
 
 /// Concept for crossover operators
