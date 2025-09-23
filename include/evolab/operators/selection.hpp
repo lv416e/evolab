@@ -15,10 +15,31 @@
 #include <utility>
 #include <vector>
 
+#if __cpp_lib_unreachable >= 202202L
+#include <utility> // for std::unreachable
+#endif
+
 // EvoLab core concepts - fundamental type requirements for selection operators
 #include <evolab/core/concepts.hpp>
 
 namespace evolab::operators {
+
+/// @private
+namespace detail {
+/// Portable unreachable code marker using C++23 std::unreachable when available
+[[noreturn]] inline void unreachable() noexcept {
+#if __cpp_lib_unreachable >= 202202L
+    std::unreachable();
+#elif defined(_MSC_VER)
+    __assume(false);
+#elif defined(__GNUC__) || defined(__clang__)
+    __builtin_unreachable();
+#else
+    // Fallback: terminate to maintain defined behavior
+    std::terminate();
+#endif
+}
+} // namespace detail
 
 /// Tournament selection operator implementing competitive selection strategy
 ///
@@ -64,9 +85,7 @@ class TournamentSelection {
     explicit TournamentSelection(std::size_t tournament_size = 4)
         // Explicitly specify template parameter for clarity in constructor context
         : tournament_size_(std::max<std::size_t>(1, tournament_size)) {
-        // C++23: Static assertion for reasonable tournament sizes at compile time
-        static_assert(std::is_same_v<std::size_t, decltype(tournament_size)>,
-                      "Tournament size must be std::size_t");
+        // Constructor parameter type is already guaranteed by signature
     }
 
     /// Select an individual from the population using tournament selection
@@ -126,8 +145,8 @@ class TournamentSelection {
 
         assert(!fitnesses.empty());
         // C++23: Optimization hint - span size is guaranteed > 0 by assertion
-        if (fitnesses.size() == 0) [[unlikely]] {
-            __builtin_unreachable(); // Compiler-specific optimization hint
+        if (fitnesses.empty()) [[unlikely]] {
+            detail::unreachable(); // Portable unreachable for all compilers
         }
         if (fitnesses.size() == 1) {
             return 0;
@@ -279,7 +298,7 @@ class RouletteWheelSelection {
         }
 
         return fitnesses.size() - 1; // Fallback (should be mathematically unreachable)
-        // std::unreachable(); // C++23: Would be ideal here, but fallback is safer
+        // Note: C++23 std::unreachable() would be more precise, but fallback is safer
     }
 };
 
@@ -421,8 +440,9 @@ class RankSelection {
 
         for (std::size_t rank = 0; rank < fitnesses.size(); ++rank) {
             // Rank 0 is best, rank n-1 is worst
+            // Corrected formula: pressure=1.0 yields uniform selection, pressure=2.0 maximum bias
             double prob = (2.0 - selection_pressure_) / n +
-                          (2.0 * selection_pressure_ * (n - rank - 1)) / (n * (n - 1));
+                          (2.0 * (selection_pressure_ - 1.0) * (n - rank - 1)) / (n * (n - 1));
             probabilities.push_back(prob);
             total_prob += prob;
         }
@@ -470,7 +490,7 @@ class RankSelection {
 /// - **Strong Pressure**: Very high selection pressure toward best solutions
 ///
 /// ## Performance Characteristics:
-/// - Time Complexity: O(k) where k = num_best (using std::partial_sort)
+/// - Time Complexity: O(n log k) with std::partial_sort (k = num_best)
 /// - Space Complexity: O(n) for index array during partial sorting
 /// - Memory Access: Single pass for partial sort, then random access
 ///
