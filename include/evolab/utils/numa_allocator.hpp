@@ -196,9 +196,12 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         }
 
         if (!found) {
-            // Fallback for unknown allocations
-            std::free(ptr);
+            // Unknown pointer — indicates allocator mismatch; avoid UB from freeing.
+#ifndef NDEBUG
+            std::abort();
+#else
             return;
+#endif
         }
 
 #ifdef EVOLAB_NUMA_SUPPORT

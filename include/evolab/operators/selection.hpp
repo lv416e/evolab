@@ -99,6 +99,9 @@ class RankSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.size() == 1) {
+            return 0;
+        }
 
         // Create ranking
         std::vector<std::size_t> indices(fitnesses.size());

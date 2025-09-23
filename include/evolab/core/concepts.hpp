@@ -4,6 +4,7 @@
 #include <concepts>
 #include <random>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace evolab::core {
