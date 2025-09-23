@@ -295,8 +295,8 @@ class RouletteWheelSelection {
             }
         }
 
-        return fitnesses.size() - 1; // Fallback (should be mathematically unreachable)
-        // Note: C++23 std::unreachable() would be more precise, but fallback is safer
+        // Mathematically unreachable due to cumulative probability reaching total_weight
+        detail::unreachable();
     }
 };
 
@@ -457,7 +457,8 @@ class RankSelection {
             }
         }
 
-        return indices[0]; // Return best as fallback
+        // Mathematically unreachable due to cumulative probability reaching total_prob
+        detail::unreachable();
     }
 
     /// Get the selection pressure parameter
