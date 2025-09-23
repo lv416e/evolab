@@ -13,7 +13,7 @@ namespace evolab::core {
 struct Fitness {
     double value;
 
-    constexpr Fitness() = default;
+    constexpr Fitness() : value(0.0) {} // Initialize to deterministic value
     constexpr explicit Fitness(double v) : value(v) {}
 
     constexpr auto operator<=>(const Fitness&) const = default;
