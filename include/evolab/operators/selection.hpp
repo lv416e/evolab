@@ -63,8 +63,11 @@ class RouletteWheelSelection {
         }
 
         // Convert to positive weights (assume minimization, so invert)
-        double max_fitness = std::max_element(fitnesses.begin(), fitnesses.end())->value;
-        double min_fitness = std::min_element(fitnesses.begin(), fitnesses.end())->value;
+        const auto [min_it, max_it] =
+            std::minmax_element(fitnesses.begin(), fitnesses.end(),
+                                [](const auto& a, const auto& b) { return a.value < b.value; });
+        double min_fitness = min_it->value;
+        double max_fitness = max_it->value;
         double range = max_fitness - min_fitness;
 
         // First pass: calculate total weight (avoiding heap allocation)

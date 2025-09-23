@@ -8,6 +8,7 @@
 /// will access it. The implementation is optional and falls back gracefully when
 /// NUMA support is not available.
 
+#include <cassert>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
@@ -126,9 +127,6 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         // Precondition check for std::align and std::aligned_alloc
         assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) &&
                "alignment must be a power of two");
-
-        // Precondition check for std::align and std::aligned_alloc
-        assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) && "alignment must be a power of two");
 
         // Ensure minimum alignment
         if (alignment < alignof(std::max_align_t)) {
