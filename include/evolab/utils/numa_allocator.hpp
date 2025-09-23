@@ -214,12 +214,9 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         }
 
         if (!found) {
-            // Unknown pointer — indicates allocator mismatch; avoid UB from freeing.
-#ifndef NDEBUG
+            // An unknown pointer indicates an allocator mismatch, which is a critical
+            // logic error. Aborting prevents potential memory corruption or leaks.
             std::abort();
-#else
-            return;
-#endif
         }
 
 #ifdef EVOLAB_NUMA_SUPPORT
