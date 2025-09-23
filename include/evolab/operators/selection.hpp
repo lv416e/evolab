@@ -29,6 +29,9 @@ class TournamentSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.size() == 1) {
+            return 0;
+        }
 
         std::uniform_int_distribution<std::size_t> dist(0, fitnesses.size() - 1);
 
@@ -55,6 +58,9 @@ class RouletteWheelSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.size() == 1) {
+            return 0;
+        }
 
         // Convert to positive weights (assume minimization, so invert)
         double max_fitness = std::max_element(fitnesses.begin(), fitnesses.end())->value;
@@ -154,6 +160,9 @@ class SteadyStateSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.size() == 1) {
+            return 0;
+        }
 
         std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
