@@ -25,6 +25,24 @@
 
 namespace evolab::utils {
 
+/// Thread-safe NUMA system detection
+namespace detail {
+/// Check if NUMA system is available (called once per program)
+inline bool numa_system_available() noexcept {
+#ifdef EVOLAB_NUMA_SUPPORT
+    return numa_available() >= 0;
+#else
+    return false;
+#endif
+}
+
+/// Get cached NUMA availability (thread-safe)
+inline bool is_numa_system_available() noexcept {
+    static const bool available = numa_system_available();
+    return available;
+}
+} // namespace detail
+
 /// NUMA-aware memory resource for optimal memory placement on multi-socket systems
 ///
 /// This memory resource attempts to allocate memory on the local NUMA node or a
@@ -59,13 +77,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// Constructor for NUMA memory resource
     ///
     /// @param node_id NUMA node ID (-1 for local node)
-    explicit NumaMemoryResource(int node_id) : numa_node_(node_id) {
-#ifdef EVOLAB_NUMA_SUPPORT
-        numa_available_ = numa_available() >= 0;
-#else
-        numa_available_ = false;
-#endif
-    }
+    explicit NumaMemoryResource(int node_id)
+        : numa_node_(node_id), numa_available_(detail::is_numa_system_available()) {}
 
     /// Create NUMA memory resource for local node
     ///
@@ -97,7 +110,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @return Number of NUMA nodes (1 if NUMA not available)
     static int get_numa_node_count() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
-        if (numa_available() >= 0) {
+        if (detail::is_numa_system_available()) {
             return numa_max_node() + 1;
         }
 #endif
@@ -109,7 +122,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @return Current NUMA node ID (0 if NUMA not available)
     static int get_current_numa_node() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
-        if (numa_available() >= 0) {
+        if (detail::is_numa_system_available()) {
             return numa_node_of_cpu(sched_getcpu());
         }
 #endif

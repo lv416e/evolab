@@ -57,7 +57,7 @@ class Population {
     ///
     /// @param genome The genome to add
     /// @param fitness The fitness value for this individual
-    void push_back(const GenomeT& genome, const Fitness& fitness) {
+    void push_back(const GenomeT& genome, Fitness fitness) {
         genomes_.push_back(genome);
         fitness_.push_back(fitness);
     }
@@ -66,7 +66,7 @@ class Population {
     ///
     /// @param genome The genome to add (will be moved)
     /// @param fitness The fitness value for this individual
-    void push_back(GenomeT&& genome, const Fitness& fitness) {
+    void push_back(GenomeT&& genome, Fitness fitness) {
         genomes_.push_back(std::move(genome));
         fitness_.push_back(fitness);
     }
@@ -83,17 +83,17 @@ class Population {
     /// @return Const reference to the genome
     [[nodiscard]] const GenomeT& genome(std::size_t index) const { return genomes_[index]; }
 
-    /// Get fitness value at specified index
+    /// Get const reference to fitness value at specified index
     ///
     /// @param index Index of the individual (0-based)
-    /// @return Fitness value
-    [[nodiscard]] Fitness fitness(std::size_t index) const { return fitness_[index]; }
+    /// @return Const reference to the fitness value
+    [[nodiscard]] const Fitness& fitness(std::size_t index) const { return fitness_[index]; }
 
     /// Get mutable reference to fitness value at specified index
     ///
     /// @param index Index of the individual (0-based)
-    /// @return Reference to fitness value
-    [[nodiscard]] Fitness& fitness_ref(std::size_t index) { return fitness_[index]; }
+    /// @return Reference to the fitness value
+    [[nodiscard]] Fitness& fitness(std::size_t index) { return fitness_[index]; }
 
     /// Get span over all genomes for batch operations and vectorization
     ///
