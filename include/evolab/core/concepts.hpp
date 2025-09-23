@@ -108,7 +108,7 @@ concept GeneticOperator =
 /// - `selector.select(fitnesses, rng)` must return a valid index (0 <= index < fitnesses.size())
 /// - Must not modify the fitness values (const span)
 /// - Should be deterministic given the same RNG state
-/// - Must handle empty fitness spans gracefully (implementation dependent)
+/// - Precondition: fitnesses.size() >= 1 (empty spans are invalid input)
 ///
 /// @see TournamentSelection, RouletteWheelSelection, RankSelection for examples
 /// @since v2.0.0 (API breaking change from v1.x)

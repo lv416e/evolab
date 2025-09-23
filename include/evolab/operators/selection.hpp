@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <exception> // for std::terminate in fallback
 #include <numeric>
 #include <random>
 #include <ranges>
@@ -15,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#if __cpp_lib_unreachable >= 202202L
-#include <utility> // for std::unreachable
+#if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
+// std::unreachable available via <utility>
 #endif
 
 // EvoLab core concepts - fundamental type requirements for selection operators
@@ -144,10 +145,7 @@ class TournamentSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        // C++23: Optimization hint - span size is guaranteed > 0 by assertion
-        if (fitnesses.empty()) [[unlikely]] {
-            detail::unreachable(); // Portable unreachable for all compilers
-        }
+        // Precondition enforced by assert; no runtime branch needed
         if (fitnesses.size() == 1) {
             return 0;
         }
@@ -490,7 +488,7 @@ class RankSelection {
 /// - **Strong Pressure**: Very high selection pressure toward best solutions
 ///
 /// ## Performance Characteristics:
-/// - Time Complexity: O(n log k) with std::partial_sort (k = num_best)
+/// - Time Complexity: O(n) with std::nth_element (k = num_best)
 /// - Space Complexity: O(n) for index array during partial sorting
 /// - Memory Access: Single pass for partial sort, then random access
 ///
@@ -538,7 +536,7 @@ class SteadyStateSelection {
     /// very strong selection pressure toward high-quality solutions.
     ///
     /// ## Algorithm Details:
-    /// 1. **Elite Identification**: Use std::partial_sort to find top-k individuals
+    /// 1. **Elite Identification**: Use std::nth_element to partition top-k individuals
     ///    - Create index array [0, 1, 2, ..., n-1]
     ///    - Partially sort by fitness to identify best k individuals
     ///    - k = min(num_best, population_size) to handle small populations
@@ -547,7 +545,7 @@ class SteadyStateSelection {
     ///    - Return corresponding individual index
     ///
     /// ## Performance Optimization:
-    /// - **Partial Sort**: O(k) complexity using std::partial_sort, not full O(n log n) sort
+    /// - **Nth Element**: O(n) complexity using std::nth_element for optimal partitioning
     /// - **Adaptive Pool Size**: Automatically adjusts to population size
     /// - **Single Pass**: Combines identification and selection efficiently
     ///
@@ -576,7 +574,7 @@ class SteadyStateSelection {
     /// - **Recommendation**: Combine with diversity-preserving operators
     ///
     /// ## Complexity Comparison:
-    /// - std::partial_sort: O(k) average case for small k
+    /// - std::nth_element: O(n) partitioning to top-k
     /// - Full sort: O(n log n) - unnecessary for this use case
     /// - Tournament: O(tournament_size) - different pressure characteristics
     ///
@@ -593,11 +591,10 @@ class SteadyStateSelection {
         std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
 
-        // Partial sort to get the best individuals with modern initialization
+        // Partition to top-k (unsorted) in O(n) instead of O(n log k)
         const auto k = std::max(std::min(num_best_, fitnesses.size()), std::size_t{1});
-        std::partial_sort(
-            indices.begin(), indices.begin() + k, indices.end(),
-            [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
+        std::nth_element(indices.begin(), indices.begin() + (k - 1), indices.end(),
+                         [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
         // Randomly select from the best k
         std::uniform_int_distribution<std::size_t> dist(0, k - 1);
