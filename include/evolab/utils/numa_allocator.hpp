@@ -19,6 +19,7 @@
 #ifdef EVOLAB_NUMA_SUPPORT
 #include <numa.h>
 #include <numaif.h>
+#include <sched.h>
 #endif
 
 namespace evolab::utils {
@@ -159,12 +160,19 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 #endif
 
         // Fallback to standard aligned allocation
-        void* ptr = std::aligned_alloc(alignment, bytes);
+        // aligned_alloc requires size to be multiple of alignment
+        std::size_t padded_bytes = bytes;
+        const std::size_t remainder = padded_bytes % alignment;
+        if (remainder != 0) {
+            padded_bytes += (alignment - remainder);
+        }
+
+        void* ptr = std::aligned_alloc(alignment, padded_bytes);
         if (!ptr) {
             throw std::bad_alloc{};
         }
         std::lock_guard<std::mutex> lock(allocations_mutex_);
-        allocations_[ptr] = {false, ptr, bytes};
+        allocations_[ptr] = {false, ptr, padded_bytes};
         return ptr;
     }
 
@@ -208,9 +216,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @param other The other memory resource to compare with
     /// @return True if resources are equivalent
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override {
-        const auto* other_numa = dynamic_cast<const NumaMemoryResource*>(&other);
-        return other_numa != nullptr && other_numa->numa_node_ == numa_node_ &&
-               other_numa->numa_available_ == numa_available_;
+        // Use pointer identity - resources with separate allocation maps are not interchangeable
+        return this == &other;
     }
 };
 
