@@ -16,6 +16,12 @@
 #include <mutex>
 #include <unordered_map>
 
+#ifdef _WIN32
+#include <malloc.h> // for _aligned_malloc/_aligned_free
+#elif defined(__unix__) || defined(__APPLE__)
+#include <cstdlib> // for posix_memalign
+#endif
+
 // Optional NUMA support - only include if available
 #ifdef EVOLAB_NUMA_SUPPORT
 #include <numa.h>
@@ -123,7 +129,11 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     static int get_current_numa_node() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
         if (detail::is_numa_system_available()) {
-            return numa_node_of_cpu(sched_getcpu());
+            const int cpu = sched_getcpu();
+            if (cpu < 0)
+                return 0; // Handle sched_getcpu() failure
+            const int node = numa_node_of_cpu(cpu);
+            return node >= 0 ? node : 0; // Handle numa_node_of_cpu() failure
         }
 #endif
         return 0;
@@ -137,13 +147,16 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @return Pointer to allocated memory
     /// @throws std::bad_alloc if allocation fails
     void* do_allocate(std::size_t bytes, std::size_t alignment) override {
-        // Precondition check for std::align and std::aligned_alloc
+        // Precondition check for std::align and aligned allocation functions
         assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) &&
                "alignment must be a power of two");
 
-        // Ensure minimum alignment
+        // Ensure minimum alignment and handle zero-byte allocations
         if (alignment < alignof(std::max_align_t)) {
             alignment = alignof(std::max_align_t);
+        }
+        if (bytes == 0) {
+            bytes = alignment; // Prevent undefined behavior with zero-size allocations
         }
 
 #ifdef EVOLAB_NUMA_SUPPORT
@@ -177,20 +190,37 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         }
 #endif
 
-        // Fallback to standard aligned allocation
-        // aligned_alloc requires size to be multiple of alignment
-        std::size_t padded_bytes = bytes;
-        const std::size_t remainder = padded_bytes % alignment;
-        if (remainder != 0) {
-            padded_bytes += (alignment - remainder);
-        }
+        // Fallback to platform-specific aligned allocation
+        void* ptr = nullptr;
+        std::size_t alloc_size = bytes;
+        bool uses_platform_allocator = false;
 
-        void* ptr = std::aligned_alloc(alignment, padded_bytes);
+#ifdef _WIN32
+        // Windows: use _aligned_malloc (must be freed with _aligned_free)
+        ptr = _aligned_malloc(bytes, alignment);
+        uses_platform_allocator = true;
+#elif defined(__unix__) || defined(__APPLE__)
+        // POSIX: use posix_memalign (freed with std::free)
+        if (posix_memalign(&ptr, alignment, bytes) != 0) {
+            ptr = nullptr;
+        }
+        uses_platform_allocator = false;
+#else
+        // C++17 fallback: std::aligned_alloc (requires size multiple of alignment)
+        const std::size_t remainder = bytes % alignment;
+        if (remainder != 0) {
+            alloc_size = bytes + (alignment - remainder);
+        }
+        ptr = std::aligned_alloc(alignment, alloc_size);
+        uses_platform_allocator = false;
+#endif
+
         if (!ptr) {
             throw std::bad_alloc{};
         }
+
         std::lock_guard<std::mutex> lock(allocations_mutex_);
-        allocations_[ptr] = {false, ptr, padded_bytes};
+        allocations_[ptr] = {uses_platform_allocator, ptr, alloc_size};
         return ptr;
     }
 
@@ -225,8 +255,16 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             return;
         }
 #endif
-        // Fallback to standard deallocation
+        // Use appropriate deallocation based on allocation method
+#ifdef _WIN32
+        if (alloc_info.is_numa_allocated) {
+            _aligned_free(alloc_info.original_ptr);
+        } else {
+            std::free(alloc_info.original_ptr);
+        }
+#else
         std::free(alloc_info.original_ptr);
+#endif
     }
 
     /// Check if this resource is equal to another
@@ -247,6 +285,11 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 /// resource for GA workloads:
 /// - On NUMA systems: creates local node allocator
 /// - On UMA systems: returns default resource
+///
+/// ## Thread-Local Lifetime Warning:
+/// Returns a pointer to a thread_local resource. Objects using this resource
+/// must not outlive the creating thread. For cross-thread or long-lived usage,
+/// prefer owning resources via NumaMemoryResource::create_local() directly.
 ///
 /// @return Memory resource optimized for the current system
 inline std::pmr::memory_resource* create_optimized_ga_resource() {
@@ -283,6 +326,11 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 /// @param island_id Island identifier (maps to NUMA node via round-robin).
 ///                  Negative values return default resource.
 ///                  Large ranges may cause memory growth due to caching.
+/// ## Thread-Local Lifetime Warning:
+/// Returns a pointer to a thread_local resource cached per NUMA node.
+/// Ensure objects using it do not outlive the creating thread. For
+/// cross-thread or persistent usage, construct and own a resource explicitly.
+///
 /// @return Memory resource for the specified island/node
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Thread-local cache indexed by NUMA node (not island_id) to limit growth
@@ -294,11 +342,10 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
         return std::pmr::get_default_resource();
     }
 
-    // Validate reasonable island_id bounds to prevent unbounded cache growth
-    // For typical island model GA, expect island_id in reasonable range
-    if (island_id > 10000) {
-        // Log warning or throw for unexpectedly large island_id
-        // For now, fall back to default resource for safety
+    // Safeguard against unbounded cache growth with very large island IDs
+    constexpr int MAX_ISLAND_ID_FOR_NUMA_CACHE = 10000;
+    if (island_id > MAX_ISLAND_ID_FOR_NUMA_CACHE) {
+        // Silently fall back to default resource to prevent cache explosion
         return std::pmr::get_default_resource();
     }
 
