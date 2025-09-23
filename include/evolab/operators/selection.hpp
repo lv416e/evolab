@@ -24,7 +24,7 @@ class TournamentSelection {
 
   public:
     explicit TournamentSelection(std::size_t tournament_size = 4)
-        : tournament_size_(tournament_size) {}
+        : tournament_size_(std::max<std::size_t>(1, tournament_size)) {}
 
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
@@ -67,23 +67,22 @@ class RouletteWheelSelection {
         double min_fitness = std::min_element(fitnesses.begin(), fitnesses.end())->value;
         double range = max_fitness - min_fitness;
 
-        std::vector<double> weights;
-        weights.reserve(fitnesses.size());
-
+        // First pass: calculate total weight (avoiding heap allocation)
         double total_weight = 0.0;
         for (const auto& fitness : fitnesses) {
             // Convert minimization to maximization weights
             double weight = (range == 0.0) ? 1.0 : (max_fitness - fitness.value + 1.0);
-            weights.push_back(weight);
             total_weight += weight;
         }
 
         std::uniform_real_distribution<double> dist(0.0, total_weight);
-        double target = dist(rng);
+        const double target = dist(rng);
 
+        // Second pass: find target bucket without storing weights
         double cumulative = 0.0;
-        for (std::size_t i = 0; i < weights.size(); ++i) {
-            cumulative += weights[i];
+        for (std::size_t i = 0; i < fitnesses.size(); ++i) {
+            const double weight = (range == 0.0) ? 1.0 : (max_fitness - fitnesses[i].value + 1.0);
+            cumulative += weight;
             if (cumulative >= target) {
                 return i;
             }
