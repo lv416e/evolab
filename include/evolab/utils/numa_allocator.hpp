@@ -269,9 +269,23 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 /// For island model GA where each island runs on a different NUMA node,
 /// this creates node-specific allocators to minimize cross-node memory access.
 ///
-/// @param island_id Island identifier (maps to NUMA node)
+/// ## Memory Usage Warning:
+/// This function uses a thread_local cache that grows with unique NUMA nodes accessed.
+/// In typical island model scenarios with bounded island counts, this is acceptable.
+/// For applications with unbounded island_id ranges, consider using direct allocation
+/// or implement cache eviction based on your memory constraints.
+///
+/// ## NUMA Topology Assumption:
+/// Uses round-robin mapping (island_id % numa_node_count) which assumes islands
+/// should be distributed evenly across NUMA nodes. Verify this matches your
+/// application's locality requirements and system topology.
+///
+/// @param island_id Island identifier (maps to NUMA node via round-robin).
+///                  Negative values return default resource.
+///                  Large ranges may cause memory growth due to caching.
 /// @return Memory resource for the specified island/node
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
+    // Thread-local cache indexed by NUMA node (not island_id) to limit growth
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
         island_resources;
 
@@ -280,10 +294,19 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
         return std::pmr::get_default_resource();
     }
 
-    // Map island to NUMA node (round-robin)
+    // Validate reasonable island_id bounds to prevent unbounded cache growth
+    // For typical island model GA, expect island_id in reasonable range
+    if (island_id > 10000) {
+        // Log warning or throw for unexpectedly large island_id
+        // For now, fall back to default resource for safety
+        return std::pmr::get_default_resource();
+    }
+
+    // Map island to NUMA node (round-robin distribution)
+    // Assumes even distribution across nodes is optimal for workload
     const int numa_node = island_id % node_count;
 
-    // Cache by NUMA node to avoid redundant resources for islands on same node
+    // Cache by NUMA node to limit map size to numa_node_count entries maximum
     auto& resource = island_resources[numa_node];
     if (!resource) {
         resource = NumaMemoryResource::create_on_node(numa_node);

@@ -60,6 +60,7 @@ class TournamentSelection {
 
   public:
     explicit TournamentSelection(std::size_t tournament_size = 4)
+        // Explicitly specify template parameter for clarity in constructor context
         : tournament_size_(std::max<std::size_t>(1, tournament_size)) {}
 
     /// Select an individual from the population using tournament selection
@@ -242,8 +243,8 @@ class RouletteWheelSelection {
         const auto [min_it, max_it] =
             std::minmax_element(fitnesses.begin(), fitnesses.end(),
                                 [](const auto& a, const auto& b) { return a.value < b.value; });
-        double min_fitness = min_it->value;
-        double max_fitness = max_it->value;
+        const double min_fitness = min_it->value;
+        const double max_fitness = max_it->value;
         double range = max_fitness - min_fitness;
 
         // First pass: calculate total weight (avoiding heap allocation)
