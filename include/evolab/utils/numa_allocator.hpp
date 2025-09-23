@@ -286,12 +286,18 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 /// - On NUMA systems: creates local node allocator
 /// - On UMA systems: returns default resource
 ///
-/// ## Thread-Local Lifetime Warning:
-/// Returns a pointer to a thread_local resource. Objects using this resource
-/// must not outlive the creating thread. For cross-thread or long-lived usage,
-/// prefer owning resources via NumaMemoryResource::create_local() directly.
+/// ## ⚠️  CRITICAL THREAD-LOCAL LIFETIME WARNING ⚠️
+/// **DANGER**: Returns a pointer to a thread_local resource that is destroyed when
+/// the creating thread exits. Using this resource after thread termination causes
+/// undefined behavior, memory corruption, or crashes.
 ///
-/// @return Memory resource optimized for the current system
+/// **SAFE USAGE**: Only use within the same thread that called this function.
+/// **UNSAFE**: Passing to other threads, storing globally, or using after thread exit.
+///
+/// **For cross-thread or long-lived usage**, use create_owned_optimized_ga_resource()
+/// or construct resources directly via NumaMemoryResource::create_local().
+///
+/// @return Memory resource optimized for the current system (thread-local lifetime)
 inline std::pmr::memory_resource* create_optimized_ga_resource() {
     static thread_local std::unique_ptr<NumaMemoryResource> local_resource;
 
@@ -326,12 +332,18 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 /// @param island_id Island identifier (maps to NUMA node via round-robin).
 ///                  Negative values return default resource.
 ///                  Large ranges may cause memory growth due to caching.
-/// ## Thread-Local Lifetime Warning:
-/// Returns a pointer to a thread_local resource cached per NUMA node.
-/// Ensure objects using it do not outlive the creating thread. For
-/// cross-thread or persistent usage, construct and own a resource explicitly.
+/// ## ⚠️  CRITICAL THREAD-LOCAL LIFETIME WARNING ⚠️
+/// **DANGER**: Returns a pointer to a thread_local resource that is destroyed when
+/// the creating thread exits. Using this resource after thread termination causes
+/// undefined behavior, memory corruption, or crashes.
 ///
-/// @return Memory resource for the specified island/node
+/// **SAFE USAGE**: Only use within the same thread that called this function.
+/// **UNSAFE**: Passing to other threads, storing globally, or using after thread exit.
+///
+/// **For cross-thread or persistent usage**, use create_owned_island_resource()
+/// or construct resources directly via NumaMemoryResource::create_on_node().
+///
+/// @return Memory resource for the specified island/node (thread-local lifetime)
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Thread-local cache indexed by NUMA node (not island_id) to limit growth
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
@@ -360,6 +372,75 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     }
 
     return resource.get();
+}
+
+// =============================================================================
+// Safe Ownership Alternatives for Cross-Thread Usage
+// =============================================================================
+// These functions return owned resources that can safely cross thread boundaries
+// and have controlled lifetimes, eliminating the thread-local dangling pointer risk.
+
+/// Create owned memory resource for cross-thread or long-lived GA usage
+///
+/// **THREAD-SAFE**: Returns an owned resource that can be safely used across
+/// threads or stored for long-term usage without lifetime concerns.
+///
+/// This is the safe alternative to create_optimized_ga_resource() when you need:
+/// - Cross-thread resource sharing
+/// - Long-lived containers that outlive the creating thread
+/// - Deterministic resource lifetime management
+///
+/// @return Owned memory resource (nullptr indicates use std::pmr::get_default_resource())
+/// @see create_optimized_ga_resource() for thread-local alternative
+inline std::unique_ptr<NumaMemoryResource> create_owned_optimized_ga_resource() {
+    if (NumaMemoryResource::get_numa_node_count() > 1) {
+        // Multi-node system: return owned local NUMA resource
+        return NumaMemoryResource::create_local();
+    }
+    // Single-node system: return nullptr to indicate use of default resource
+    return nullptr;
+}
+
+/// Create owned memory resource for cross-thread island model usage
+///
+/// **THREAD-SAFE**: Returns an owned resource that can be safely used across
+/// threads or stored for long-term usage without lifetime concerns.
+///
+/// This is the safe alternative to create_island_resource() when you need:
+/// - Cross-thread resource sharing between islands
+/// - Long-lived island containers
+/// - Deterministic resource lifetime management
+///
+/// @param island_id Island identifier (maps to NUMA node via round-robin)
+/// @return Owned memory resource (nullptr indicates use std::pmr::get_default_resource())
+/// @see create_island_resource() for thread-local alternative
+inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int island_id) {
+    const int node_count = NumaMemoryResource::get_numa_node_count();
+    if (node_count <= 1 || island_id < 0) {
+        return nullptr; // Use default resource
+    }
+
+    // Safeguard against unbounded allocations with very large island IDs
+    constexpr int MAX_ISLAND_ID_FOR_NUMA_CACHE = 10000;
+    if (island_id > MAX_ISLAND_ID_FOR_NUMA_CACHE) {
+        return nullptr; // Use default resource for safety
+    }
+
+    // Map island to NUMA node (round-robin distribution)
+    const int numa_node = island_id % node_count;
+    return NumaMemoryResource::create_on_node(numa_node);
+}
+
+/// Helper to get memory resource from owned resource or default
+///
+/// Convenience function to handle the owned resource pattern where nullptr
+/// indicates the caller should use std::pmr::get_default_resource().
+///
+/// @param owned_resource The owned resource (may be nullptr)
+/// @return Valid memory resource pointer (never nullptr)
+inline std::pmr::memory_resource*
+get_resource_or_default(const std::unique_ptr<NumaMemoryResource>& owned_resource) {
+    return owned_resource ? owned_resource.get() : std::pmr::get_default_resource();
 }
 
 } // namespace evolab::utils
