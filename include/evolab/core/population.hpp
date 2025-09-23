@@ -29,8 +29,6 @@ class Population {
   private:
     std::pmr::vector<GenomeT> genomes_;
     std::pmr::vector<Fitness> fitness_;
-    std::size_t capacity_;
-    std::pmr::memory_resource* resource_;
 
   public:
     /// Construct population with specified capacity and optional custom memory resource
@@ -39,7 +37,8 @@ class Population {
     /// @param resource Custom memory resource for allocation (default: global default)
     explicit Population(std::size_t capacity,
                         std::pmr::memory_resource* resource = std::pmr::get_default_resource())
-        : genomes_(resource), fitness_(resource), capacity_(capacity), resource_(resource) {
+        : genomes_(std::pmr::polymorphic_allocator<GenomeT>(resource)),
+          fitness_(std::pmr::polymorphic_allocator<Fitness>(resource)) {
         // Pre-allocate memory to avoid reallocations during evolution
         genomes_.reserve(capacity);
         fitness_.reserve(capacity);
@@ -134,30 +133,10 @@ class Population {
     ///
     /// @return Pointer to the memory resource
     [[nodiscard]] std::pmr::memory_resource* get_memory_resource() const noexcept {
-        return resource_;
+        return genomes_.get_allocator().resource();
     }
 
-    /// Iterator support for range-based operations
-    using iterator = std::size_t;
-    using const_iterator = std::size_t;
-
-    /// Begin iterator (returns index 0)
-    [[nodiscard]] iterator begin() noexcept { return 0; }
-
-    /// End iterator (returns size)
-    [[nodiscard]] iterator end() noexcept { return size(); }
-
-    /// Begin const iterator (returns index 0)
-    [[nodiscard]] const_iterator begin() const noexcept { return 0; }
-
-    /// End const iterator (returns size)
-    [[nodiscard]] const_iterator end() const noexcept { return size(); }
-
-    /// Begin const iterator (returns index 0)
-    [[nodiscard]] const_iterator cbegin() const noexcept { return 0; }
-
-    /// End const iterator (returns size)
-    [[nodiscard]] const_iterator cend() const noexcept { return size(); }
+    // Iterator support removed - use index-based access with size() or spans for batch operations
 };
 
 } // namespace evolab::core
