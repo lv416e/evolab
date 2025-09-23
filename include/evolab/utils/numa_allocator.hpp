@@ -127,6 +127,9 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) &&
                "alignment must be a power of two");
 
+        // Precondition check for std::align and std::aligned_alloc
+        assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) && "alignment must be a power of two");
+
         // Ensure minimum alignment
         if (alignment < alignof(std::max_align_t)) {
             alignment = alignof(std::max_align_t);
