@@ -70,8 +70,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         void* original_ptr;         ///< Original pointer for over-allocated NUMA memory
         std::size_t original_bytes; ///< Original size for over-allocated NUMA memory
     };
-    mutable std::unordered_map<void*, AllocationInfo> allocations_;
-    mutable std::mutex allocations_mutex_;
+    std::unordered_map<void*, AllocationInfo> allocations_;
+    std::mutex allocations_mutex_;
 
   public:
     /// Constructor for NUMA memory resource
