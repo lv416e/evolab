@@ -188,30 +188,34 @@ class GeneticAlgorithm {
             const std::size_t elite_count =
                 static_cast<std::size_t>(config.elite_ratio * config.population_size);
             if (elite_count > 0) {
-                // Sort by fitness and keep elite
+                // Use nth_element for O(n) elite selection instead of O(n log n) sort
                 std::vector<std::size_t> indices(population.size());
                 std::iota(indices.begin(), indices.end(), 0);
-                std::sort(indices.begin(), indices.end(), [&](std::size_t a, std::size_t b) {
-                    return population.fitness(a) < population.fitness(b);
-                });
 
-                for (std::size_t i = 0; i < elite_count && i < indices.size(); ++i) {
+                // Partition so that the elite_count best elements are at the beginning
+                if (elite_count < indices.size()) {
+                    std::nth_element(indices.begin(), indices.begin() + elite_count, indices.end(),
+                                     [&](std::size_t a, std::size_t b) {
+                                         return population.fitness(a) < population.fitness(b);
+                                     });
+                }
+
+                // Copy elite individuals
+                const std::size_t actual_elite_count = std::min(elite_count, indices.size());
+                for (std::size_t i = 0; i < actual_elite_count; ++i) {
                     const auto idx = indices[i];
                     new_population.push_back(population.genome(idx), population.fitness(idx));
                 }
             }
 
             // Generate offspring
-            // Selection - extract data once for selection operators
-            auto genomes_span = population.genomes();
+            // Use fitness span directly for selection - major performance improvement
             auto fitness_span = population.fitness_values();
-            std::vector<GenomeT> genome_vec(genomes_span.begin(), genomes_span.end());
-            std::vector<Fitness> fitness_vec(fitness_span.begin(), fitness_span.end());
 
             while (new_population.size() < config.population_size) {
 
-                auto parent1_idx = selection_.select(genome_vec, fitness_vec, rng_);
-                auto parent2_idx = selection_.select(genome_vec, fitness_vec, rng_);
+                auto parent1_idx = selection_.select(fitness_span, rng_);
+                auto parent2_idx = selection_.select(fitness_span, rng_);
 
                 auto offspring = population.genome(parent1_idx);
 
