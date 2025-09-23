@@ -70,9 +70,16 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     int numa_node_;       ///< NUMA node ID (-1 for local node)
     bool numa_available_; ///< Whether NUMA is available on this system
 
+    /// Allocation method for correct deallocation
+    enum class DeallocationKind {
+        Numa,       ///< NUMA-allocated memory (numa_free)
+        WinAligned, ///< Windows _aligned_malloc (_aligned_free)
+        StdFree     ///< Standard allocation (std::free)
+    };
+
     /// Track allocation method and original pointer for proper deallocation
     struct AllocationInfo {
-        bool is_numa_allocated;
+        DeallocationKind kind;
         void* original_ptr;         ///< Original pointer for over-allocated NUMA memory
         std::size_t original_bytes; ///< Original size for over-allocated NUMA memory
     };
@@ -180,7 +187,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 
                 if (std::align(alignment, bytes, aligned_ptr, remaining_space)) {
                     std::lock_guard<std::mutex> lock(allocations_mutex_);
-                    allocations_[aligned_ptr] = {true, original_ptr, alloc_size};
+                    allocations_[aligned_ptr] = {DeallocationKind::Numa, original_ptr, alloc_size};
                     return aligned_ptr;
                 } else {
                     // Should not happen with proper over-allocation, but fallback
@@ -193,18 +200,18 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         // Fallback to platform-specific aligned allocation
         void* ptr = nullptr;
         std::size_t alloc_size = bytes;
-        bool uses_platform_allocator = false;
+        DeallocationKind alloc_kind = DeallocationKind::StdFree;
 
 #ifdef _WIN32
         // Windows: use _aligned_malloc (must be freed with _aligned_free)
         ptr = _aligned_malloc(bytes, alignment);
-        uses_platform_allocator = true;
+        alloc_kind = DeallocationKind::WinAligned;
 #elif defined(__unix__) || defined(__APPLE__)
         // POSIX: use posix_memalign (freed with std::free)
         if (posix_memalign(&ptr, alignment, bytes) != 0) {
             ptr = nullptr;
         }
-        uses_platform_allocator = false;
+        alloc_kind = DeallocationKind::StdFree;
 #else
         // C++17 fallback: std::aligned_alloc (requires size multiple of alignment)
         const std::size_t remainder = bytes % alignment;
@@ -212,7 +219,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             alloc_size = bytes + (alignment - remainder);
         }
         ptr = std::aligned_alloc(alignment, alloc_size);
-        uses_platform_allocator = false;
+        alloc_kind = DeallocationKind::StdFree;
 #endif
 
         if (!ptr) {
@@ -220,7 +227,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         }
 
         std::lock_guard<std::mutex> lock(allocations_mutex_);
-        allocations_[ptr] = {uses_platform_allocator, ptr, alloc_size};
+        allocations_[ptr] = {alloc_kind, ptr, alloc_size};
         return ptr;
     }
 
@@ -249,22 +256,26 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             std::abort();
         }
 
-#ifdef EVOLAB_NUMA_SUPPORT
-        if (numa_available_ && alloc_info.is_numa_allocated) {
-            numa_free(alloc_info.original_ptr, alloc_info.original_bytes);
-            return;
-        }
-#endif
         // Use appropriate deallocation based on allocation method
-#ifdef _WIN32
-        if (alloc_info.is_numa_allocated) {
-            _aligned_free(alloc_info.original_ptr);
-        } else {
-            std::free(alloc_info.original_ptr);
-        }
-#else
-        std::free(alloc_info.original_ptr);
+        switch (alloc_info.kind) {
+#ifdef EVOLAB_NUMA_SUPPORT
+        case DeallocationKind::Numa:
+            if (numa_available_) {
+                numa_free(alloc_info.original_ptr, alloc_info.original_bytes);
+                return;
+            }
+            // If NUMA was recorded but not available now, fall through to std::free
+            [[fallthrough]];
 #endif
+        case DeallocationKind::StdFree:
+            std::free(alloc_info.original_ptr);
+            break;
+#ifdef _WIN32
+        case DeallocationKind::WinAligned:
+            _aligned_free(alloc_info.original_ptr);
+            break;
+#endif
+        }
     }
 
     /// Check if this resource is equal to another
