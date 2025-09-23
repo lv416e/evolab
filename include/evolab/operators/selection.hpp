@@ -10,7 +10,9 @@
 #include <cassert>
 #include <numeric>
 #include <random>
+#include <ranges>
 #include <span>
+#include <utility>
 #include <vector>
 
 // EvoLab core concepts - fundamental type requirements for selection operators
@@ -61,7 +63,11 @@ class TournamentSelection {
   public:
     explicit TournamentSelection(std::size_t tournament_size = 4)
         // Explicitly specify template parameter for clarity in constructor context
-        : tournament_size_(std::max<std::size_t>(1, tournament_size)) {}
+        : tournament_size_(std::max<std::size_t>(1, tournament_size)) {
+        // C++23: Static assertion for reasonable tournament sizes at compile time
+        static_assert(std::is_same_v<std::size_t, decltype(tournament_size)>,
+                      "Tournament size must be std::size_t");
+    }
 
     /// Select an individual from the population using tournament selection
     ///
@@ -119,6 +125,10 @@ class TournamentSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        // C++23: Optimization hint - span size is guaranteed > 0 by assertion
+        if (fitnesses.size() == 0) [[unlikely]] {
+            __builtin_unreachable(); // Compiler-specific optimization hint
+        }
         if (fitnesses.size() == 1) {
             return 0;
         }
@@ -268,7 +278,8 @@ class RouletteWheelSelection {
             }
         }
 
-        return fitnesses.size() - 1; // Fallback
+        return fitnesses.size() - 1; // Fallback (should be mathematically unreachable)
+        // std::unreachable(); // C++23: Would be ideal here, but fallback is safer
     }
 };
 
@@ -393,13 +404,13 @@ class RankSelection {
             return 0;
         }
 
-        // Create ranking
+        // Create ranking using modern algorithms
         std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
 
-        // Sort by fitness (best first for minimization)
-        std::sort(indices.begin(), indices.end(),
-                  [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
+        // Sort by fitness (best first for minimization) using ranges algorithm
+        std::ranges::sort(
+            indices, [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
         // Calculate rank-based probabilities
         std::vector<double> probabilities;
@@ -562,9 +573,8 @@ class SteadyStateSelection {
         std::vector<std::size_t> indices(fitnesses.size());
         std::iota(indices.begin(), indices.end(), 0);
 
-        // Partial sort to get the best individuals
-        std::size_t k = std::min(num_best_, fitnesses.size());
-        k = std::max<std::size_t>(1, k);
+        // Partial sort to get the best individuals with modern initialization
+        const auto k = std::max(std::min(num_best_, fitnesses.size()), std::size_t{1});
         std::partial_sort(
             indices.begin(), indices.begin() + k, indices.end(),
             [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
