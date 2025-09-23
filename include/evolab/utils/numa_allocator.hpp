@@ -283,8 +283,8 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Map island to NUMA node (round-robin)
     const int numa_node = island_id % node_count;
 
-    // Create resource if it doesn't exist
-    auto& resource = island_resources[island_id];
+    // Cache by NUMA node to avoid redundant resources for islands on same node
+    auto& resource = island_resources[numa_node];
     if (!resource) {
         resource = NumaMemoryResource::create_on_node(numa_node);
     }
