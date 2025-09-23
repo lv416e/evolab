@@ -123,6 +123,10 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @return Pointer to allocated memory
     /// @throws std::bad_alloc if allocation fails
     void* do_allocate(std::size_t bytes, std::size_t alignment) override {
+        // Precondition check for std::align and std::aligned_alloc
+        assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) &&
+               "alignment must be a power of two");
+
         // Ensure minimum alignment
         if (alignment < alignof(std::max_align_t)) {
             alignment = alignof(std::max_align_t);
