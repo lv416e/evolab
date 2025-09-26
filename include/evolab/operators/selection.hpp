@@ -16,10 +16,6 @@
 #include <utility>
 #include <vector>
 
-#if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
-// std::unreachable available via <utility>
-#endif
-
 // EvoLab core concepts - fundamental type requirements for selection operators
 #include <evolab/core/concepts.hpp>
 
@@ -29,7 +25,7 @@ namespace evolab::operators {
 namespace detail {
 /// Portable unreachable code marker using C++23 std::unreachable when available
 [[noreturn]] inline void unreachable() noexcept {
-#if __cpp_lib_unreachable >= 202202L
+#if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
     std::unreachable();
 #elif defined(_MSC_VER)
     __assume(false);
@@ -325,7 +321,7 @@ class RouletteWheelSelection {
 /// ## Mathematical Formula:
 /// For individual at rank r (0 = best, n-1 = worst):
 /// ```
-/// P(r) = (2 - s)/n + (2*s*(n-r-1))/(n*(n-1))
+/// P(r) = (2 - s)/n + (2*(s - 1)*(n - r - 1))/(n*(n - 1))
 /// ```
 /// where s = selection_pressure, n = population_size
 ///
@@ -408,7 +404,7 @@ class RankSelection {
     /// ## Selection Pressure Examples:
     /// For 4-individual population (ranks 0,1,2,3):
     /// - pressure=1.0: P=[0.25, 0.25, 0.25, 0.25] (uniform)
-    /// - pressure=1.5: P=[0.40, 0.30, 0.20, 0.10] (moderate bias)
+    /// - pressure=1.5: P≈[0.375, 0.292, 0.208, 0.125] (moderate bias)
     /// - pressure=2.0: P=[0.50, 0.33, 0.17, 0.00] (strong bias)
     ///
     /// @see selection_pressure() for accessing the pressure parameter
@@ -429,31 +425,21 @@ class RankSelection {
         std::ranges::sort(
             indices, [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
-        // Calculate rank-based probabilities
-        std::vector<double> probabilities;
-        probabilities.reserve(fitnesses.size());
-
+        // Select using on-the-fly probability calculation (no intermediate storage)
         const double n = static_cast<double>(fitnesses.size());
-        double total_prob = 0.0;
-
-        for (std::size_t rank = 0; rank < fitnesses.size(); ++rank) {
-            // Rank 0 is best, rank n-1 is worst
-            // Corrected formula: pressure=1.0 yields uniform selection, pressure=2.0 maximum bias
-            double prob = (2.0 - selection_pressure_) / n +
-                          (2.0 * (selection_pressure_ - 1.0) * (n - rank - 1)) / (n * (n - 1));
-            probabilities.push_back(prob);
-            total_prob += prob;
-        }
-
-        // Select based on probabilities
-        std::uniform_real_distribution<double> dist(0.0, total_prob);
-        double target = dist(rng);
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        const double target = dist(rng);
 
         double cumulative = 0.0;
-        for (std::size_t i = 0; i < probabilities.size(); ++i) {
-            cumulative += probabilities[i];
+        for (std::size_t rank = 0; rank < fitnesses.size(); ++rank) {
+            // Rank 0 is best, rank n-1 is worst
+            // Formula: pressure=1.0 yields uniform selection, pressure=2.0 maximum bias
+            const double prob =
+                (2.0 - selection_pressure_) / n +
+                (2.0 * (selection_pressure_ - 1.0) * (n - rank - 1)) / (n * (n - 1));
+            cumulative += prob;
             if (cumulative >= target) {
-                return indices[i];
+                return indices[rank];
             }
         }
 
