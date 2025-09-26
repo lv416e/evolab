@@ -24,14 +24,18 @@ namespace evolab::operators {
 /// @private
 namespace detail {
 /// Portable unreachable code marker using C++23 std::unreachable when available
+///
+/// This function marks code paths that should never be executed due to mathematical
+/// invariants. In debug builds, assertions catch violations before reaching these paths.
+/// In release builds, compiler intrinsics provide optimization hints.
 [[noreturn]] inline void unreachable() noexcept {
 #if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
-    std::unreachable();
+    std::unreachable(); // C++23 standard unreachable - may be optimized away
 #elif defined(_MSC_VER)
-    __assume(false);
-    std::terminate();
+    __assume(false);  // MSVC optimization hint
+    std::terminate(); // Fallback if assumption is incorrect
 #elif defined(__GNUC__) || defined(__clang__)
-    __builtin_unreachable();
+    __builtin_unreachable(); // GCC/Clang optimization hint - undefined if reached
 #else
     // Fallback: terminate to maintain defined behavior
     std::terminate();
@@ -174,7 +178,9 @@ class TournamentSelection {
     ///
     /// @return Number of individuals participating in each tournament.
     ///         Always ≥ 1 due to constructor validation.
-    std::size_t tournament_size() const { return tournament_size_; }
+    [[nodiscard]] constexpr std::size_t tournament_size() const noexcept {
+        return tournament_size_;
+    }
 };
 
 /// Roulette wheel selection operator with fitness-proportionate selection probability
@@ -289,8 +295,8 @@ class RouletteWheelSelection {
         // First pass: calculate total weight (avoiding heap allocation)
         double total_weight = 0.0;
         for (const auto& fitness : fitnesses) {
-            // Convert minimization to maximization weights
-            double weight = (range == 0.0) ? 1.0 : (max_fitness - fitness.value + 1.0);
+            // Convert minimization to maximization weights (uniform case handled above)
+            double weight = (max_fitness - fitness.value + 1.0);
             total_weight += weight;
         }
 
@@ -300,7 +306,7 @@ class RouletteWheelSelection {
         // Second pass: find target bucket without storing weights
         double cumulative = 0.0;
         for (std::size_t i = 0; i < fitnesses.size(); ++i) {
-            const double weight = (range == 0.0) ? 1.0 : (max_fitness - fitnesses[i].value + 1.0);
+            const double weight = (max_fitness - fitnesses[i].value + 1.0);
             cumulative += weight;
             if (cumulative >= target) {
                 return i;
@@ -343,7 +349,7 @@ class RouletteWheelSelection {
 ///
 /// ## Performance Characteristics:
 /// - Time Complexity: O(n log n) due to sorting requirement
-/// - Space Complexity: O(n) for index array and probability storage
+/// - Space Complexity: O(n) for index array (probabilities computed on-the-fly)
 /// - Memory Access: Two passes - sorting, then probability calculation
 ///
 /// ## Advantages:
@@ -471,7 +477,9 @@ class RankSelection {
     ///
     /// @return Current selection pressure value in range [1.0, 2.0].
     ///         1.0 = uniform selection, 2.0 = maximum bias toward best individuals.
-    double selection_pressure() const { return selection_pressure_; }
+    [[nodiscard]] constexpr double selection_pressure() const noexcept {
+        return selection_pressure_;
+    }
 };
 
 /// Steady-state selection operator for elitist genetic algorithms
@@ -617,7 +625,7 @@ class SteadyStateSelection {
     ///
     /// @return Number of best individuals considered for selection.
     ///         Actual elite pool size is min(num_best, population_size).
-    std::size_t num_best() const { return num_best_; }
+    [[nodiscard]] constexpr std::size_t num_best() const noexcept { return num_best_; }
 };
 
 } // namespace evolab::operators
