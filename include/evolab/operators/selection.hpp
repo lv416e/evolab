@@ -35,7 +35,9 @@ namespace detail {
     __assume(false);  // MSVC optimization hint
     std::terminate(); // Fallback if assumption is incorrect
 #elif defined(__GNUC__) || defined(__clang__)
-    __builtin_unreachable(); // GCC/Clang optimization hint - undefined if reached
+    // Terminate to preserve defined behavior if reached, then provide hint
+    std::terminate();
+    __builtin_unreachable();
 #else
     // Fallback: terminate to maintain defined behavior
     std::terminate();
