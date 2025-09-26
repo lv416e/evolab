@@ -79,6 +79,30 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     };
 
     /// Track allocation method and original pointer for proper deallocation
+    ///
+    /// ## Design Note: Mutex-Protected Allocation Tracking
+    ///
+    /// This implementation uses mutex-protected std::unordered_map for allocation tracking
+    /// rather than lock-free inline headers for the following reasons:
+    ///
+    /// 1. **GA Usage Pattern**: Genetic algorithms typically allocate large memory blocks
+    ///    (populations, fitness arrays) once at startup and deallocate at shutdown.
+    ///    The allocation/deallocation frequency is very low compared to memory access.
+    ///
+    /// 2. **Safety First**: Mutex-protected approach eliminates complex pointer arithmetic,
+    ///    alignment calculations, and potential memory corruption bugs that are common
+    ///    with inline header approaches.
+    ///
+    /// 3. **NUMA Benefits**: The primary NUMA performance benefit comes from memory
+    ///    locality during access (fitness evaluation, selection), not allocation speed.
+    ///    System calls to numa_alloc_* typically dwarf mutex overhead.
+    ///
+    /// 4. **Maintainability**: Current approach is easier to debug, understand, and
+    ///    modify. Allocation tracking is explicit and observable.
+    ///
+    /// Alternative lock-free implementations using inline allocation headers could
+    /// be considered if profiling reveals mutex contention as a bottleneck in
+    /// high-frequency allocation scenarios.
     struct AllocationInfo {
         DeallocationKind kind;
         void* original_ptr;         ///< Original pointer for over-allocated NUMA memory
@@ -285,8 +309,15 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 
     /// Check if this resource is equal to another
     ///
+    /// Uses pointer identity for equality to ensure memory safety with stateful allocators.
+    /// Two NumaMemoryResource instances with separate allocation tracking cannot safely
+    /// deallocate each other's memory, even if they target the same NUMA node.
+    ///
     /// @param other The other memory resource to compare with
-    /// @return True if resources are equivalent
+    /// @return True if resources are equivalent (same instance)
+    ///
+    /// @note A configuration-based equality (same numa_node_) would only be safe with
+    ///       stateless allocators or shared allocation tracking between instances.
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override {
         // Use pointer identity - resources with separate allocation maps are not interchangeable
         return this == &other;
