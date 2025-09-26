@@ -526,9 +526,10 @@ class SteadyStateSelection {
     /// Construct steady-state selection with specified elite pool size
     ///
     /// @param num_best Number of best individuals to include in selection pool.
-    ///                 Must be ≥ 1. Will be clamped to population size during selection.
+    ///                 Must be ≥ 1. Values of 0 are automatically corrected to 1.
     ///                 Default: 1 (pure elitist selection).
-    explicit SteadyStateSelection(std::size_t num_best = 1) : num_best_(num_best) {}
+    explicit SteadyStateSelection(std::size_t num_best = 1)
+        : num_best_(std::max(num_best, std::size_t{1})) {}
 
     /// Select an individual from the elite pool using steady-state selection
     ///
@@ -593,7 +594,8 @@ class SteadyStateSelection {
         std::iota(indices.begin(), indices.end(), 0);
 
         // Partition to top-k (unsorted) in O(n) instead of O(n log k)
-        const auto k = std::max(std::min(num_best_, fitnesses.size()), std::size_t{1});
+        // num_best_ is guaranteed to be >= 1 by constructor
+        const auto k = std::min(num_best_, fitnesses.size());
         std::nth_element(indices.begin(), indices.begin() + (k - 1), indices.end(),
                          [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
 
