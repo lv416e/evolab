@@ -29,6 +29,7 @@ namespace detail {
     std::unreachable();
 #elif defined(_MSC_VER)
     __assume(false);
+    std::terminate();
 #elif defined(__GNUC__) || defined(__clang__)
     __builtin_unreachable();
 #else
@@ -49,9 +50,14 @@ namespace detail {
 /// For migration from v1.x implementations, see SelectionOperator concept documentation.
 ///
 /// ## Algorithm:
-/// 1. Randomly select `tournament_size` individuals from the fitness span
-/// 2. Return the index of the individual with the best (lowest) fitness
+/// 1. Randomly select `tournament_size` individuals from the fitness span (with replacement)
+/// 2. Return the index of the individual with the best (lowest) fitness among contestants
 /// 3. Handle edge cases: single individual tournaments, empty populations
+///
+/// Note: Uses sampling with replacement, meaning the same individual can be selected
+/// multiple times for a single tournament. This is the standard tournament selection
+/// behavior and maintains proper statistical properties even when tournament_size >
+/// population_size.
 ///
 /// ## Performance Characteristics:
 /// - Time Complexity: O(tournament_size)
@@ -141,7 +147,9 @@ class TournamentSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        // Precondition enforced by assert; no runtime branch needed
+        if (fitnesses.empty()) [[unlikely]] {
+            detail::unreachable();
+        }
         if (fitnesses.size() == 1) {
             return 0;
         }
@@ -258,6 +266,9 @@ class RouletteWheelSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.empty()) [[unlikely]] {
+            detail::unreachable();
+        }
         if (fitnesses.size() == 1) {
             return 0;
         }
@@ -268,6 +279,11 @@ class RouletteWheelSelection {
                                 [](const auto& a, const auto& b) { return a.value < b.value; });
         const double min_fitness = min_it->value;
         const double max_fitness = max_it->value;
+        if (min_fitness == max_fitness) {
+            // Fast-path for uniform fitness: skip weight calculation and select uniformly
+            std::uniform_int_distribution<std::size_t> uniform_idx(0, fitnesses.size() - 1);
+            return uniform_idx(rng);
+        }
         double range = max_fitness - min_fitness;
 
         // First pass: calculate total weight (avoiding heap allocation)
@@ -356,9 +372,10 @@ class RankSelection {
     ///
     /// @param pressure Selection pressure controlling bias toward better individuals.
     ///                 Range: [1.0, 2.0] where 1.0 = uniform, 2.0 = maximum pressure.
+    ///                 Values outside this range are automatically clamped.
     ///                 Default: 1.5 (balanced pressure).
-    /// @pre pressure >= 1.0 && pressure <= 2.0 (enforced by assertion)
-    explicit RankSelection(double pressure = 1.5) : selection_pressure_(pressure) {
+    explicit RankSelection(double pressure = 1.5)
+        : selection_pressure_(std::clamp(pressure, 1.0, 2.0)) {
         assert(pressure >= 1.0 && pressure <= 2.0);
     }
 
@@ -413,6 +430,9 @@ class RankSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.empty()) [[unlikely]] {
+            detail::unreachable();
+        }
         if (fitnesses.size() == 1) {
             return 0;
         }
@@ -572,6 +592,9 @@ class SteadyStateSelection {
     std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
+        if (fitnesses.empty()) [[unlikely]] {
+            detail::unreachable();
+        }
         if (fitnesses.size() == 1) {
             return 0;
         }
