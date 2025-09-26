@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <memory_resource>
 #include <mutex>
@@ -168,8 +169,12 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 
 #ifdef EVOLAB_NUMA_SUPPORT
         if (numa_available_) {
-            // Over-allocate to ensure we can find an aligned pointer
-            std::size_t alloc_size = bytes + alignment - 1;
+            // Over-allocate to ensure we can find an aligned pointer (with overflow guard)
+            const std::size_t overhead = alignment - 1;
+            if (bytes > std::numeric_limits<std::size_t>::max() - overhead) {
+                throw std::bad_alloc{};
+            }
+            std::size_t alloc_size = bytes + overhead;
             void* original_ptr = nullptr;
 
             if (numa_node_ == -1) {
@@ -368,7 +373,8 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Safeguard against unbounded cache growth with very large island IDs
     constexpr int MAX_ISLAND_ID_FOR_NUMA_CACHE = 10000;
     if (island_id > MAX_ISLAND_ID_FOR_NUMA_CACHE) {
-        // Silently fall back to default resource to prevent cache explosion
+        // Fall back to default resource to prevent cache explosion
+        assert(false && "Island ID exceeds cache limit; falling back to default allocator.");
         return std::pmr::get_default_resource();
     }
 
@@ -429,12 +435,6 @@ inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int isla
     const int node_count = NumaMemoryResource::get_numa_node_count();
     if (node_count <= 1 || island_id < 0) {
         return nullptr; // Use default resource
-    }
-
-    // Safeguard against unbounded allocations with very large island IDs
-    constexpr int MAX_ISLAND_ID_FOR_NUMA_CACHE = 10000;
-    if (island_id > MAX_ISLAND_ID_FOR_NUMA_CACHE) {
-        return nullptr; // Use default resource for safety
     }
 
     // Map island to NUMA node (round-robin distribution)
