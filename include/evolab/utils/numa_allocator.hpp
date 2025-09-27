@@ -60,11 +60,12 @@ inline bool is_numa_system_available() noexcept {
 /// @code
 /// // Allocate on local NUMA node
 /// auto local_resource = NumaMemoryResource::create_local();
-/// std::pmr::vector<int> data(local_resource.get());
+/// std::pmr::vector<int> data{std::pmr::polymorphic_allocator<int>(local_resource.get())};
 ///
 /// // Allocate on specific node
 /// auto node_resource = NumaMemoryResource::create_on_node(1);
-/// std::pmr::vector<double> node_data(node_resource.get());
+/// std::pmr::vector<double>
+/// node_data{std::pmr::polymorphic_allocator<double>(node_resource.get())};
 /// @endcode
 class NumaMemoryResource : public std::pmr::memory_resource {
   private:
