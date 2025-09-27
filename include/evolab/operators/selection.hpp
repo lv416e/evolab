@@ -150,7 +150,8 @@ class TournamentSelection {
     /// @see SelectionOperator concept for interface requirements
     /// @see tournament_size() for accessing the tournament size parameter
     /// @since v2.0.0 (span-based interface)
-    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
+    [[nodiscard]] std::size_t select(std::span<const core::Fitness> fitnesses,
+                                     std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
         if (fitnesses.empty()) [[unlikely]] {
@@ -271,7 +272,8 @@ class RouletteWheelSelection {
     ///
     /// @see SelectionOperator concept for interface requirements
     /// @since v2.0.0 (span-based interface)
-    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
+    [[nodiscard]] std::size_t select(std::span<const core::Fitness> fitnesses,
+                                     std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
         if (fitnesses.empty()) [[unlikely]] {
@@ -292,7 +294,6 @@ class RouletteWheelSelection {
             std::uniform_int_distribution<std::size_t> uniform_idx(0, fitnesses.size() - 1);
             return uniform_idx(rng);
         }
-        double range = max_fitness - min_fitness;
 
         // First pass: calculate total weight (avoiding heap allocation)
         double total_weight = 0.0;
@@ -384,7 +385,7 @@ class RankSelection {
     ///                 Default: 1.5 (balanced pressure).
     explicit RankSelection(double pressure = 1.5)
         : selection_pressure_(std::clamp(pressure, 1.0, 2.0)) {
-        assert(pressure >= 1.0 && pressure <= 2.0);
+        assert(selection_pressure_ >= 1.0 && selection_pressure_ <= 2.0);
     }
 
     /// Select an individual using rank-based selection with linear probability assignment
@@ -435,7 +436,8 @@ class RankSelection {
     /// @see selection_pressure() for accessing the pressure parameter
     /// @see SelectionOperator concept for interface requirements
     /// @since v2.0.0 (span-based interface)
-    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
+    [[nodiscard]] std::size_t select(std::span<const core::Fitness> fitnesses,
+                                     std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
         if (fitnesses.empty()) [[unlikely]] {
@@ -599,7 +601,8 @@ class SteadyStateSelection {
     /// @see num_best() for accessing the elite pool size parameter
     /// @see SelectionOperator concept for interface requirements
     /// @since v2.0.0 (span-based interface)
-    std::size_t select(std::span<const core::Fitness> fitnesses, std::mt19937& rng) const {
+    [[nodiscard]] std::size_t select(std::span<const core::Fitness> fitnesses,
+                                     std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
         if (fitnesses.empty()) [[unlikely]] {
