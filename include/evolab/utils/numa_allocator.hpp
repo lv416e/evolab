@@ -214,8 +214,15 @@ class NumaMemoryResource : public std::pmr::memory_resource {
                 std::size_t remaining_space = alloc_size;
 
                 if (std::align(alignment, bytes, aligned_ptr, remaining_space)) {
-                    std::lock_guard<std::mutex> lock(allocations_mutex_);
-                    allocations_[aligned_ptr] = {DeallocationKind::Numa, original_ptr, alloc_size};
+                    std::unique_lock<std::mutex> lock(allocations_mutex_);
+                    try {
+                        allocations_.emplace(aligned_ptr, AllocationInfo{DeallocationKind::Numa,
+                                                                         original_ptr, alloc_size});
+                    } catch (...) {
+                        lock.unlock();
+                        numa_free(original_ptr, alloc_size);
+                        throw;
+                    }
                     return aligned_ptr;
                 } else {
                     // Should not happen with proper over-allocation, but fallback
@@ -256,8 +263,21 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             throw std::bad_alloc{};
         }
 
-        std::lock_guard<std::mutex> lock(allocations_mutex_);
-        allocations_[ptr] = {alloc_kind, ptr, alloc_size};
+        std::unique_lock<std::mutex> lock(allocations_mutex_);
+        try {
+            allocations_.emplace(ptr, AllocationInfo{alloc_kind, ptr, alloc_size});
+        } catch (...) {
+            lock.unlock();
+#ifdef _WIN32
+            if (alloc_kind == DeallocationKind::WinAligned) {
+                _aligned_free(ptr);
+            } else
+#endif
+            {
+                std::free(ptr);
+            }
+            throw;
+        }
         return ptr;
     }
 
