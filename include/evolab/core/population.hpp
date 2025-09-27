@@ -95,6 +95,34 @@ class Population {
     /// @return Reference to the fitness value
     [[nodiscard]] Fitness& fitness(std::size_t index) { return fitness_[index]; }
 
+    /// Get const reference to genome at specified index (with bounds checking)
+    ///
+    /// @param index Index of the individual (0-based)
+    /// @return Const reference to the genome
+    /// @throws std::out_of_range if index is out of bounds
+    [[nodiscard]] const GenomeT& at_genome(std::size_t index) const { return genomes_.at(index); }
+
+    /// Get mutable reference to genome at specified index (with bounds checking)
+    ///
+    /// @param index Index of the individual (0-based)
+    /// @return Reference to the genome
+    /// @throws std::out_of_range if index is out of bounds
+    [[nodiscard]] GenomeT& at_genome(std::size_t index) { return genomes_.at(index); }
+
+    /// Get const reference to fitness at specified index (with bounds checking)
+    ///
+    /// @param index Index of the individual (0-based)
+    /// @return Const reference to the fitness value
+    /// @throws std::out_of_range if index is out of bounds
+    [[nodiscard]] const Fitness& at_fitness(std::size_t index) const { return fitness_.at(index); }
+
+    /// Get mutable reference to fitness at specified index (with bounds checking)
+    ///
+    /// @param index Index of the individual (0-based)
+    /// @return Reference to the fitness value
+    /// @throws std::out_of_range if index is out of bounds
+    [[nodiscard]] Fitness& at_fitness(std::size_t index) { return fitness_.at(index); }
+
     /// Get span over all genomes for batch operations and vectorization
     ///
     /// @return Span covering all genome data

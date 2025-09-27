@@ -145,6 +145,16 @@ class GeneticAlgorithm {
 
         const auto start_time = std::chrono::steady_clock::now();
 
+        // Handle population_size == 0 to prevent undefined behavior with empty ranges.
+        if (config.population_size == 0) {
+            GAResult<GenomeT> result;
+            result.generations = 0;
+            result.evaluations = 0;
+            result.total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start_time);
+            return result;
+        }
+
         // Initialize population with Structure-of-Arrays layout for better memory efficiency
         Population<GenomeT> population(config.population_size);
 
