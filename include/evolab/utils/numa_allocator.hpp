@@ -414,7 +414,7 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Thread-local cache indexed by NUMA node (bounded by system's NUMA node count)
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
-        island_resources;
+        numa_node_resource_cache;
 
     const int node_count = NumaMemoryResource::get_numa_node_count();
     if (node_count <= 1 || island_id < 0) {
@@ -436,7 +436,7 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     const int numa_node = island_id % node_count;
 
     // Cache by NUMA node (map size naturally bounded by numa_node_count)
-    auto& resource = island_resources[numa_node];
+    auto& resource = numa_node_resource_cache[numa_node];
     if (!resource) {
         resource = NumaMemoryResource::create_on_node(numa_node);
     }

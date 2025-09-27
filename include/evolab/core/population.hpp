@@ -75,25 +75,29 @@ class Population {
     ///
     /// @param index Index of the individual (0-based)
     /// @return Reference to the genome
-    [[nodiscard]] GenomeT& genome(std::size_t index) { return genomes_[index]; }
+    [[nodiscard]] GenomeT& genome(std::size_t index) noexcept { return genomes_[index]; }
 
     /// Get const reference to genome at specified index
     ///
     /// @param index Index of the individual (0-based)
     /// @return Const reference to the genome
-    [[nodiscard]] const GenomeT& genome(std::size_t index) const { return genomes_[index]; }
+    [[nodiscard]] const GenomeT& genome(std::size_t index) const noexcept {
+        return genomes_[index];
+    }
 
     /// Get const reference to fitness value at specified index
     ///
     /// @param index Index of the individual (0-based)
     /// @return Const reference to the fitness value
-    [[nodiscard]] const Fitness& fitness(std::size_t index) const { return fitness_[index]; }
+    [[nodiscard]] const Fitness& fitness(std::size_t index) const noexcept {
+        return fitness_[index];
+    }
 
     /// Get mutable reference to fitness value at specified index
     ///
     /// @param index Index of the individual (0-based)
     /// @return Reference to the fitness value
-    [[nodiscard]] Fitness& fitness(std::size_t index) { return fitness_[index]; }
+    [[nodiscard]] Fitness& fitness(std::size_t index) noexcept { return fitness_[index]; }
 
     /// Get const reference to genome at specified index (with bounds checking)
     ///

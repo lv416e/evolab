@@ -7,6 +7,7 @@
 /// Uses concept-based design for type safety and clear compile-time requirements.
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <concepts>
 #include <cstdint>
@@ -276,10 +277,9 @@ class GeneticAlgorithm {
                 new_population.push_back(std::move(offspring), fitness);
             }
 
-            // Trim to exact population size
-            if (new_population.size() > config.population_size) {
-                new_population.resize(config.population_size);
-            }
+            // At this point, the population size should exactly match the configured size.
+            // If it can be larger, it indicates a logic error in the offspring generation loop.
+            assert(new_population.size() == config.population_size);
 
             population = std::move(new_population);
 
