@@ -34,7 +34,7 @@ if(TBB_FOUND)
     add_executable(test_parallel test_parallel.cpp)
     target_link_libraries(test_parallel PRIVATE evolab)
     target_compile_features(test_parallel PRIVATE cxx_std_23)
-    
+
     # Register parallel test with CTest
     add_test(NAME ParallelTests COMMAND test_parallel)
     # Helpful labels for filtering in CI dashboards
@@ -42,6 +42,11 @@ if(TBB_FOUND)
 else()
     message(STATUS "TBB not found: parallel tests disabled (ParallelTests not built)")
 endif()
+
+# NUMA allocator tests (always built, uses optional NUMA support)
+add_executable(test_numa test_numa.cpp)
+target_link_libraries(test_numa PRIVATE evolab)
+target_compile_features(test_numa PRIVATE cxx_std_23)
 
 # Register core tests with CTest
 add_test(NAME CoreTests COMMAND test_core)
@@ -51,3 +56,19 @@ add_test(NAME SchedulerTests COMMAND test_schedulers)
 add_test(NAME TSPLIBTests COMMAND test_tsplib)
 add_test(NAME ConfigTests COMMAND test_config)
 add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)
+add_test(NAME NumaTests COMMAND test_numa)
+
+# Check for NUMA support
+find_path(NUMA_INCLUDE_DIR numa.h)
+find_library(NUMA_LIBRARY numa)
+
+if(NUMA_INCLUDE_DIR AND NUMA_LIBRARY)
+    message(STATUS "NUMA support found: enabling NUMA optimizations")
+    target_compile_definitions(test_numa PRIVATE EVOLAB_NUMA_SUPPORT)
+    target_include_directories(test_numa PRIVATE ${NUMA_INCLUDE_DIR})
+    target_link_libraries(test_numa PRIVATE ${NUMA_LIBRARY})
+    set_tests_properties(NumaTests PROPERTIES LABELS "numa;performance")
+else()
+    message(STATUS "NUMA support not found: NUMA allocator will use fallback mode")
+    set_tests_properties(NumaTests PROPERTIES LABELS "numa;fallback")
+endif()
