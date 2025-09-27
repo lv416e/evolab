@@ -365,11 +365,10 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 /// For island model GA where each island runs on a different NUMA node,
 /// this creates node-specific allocators to minimize cross-node memory access.
 ///
-/// ## Memory Usage Warning:
-/// This function uses a thread_local cache that grows with unique NUMA nodes accessed.
-/// In typical island model scenarios with bounded island counts, this is acceptable.
-/// For applications with unbounded island_id ranges, consider using direct allocation
-/// or implement cache eviction based on your memory constraints.
+/// ## Memory Usage Note:
+/// This function uses a thread_local cache indexed by NUMA node (not island_id).
+/// Cache size is bounded by the number of NUMA nodes in the system (typically 1-8).
+/// Large island_id values are handled via modulo mapping and sanity checking.
 ///
 /// ## NUMA Topology Assumption:
 /// Uses round-robin mapping (island_id % numa_node_count) which assumes islands
@@ -392,7 +391,7 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 ///
 /// @return Memory resource for the specified island/node (thread-local lifetime)
 inline std::pmr::memory_resource* create_island_resource(int island_id) {
-    // Thread-local cache indexed by NUMA node (not island_id) to limit growth
+    // Thread-local cache indexed by NUMA node (bounded by system's NUMA node count)
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
         island_resources;
 
@@ -401,11 +400,13 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
         return std::pmr::get_default_resource();
     }
 
-    // Safeguard against unbounded cache growth with very large island IDs
-    constexpr int MAX_ISLAND_ID_FOR_NUMA_CACHE = 10000;
-    if (island_id > MAX_ISLAND_ID_FOR_NUMA_CACHE) {
-        // Fall back to default resource to prevent cache explosion
-        assert(false && "Island ID exceeds cache limit; falling back to default allocator.");
+    // Safeguard against misuse with unexpectedly large island IDs, which might indicate a logic
+    // error
+    constexpr int MAX_ISLAND_ID_FOR_SANITY_CHECK = 10000;
+    if (island_id > MAX_ISLAND_ID_FOR_SANITY_CHECK) {
+        // Fall back to default resource - cache size is bounded by NUMA node count, not island_id
+        // range
+        assert(false && "Island ID exceeds sanity check limit; falling back to default allocator.");
         return std::pmr::get_default_resource();
     }
 
@@ -413,7 +414,7 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // Assumes even distribution across nodes is optimal for workload
     const int numa_node = island_id % node_count;
 
-    // Cache by NUMA node to limit map size to numa_node_count entries maximum
+    // Cache by NUMA node (map size naturally bounded by numa_node_count)
     auto& resource = island_resources[numa_node];
     if (!resource) {
         resource = NumaMemoryResource::create_on_node(numa_node);
