@@ -19,8 +19,6 @@
 
 #ifdef _WIN32
 #include <malloc.h> // for _aligned_malloc/_aligned_free
-#elif defined(__unix__) || defined(__APPLE__)
-#include <cstdlib> // for posix_memalign
 #endif
 
 // Optional NUMA support - only include if available
@@ -245,9 +243,11 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 #else
         // C++17 fallback: std::aligned_alloc (requires size multiple of alignment)
         const std::size_t remainder = bytes % alignment;
-        if (remainder != 0) {
-            alloc_size = bytes + (alignment - remainder);
+        const std::size_t pad = (remainder == 0) ? 0 : (alignment - remainder);
+        if (pad != 0 && bytes > (std::numeric_limits<std::size_t>::max)() - pad) {
+            throw std::bad_alloc{};
         }
+        alloc_size = bytes + pad;
         ptr = std::aligned_alloc(alignment, alloc_size);
         alloc_kind = DeallocationKind::StdFree;
 #endif
@@ -378,7 +378,7 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 ///
 /// @param island_id Island identifier (maps to NUMA node via round-robin).
 ///                  Negative values return default resource.
-///                  Large ranges may cause memory growth due to caching.
+///                  Note: cache size is bounded by NUMA node count; large IDs are modulo-mapped.
 /// ## ⚠️  CRITICAL THREAD-LOCAL LIFETIME WARNING ⚠️
 /// **DANGER**: Returns a pointer to a thread_local resource that is destroyed when
 /// the creating thread exits. Using this resource after thread termination causes
