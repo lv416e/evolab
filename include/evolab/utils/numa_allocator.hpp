@@ -48,6 +48,33 @@ inline bool is_numa_system_available() noexcept {
     static const bool available = numa_system_available();
     return available;
 }
+
+/// Get list of available NUMA node IDs (handles sparse topologies)
+///
+/// @return Vector of actual NUMA node IDs available on the system
+inline std::vector<int> get_available_numa_nodes() {
+    std::vector<int> nodes;
+#ifdef EVOLAB_NUMA_SUPPORT
+    if (is_numa_system_available()) {
+        // Check if we have multiple nodes before enumerating
+        const int n = numa_num_configured_nodes();
+        const int node_count = n > 0 ? n : 1;
+
+        if (node_count > 1) {
+            const int max_id = numa_max_node();
+            for (int id = 0; id <= max_id; ++id) {
+                if (numa_bitmask_isbitset(numa_all_nodes_ptr, id)) {
+                    nodes.push_back(id);
+                }
+            }
+        }
+    }
+#endif
+    if (nodes.empty()) {
+        nodes.push_back(0); // Fallback for UMA or if enumeration fails
+    }
+    return nodes;
+}
 } // namespace detail
 
 /// NUMA-aware memory resource for optimal memory placement on multi-socket systems
@@ -426,24 +453,10 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
         numa_node_resource_cache;
 
-    // Enumerate available NUMA nodes once per thread
+    // Enumerate available NUMA nodes once per thread using helper
     static thread_local std::vector<int> available_nodes;
     if (available_nodes.empty()) {
-#ifdef EVOLAB_NUMA_SUPPORT
-        if (NumaMemoryResource::get_numa_node_count() > 1) {
-            // Prefer enumerating actual nodes to tolerate sparse IDs
-            const int max_id = numa_max_node();
-            for (int n = 0; n <= max_id; ++n) {
-                if (numa_bitmask_isbitset(numa_all_nodes_ptr, n)) {
-                    available_nodes.push_back(n);
-                }
-            }
-        }
-#endif
-        // If no NUMA support or no nodes found, fall back to node 0
-        if (available_nodes.empty()) {
-            available_nodes.push_back(0);
-        }
+        available_nodes = detail::get_available_numa_nodes();
     }
 
     const int node_count = static_cast<int>(available_nodes.size());
@@ -517,20 +530,12 @@ inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int isla
         return nullptr; // Use default resource
     }
 
-    // Reuse the same enumeration strategy as create_island_resource
-#ifdef EVOLAB_NUMA_SUPPORT
-    const int max_id = numa_max_node();
-    std::vector<int> available;
-    for (int n = 0; n <= max_id; ++n) {
-        if (numa_bitmask_isbitset(numa_all_nodes_ptr, n)) {
-            available.push_back(n);
-        }
-    }
-    if (!available.empty()) {
+    // Use the same enumeration helper as create_island_resource
+    const auto available = detail::get_available_numa_nodes();
+    if (available.size() > 1) {
         const int node = available[island_id % static_cast<int>(available.size())];
         return NumaMemoryResource::create_on_node(node);
     }
-#endif
 
     return nullptr; // Fallback to default resource
 }
