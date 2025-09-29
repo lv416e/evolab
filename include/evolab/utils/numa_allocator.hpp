@@ -15,6 +15,7 @@
 #include <memory>
 #include <memory_resource>
 #include <mutex>
+#include <new>
 #include <unordered_map>
 
 #ifdef _WIN32
@@ -117,6 +118,12 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     explicit NumaMemoryResource(int node_id)
         : numa_node_(node_id), numa_available_(detail::is_numa_system_available()) {}
 
+    /// Destructor with debug assert for allocation tracking
+    ~NumaMemoryResource() {
+        // Debug check: ensure all allocations have been properly deallocated
+        assert(allocation_map_.empty() && "Memory leak detected: not all allocations were freed");
+    }
+
     /// Create NUMA memory resource for local node
     ///
     /// @return Unique pointer to memory resource that allocates on local NUMA node
@@ -148,7 +155,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     static int get_numa_node_count() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
         if (detail::is_numa_system_available()) {
-            return numa_max_node() + 1;
+            return numa_num_configured_nodes();
         }
 #endif
         return 1;
