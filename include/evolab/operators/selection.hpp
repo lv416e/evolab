@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <exception> // for std::terminate in fallback
 #include <numeric>
 #include <random>
@@ -301,6 +302,12 @@ class RouletteWheelSelection {
             // Convert minimization to maximization weights (uniform case handled above)
             double weight = (max_fitness - fitness.value + 1.0);
             total_weight += weight;
+        }
+
+        // Fallback to uniform selection if total_weight is NaN (due to NaN fitness values)
+        if (std::isnan(total_weight)) {
+            std::uniform_int_distribution<std::size_t> uniform_idx(0, fitnesses.size() - 1);
+            return uniform_idx(rng);
         }
 
         std::uniform_real_distribution<double> dist(0.0, total_weight);
