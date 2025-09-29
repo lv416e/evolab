@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cmath>
 #include <exception> // for std::terminate in fallback
+#include <limits>
 #include <numeric>
 #include <random>
 #include <ranges>
@@ -43,6 +44,12 @@ namespace detail {
     // Fallback: terminate to maintain defined behavior
     std::terminate();
 #endif
+}
+
+/// Helper to create fitness value-based comparison function for consistent sorting
+template <typename FitnessSpan>
+inline auto less_by_value(FitnessSpan&& fitnesses) {
+    return [&](std::size_t a, std::size_t b) { return fitnesses[a].value < fitnesses[b].value; };
 }
 } // namespace detail
 
@@ -304,13 +311,15 @@ class RouletteWheelSelection {
             total_weight += weight;
         }
 
-        // Fallback to uniform selection if total_weight is NaN (due to NaN fitness values)
-        if (std::isnan(total_weight)) {
+        // Fallback to uniform selection if total_weight is non-finite (NaN/Inf) or non-positive
+        if (!std::isfinite(total_weight) || total_weight <= 0.0) {
             std::uniform_int_distribution<std::size_t> uniform_idx(0, fitnesses.size() - 1);
             return uniform_idx(rng);
         }
 
-        std::uniform_real_distribution<double> dist(0.0, total_weight);
+        // Sample in [0, total_weight) explicitly
+        using std::nextafter;
+        std::uniform_real_distribution<double> dist(0.0, nextafter(total_weight, 0.0));
         const double target = dist(rng);
 
         // Second pass: find target bucket without storing weights
@@ -459,8 +468,7 @@ class RankSelection {
         std::iota(indices.begin(), indices.end(), 0);
 
         // Sort by fitness (best first for minimization) using ranges algorithm
-        std::ranges::sort(
-            indices, [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
+        std::ranges::sort(indices, detail::less_by_value(fitnesses));
 
         // Select using on-the-fly probability calculation (no intermediate storage)
         const double n = static_cast<double>(fitnesses.size());
@@ -626,7 +634,7 @@ class SteadyStateSelection {
         // num_best_ is guaranteed to be >= 1 by constructor
         const auto k = std::min(num_best_, fitnesses.size());
         std::nth_element(indices.begin(), indices.begin() + (k - 1), indices.end(),
-                         [&](std::size_t a, std::size_t b) { return fitnesses[a] < fitnesses[b]; });
+                         detail::less_by_value(fitnesses));
 
         // Randomly select from the best k
         std::uniform_int_distribution<std::size_t> dist(0, k - 1);
