@@ -120,8 +120,10 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 
     /// Destructor with debug assert for allocation tracking
     ~NumaMemoryResource() {
-        // Debug check: ensure all allocations have been properly deallocated
-        assert(allocation_map_.empty() && "Memory leak detected: not all allocations were freed");
+#ifndef NDEBUG
+        std::lock_guard<std::mutex> lock(allocations_mutex_);
+        assert(allocations_.empty() && "NumaMemoryResource destroyed with outstanding allocations");
+#endif
     }
 
     /// Create NUMA memory resource for local node
@@ -155,7 +157,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     static int get_numa_node_count() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
         if (detail::is_numa_system_available()) {
-            return numa_num_configured_nodes();
+            const int n = numa_num_configured_nodes();
+            return n > 0 ? n : 1;
         }
 #endif
         return 1;
@@ -422,7 +425,27 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
         numa_node_resource_cache;
 
-    const int node_count = NumaMemoryResource::get_numa_node_count();
+    // Enumerate available NUMA nodes once per thread
+    static thread_local std::vector<int> available_nodes;
+    if (available_nodes.empty()) {
+#ifdef EVOLAB_NUMA_SUPPORT
+        if (NumaMemoryResource::get_numa_node_count() > 1) {
+            // Prefer enumerating actual nodes to tolerate sparse IDs
+            const int max_id = numa_max_node();
+            for (int n = 0; n <= max_id; ++n) {
+                if (numa_bitmask_isbitset(numa_all_nodes_ptr, n)) {
+                    available_nodes.push_back(n);
+                }
+            }
+        }
+#endif
+        // If no NUMA support or no nodes found, fall back to node 0
+        if (available_nodes.empty()) {
+            available_nodes.push_back(0);
+        }
+    }
+
+    const int node_count = static_cast<int>(available_nodes.size());
     if (node_count <= 1 || island_id < 0) {
         return std::pmr::get_default_resource();
     }
@@ -431,17 +454,14 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     // error
     constexpr int MAX_ISLAND_ID_FOR_SANITY_CHECK = 10000;
     if (island_id > MAX_ISLAND_ID_FOR_SANITY_CHECK) {
-        // Fall back to default resource - cache size is bounded by NUMA node count, not island_id
-        // range
         assert(false && "Island ID exceeds sanity check limit; falling back to default allocator.");
         return std::pmr::get_default_resource();
     }
 
-    // Map island to NUMA node (round-robin distribution)
-    // Assumes even distribution across nodes is optimal for workload
-    const int numa_node = island_id % node_count;
+    // Map island to actual NUMA node (round-robin over available nodes)
+    const int numa_node = available_nodes[island_id % node_count];
 
-    // Cache by NUMA node (map size naturally bounded by numa_node_count)
+    // Cache by NUMA node (map size naturally bounded by available_nodes.size())
     auto& resource = numa_node_resource_cache[numa_node];
     if (!resource) {
         resource = NumaMemoryResource::create_on_node(numa_node);
@@ -496,9 +516,22 @@ inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int isla
         return nullptr; // Use default resource
     }
 
-    // Map island to NUMA node (round-robin distribution)
-    const int numa_node = island_id % node_count;
-    return NumaMemoryResource::create_on_node(numa_node);
+    // Reuse the same enumeration strategy as create_island_resource
+#ifdef EVOLAB_NUMA_SUPPORT
+    const int max_id = numa_max_node();
+    std::vector<int> available;
+    for (int n = 0; n <= max_id; ++n) {
+        if (numa_bitmask_isbitset(numa_all_nodes_ptr, n)) {
+            available.push_back(n);
+        }
+    }
+    if (!available.empty()) {
+        const int node = available[island_id % static_cast<int>(available.size())];
+        return NumaMemoryResource::create_on_node(node);
+    }
+#endif
+
+    return nullptr; // Fallback to default resource
 }
 
 /// Helper to get memory resource from owned resource or default

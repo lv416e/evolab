@@ -168,9 +168,16 @@ class Population {
     /// Resize population to specified size
     ///
     /// @param new_size New size for the population
+    /// @throws std::exception Strong exception safety guarantee
     void resize(std::size_t new_size) {
+        const auto old_size = genomes_.size();
         genomes_.resize(new_size);
-        fitness_.resize(new_size);
+        try {
+            fitness_.resize(new_size);
+        } catch (...) {
+            genomes_.resize(old_size); // Restore original size if fitness resize fails
+            throw;
+        }
     }
 
     /// Get the memory resource used by this population
