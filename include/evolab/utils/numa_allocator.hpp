@@ -17,6 +17,7 @@
 #include <mutex>
 #include <new>
 #include <unordered_map>
+#include <vector>
 
 #ifdef _WIN32
 #include <malloc.h> // for _aligned_malloc/_aligned_free

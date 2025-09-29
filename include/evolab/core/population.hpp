@@ -45,13 +45,27 @@ class Population {
     }
 
     /// Get the maximum capacity of this population
-    [[nodiscard]] std::size_t capacity() const noexcept { return genomes_.capacity(); }
+    ///
+    /// @return Minimum capacity of both containers (actual usable pair slots)
+    [[nodiscard]] std::size_t capacity() const noexcept {
+        const auto gcap = genomes_.capacity();
+        const auto fcap = fitness_.capacity();
+        return gcap < fcap ? gcap : fcap;
+    }
 
     /// Get the current number of individuals in the population
     [[nodiscard]] std::size_t size() const noexcept { return genomes_.size(); }
 
     /// Check if the population is empty
     [[nodiscard]] bool empty() const noexcept { return genomes_.empty(); }
+
+    /// Reserve capacity for both arrays to avoid reallocations and keep capacities in sync
+    ///
+    /// @param new_cap Minimum capacity to reserve for both genome and fitness containers
+    void reserve(std::size_t new_cap) {
+        genomes_.reserve(new_cap);
+        fitness_.reserve(new_cap);
+    }
 
     /// Add an individual to the population
     ///
@@ -142,22 +156,26 @@ class Population {
     /// Get span over all genomes for batch operations and vectorization
     ///
     /// @return Span covering all genome data
-    [[nodiscard]] std::span<GenomeT> genomes() { return std::span(genomes_); }
+    [[nodiscard]] std::span<GenomeT> genomes() { return {genomes_.data(), genomes_.size()}; }
 
     /// Get const span over all genomes for batch operations and vectorization
     ///
     /// @return Const span covering all genome data
-    [[nodiscard]] std::span<const GenomeT> genomes() const { return std::span(genomes_); }
+    [[nodiscard]] std::span<const GenomeT> genomes() const {
+        return {genomes_.data(), genomes_.size()};
+    }
 
     /// Get span over all fitness values for batch operations and vectorization
     ///
     /// @return Span covering all fitness data
-    [[nodiscard]] std::span<Fitness> fitness_values() { return std::span(fitness_); }
+    [[nodiscard]] std::span<Fitness> fitness_values() { return {fitness_.data(), fitness_.size()}; }
 
     /// Get const span over all fitness values for batch operations and vectorization
     ///
     /// @return Const span covering all fitness data
-    [[nodiscard]] std::span<const Fitness> fitness_values() const { return std::span(fitness_); }
+    [[nodiscard]] std::span<const Fitness> fitness_values() const {
+        return {fitness_.data(), fitness_.size()};
+    }
 
     /// Clear all individuals from the population
     void clear() noexcept {
