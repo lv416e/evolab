@@ -57,18 +57,30 @@ class Population {
     ///
     /// @param genome The genome to add
     /// @param fitness The fitness value for this individual
+    /// @throws std::exception Strong exception safety guarantee
     void push_back(const GenomeT& genome, Fitness fitness) {
         genomes_.push_back(genome);
-        fitness_.push_back(fitness);
+        try {
+            fitness_.push_back(fitness);
+        } catch (...) {
+            genomes_.pop_back(); // Restore invariant if fitness insertion fails
+            throw;
+        }
     }
 
     /// Add an individual to the population (move version)
     ///
     /// @param genome The genome to add (will be moved)
     /// @param fitness The fitness value for this individual
+    /// @throws std::exception Strong exception safety guarantee
     void push_back(GenomeT&& genome, Fitness fitness) {
         genomes_.push_back(std::move(genome));
-        fitness_.push_back(fitness);
+        try {
+            fitness_.push_back(fitness);
+        } catch (...) {
+            genomes_.pop_back(); // Restore invariant if fitness insertion fails
+            throw;
+        }
     }
 
     /// Get reference to genome at specified index
