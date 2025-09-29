@@ -321,6 +321,9 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             _aligned_free(alloc_info.original_ptr);
             break;
 #endif
+        default:
+            // This should never happen if allocation tracking is correct
+            std::abort();
         }
     }
 
