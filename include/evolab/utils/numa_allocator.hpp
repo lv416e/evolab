@@ -310,12 +310,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
         switch (alloc_info.kind) {
 #ifdef EVOLAB_NUMA_SUPPORT
         case DeallocationKind::Numa:
-            if (numa_available_) {
-                numa_free(alloc_info.original_ptr, alloc_info.original_bytes);
-                return;
-            }
-            // If NUMA was recorded but not available now, fall through to std::free
-            [[fallthrough]];
+            numa_free(alloc_info.original_ptr, alloc_info.original_bytes);
+            break;
 #endif
         case DeallocationKind::StdFree:
             std::free(alloc_info.original_ptr);
