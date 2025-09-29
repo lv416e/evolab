@@ -49,7 +49,8 @@ namespace detail {
 /// Helper to create fitness value-based comparison function for consistent sorting
 template <typename FitnessSpan>
 inline auto less_by_value(FitnessSpan&& fitnesses) {
-    return [&](std::size_t a, std::size_t b) { return fitnesses[a].value < fitnesses[b].value; };
+    auto view = std::forward<FitnessSpan>(fitnesses);
+    return [view](std::size_t a, std::size_t b) { return view[a].value < view[b].value; };
 }
 } // namespace detail
 
