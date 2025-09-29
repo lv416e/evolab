@@ -53,6 +53,9 @@ struct GAConfig {
     // Performance tracking
     bool track_operator_performance = false;
     bool save_population_snapshots = false;
+
+    // Memory allocation
+    std::pmr::memory_resource* memory_resource = std::pmr::get_default_resource();
 };
 
 /// Operator performance statistics
@@ -157,7 +160,7 @@ class GeneticAlgorithm {
         }
 
         // Initialize population with Structure-of-Arrays layout for better memory efficiency
-        Population<GenomeT> population(config.population_size);
+        Population<GenomeT> population(config.population_size, config.memory_resource);
 
         for (std::size_t i = 0; i < config.population_size; ++i) {
             auto genome = problem.random_genome(rng_);
@@ -193,7 +196,7 @@ class GeneticAlgorithm {
                 break;
 
             // Create next generation with optimized memory layout
-            Population<GenomeT> new_population(config.population_size);
+            Population<GenomeT> new_population(config.population_size, config.memory_resource);
 
             // Elite preservation
             const std::size_t elite_count =
