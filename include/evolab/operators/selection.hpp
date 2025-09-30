@@ -327,8 +327,7 @@ class RouletteWheelSelection {
         }
 
         // Sample in [0, total_weight) explicitly
-        using std::nextafter;
-        std::uniform_real_distribution<double> dist(0.0, nextafter(total_weight, 0.0));
+        std::uniform_real_distribution<double> dist(0.0, total_weight);
         const double target = dist(rng);
 
         // Second pass: find target bucket without storing weights
@@ -487,8 +486,7 @@ class RankSelection {
 
         // Select using on-the-fly probability calculation (no intermediate storage)
         const double n = static_cast<double>(fitnesses.size());
-        using std::nextafter;
-        std::uniform_real_distribution<double> dist(0.0, nextafter(1.0, 0.0));
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
         const double target = dist(rng);
 
         double cumulative = 0.0;
