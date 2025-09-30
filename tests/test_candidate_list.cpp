@@ -291,12 +291,13 @@ int test_tsp_integration() {
                        "TSP should return valid candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
 
-    // NOTE: Gemini's original concern was about pointer inequality (cl_ptr3 != cl_ptr).
-    // The current TSP implementation appears to reuse/overwrite the same cache entry,
-    // which means cl_ptr and cl_ptr3 point to the same memory (possibly even the same pointer
-    // value). This is a limitation of the current caching strategy but doesn't affect correctness
-    // as long as the returned pointer has the correct k value.
-    // TODO: Consider improving TSP cache to maintain separate entries for different k values
+    // NOTE: The current TSP caching implementation for candidate lists is unsafe.
+    // It reuses a single cache entry, which means a call to `get_candidate_list(k)`
+    // invalidates any pointer returned from a previous call with a different `k`.
+    // Using such an invalidated pointer leads to undefined behavior (use-after-free).
+    // This test verifies the behavior for a new `k`, but avoids using the old, invalidated pointer.
+    // TODO: The caching mechanism in `TSP` must be redesigned to be safe, for example
+    // by caching a list for each `k` value requested (e.g., using a `std::map<int, utils::CandidateList>`).
 
     return result.summary();
 }
