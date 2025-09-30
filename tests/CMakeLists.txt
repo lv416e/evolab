@@ -33,6 +33,10 @@ add_executable(test_candidate_list test_candidate_list.cpp)
 target_link_libraries(test_candidate_list PRIVATE evolab)
 target_compile_features(test_candidate_list PRIVATE cxx_std_23)
 
+# Register candidate list tests with CTest
+add_test(NAME CandidateListTests COMMAND test_candidate_list)
+set_tests_properties(CandidateListTests PROPERTIES LABELS "unit;tsp;candidate-list")
+
 # Conditional TBB parallel tests
 if(TBB_FOUND)
     add_executable(test_parallel test_parallel.cpp)
@@ -60,8 +64,16 @@ add_test(NAME SchedulerTests COMMAND test_schedulers)
 add_test(NAME TSPLIBTests COMMAND test_tsplib)
 add_test(NAME ConfigTests COMMAND test_config)
 add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)
-add_test(NAME CandidateListTests COMMAND test_candidate_list)
 add_test(NAME NumaTests COMMAND test_numa)
+
+# Add labels to tests for filtering in CI
+set_tests_properties(CoreTests PROPERTIES LABELS "unit;core")
+set_tests_properties(TSPTests PROPERTIES LABELS "unit;tsp")
+set_tests_properties(OperatorTests PROPERTIES LABELS "unit;operators")
+set_tests_properties(SchedulerTests PROPERTIES LABELS "unit;schedulers")
+set_tests_properties(TSPLIBTests PROPERTIES LABELS "integration;tsplib")
+set_tests_properties(ConfigTests PROPERTIES LABELS "unit;config")
+set_tests_properties(ConfigIntegrationTests PROPERTIES LABELS "integration;config")
 
 # Check for NUMA support
 find_path(NUMA_INCLUDE_DIR numa.h)

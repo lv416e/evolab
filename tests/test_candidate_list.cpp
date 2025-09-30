@@ -5,7 +5,9 @@
 /// with TSP problem instances following TDD methodology.
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include <evolab/problems/tsp.hpp>
@@ -50,7 +52,7 @@ class TestResult {
         }
     }
 
-    void print_summary() {
+    int print_summary() {
         std::cout << "Passed: " << passed << ", Failed: " << failed << "\n";
         if (!failures.empty()) {
             std::cout << "Failures:\n";
@@ -59,10 +61,11 @@ class TestResult {
             }
         }
         std::cout << "\n";
+        return failed;
     }
 };
 
-void test_construction_basic() {
+int test_construction_basic() {
     TestResult result;
 
     // Create simple 5-city distance matrix
@@ -83,10 +86,10 @@ void test_construction_basic() {
                          "Each city should have exactly 3 candidates");
     }
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_construction_edge_cases() {
+int test_construction_edge_cases() {
     TestResult result;
 
     std::vector<std::vector<double>> dist = {
@@ -124,10 +127,10 @@ void test_construction_edge_cases() {
         result.assert_eq(3, cl.k(), "k > n should auto-correct to n-1");
     }
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_nearest_neighbor_correctness() {
+int test_nearest_neighbor_correctness() {
     TestResult result;
 
     // Known distance matrix where nearest neighbors are predictable
@@ -146,14 +149,14 @@ void test_nearest_neighbor_correctness() {
         const auto& candidates = cl.get_candidates(0);
         result.assert_eq(3, static_cast<int>(candidates.size()), "City 0 should have 3 candidates");
 
-        // Check that candidates are actually the 3 nearest (in any order, but we expect sorted)
+        // Check that candidates are actually the 3 nearest (sorted by distance)
         std::vector<int> expected = {1, 4, 2}; // sorted by distance: 1.0, 3.0, 5.0
 
-        // Verify all expected candidates are present
-        for (int exp : expected) {
-            bool found = std::find(candidates.begin(), candidates.end(), exp) != candidates.end();
-            result.assert_true(found,
-                               "City 0 should have city " + std::to_string(exp) + " as candidate");
+        // Verify all expected candidates are present in order
+        for (size_t i = 0; i < expected.size(); ++i) {
+            result.assert_eq(expected[i], candidates[i],
+                             "City 0 candidate " + std::to_string(i) + " should be " +
+                                 std::to_string(expected[i]));
         }
     }
 
@@ -162,17 +165,17 @@ void test_nearest_neighbor_correctness() {
         const auto& candidates = cl.get_candidates(2);
         std::vector<int> expected = {3, 1, 0}; // sorted by distance: 3.0, 4.0, 5.0
 
-        for (int exp : expected) {
-            bool found = std::find(candidates.begin(), candidates.end(), exp) != candidates.end();
-            result.assert_true(found,
-                               "City 2 should have city " + std::to_string(exp) + " as candidate");
+        for (size_t i = 0; i < expected.size(); ++i) {
+            result.assert_eq(expected[i], candidates[i],
+                             "City 2 candidate " + std::to_string(i) + " should be " +
+                                 std::to_string(expected[i]));
         }
     }
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_mutual_candidates() {
+int test_mutual_candidates() {
     TestResult result;
 
     std::vector<std::vector<double>> dist = {
@@ -188,7 +191,7 @@ void test_mutual_candidates() {
 
     // City 0's candidates: [1, 2]
     // City 3's candidates: [2, 1] (distances: 3.0, 7.0)
-    // They don't share each other
+    // They don't share each other (asymmetric relationship)
     result.assert_true(!cl.are_mutual_candidates(0, 3),
                        "Cities 0 and 3 should not be mutual candidates");
 
@@ -198,10 +201,23 @@ void test_mutual_candidates() {
     result.assert_true(cl.are_mutual_candidates(2, 3),
                        "Cities 2 and 3 should be mutual candidates");
 
-    result.print_summary();
+    // Test asymmetric candidate relationship explicitly
+    // City 1's candidates: [0, 2] → 3 is NOT in 1's candidates
+    // City 3's candidates: [2, 1] → 1 IS in 3's candidates
+    // This is still mutual because 1 appears in 3's list (even though 3 doesn't appear in 1's)
+    result.assert_true(cl.are_mutual_candidates(1, 3),
+                       "Cities 1 and 3 should be mutual candidates (1 is in 3's list)");
+
+    // Test truly asymmetric relationship: neither is in the other's list
+    // City 0's candidates: [1, 2] → 3 is NOT in 0's candidates
+    // City 3's candidates: [2, 1] → 0 is NOT in 3's candidates
+    result.assert_true(!cl.are_mutual_candidates(0, 3),
+                       "Cities 0 and 3 should not be mutual candidates (neither in other's list)");
+
+    return result.print_summary();
 }
 
-void test_candidate_pairs() {
+int test_candidate_pairs() {
     TestResult result;
 
     std::vector<std::vector<double>> dist = {{0.0, 1.0, 5.0}, {1.0, 0.0, 4.0}, {5.0, 4.0, 0.0}};
@@ -211,7 +227,8 @@ void test_candidate_pairs() {
     auto pairs = cl.get_all_candidate_pairs();
 
     result.assert_true(pairs.size() > 0, "Should have at least one candidate pair");
-    result.assert_true(pairs.size() <= 3, "Should have at most 3 candidate pairs (n * k / 2)");
+    // Each city contributes k candidates, but pairs may be duplicated or asymmetric
+    result.assert_true(pairs.size() <= 3, "Should have at most n*k unique pairs");
 
     // Verify all pairs satisfy i < j (no duplicates)
     for (const auto& [i, j] : pairs) {
@@ -220,10 +237,10 @@ void test_candidate_pairs() {
         result.assert_true(j >= 0 && j < 3, "Second element should be valid city index");
     }
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_factory_function() {
+int test_factory_function() {
     TestResult result;
 
     std::vector<std::vector<double>> dist(20, std::vector<double>(20, 0.0));
@@ -240,18 +257,22 @@ void test_factory_function() {
     // Default k_factor = 2.0
     auto cl = utils::make_candidate_list(dist);
 
-    // For n=20, k should be around 2.0 * log(20) ≈ 2.0 * 2.996 ≈ 6
-    result.assert_true(cl.k() >= 5, "Factory should set k >= 5");
-    result.assert_true(cl.k() <= 10, "Factory should set k <= 10 for n=20");
+    // For n=20, k should be around 2.0 * log(20) ≈ 2.0 * 2.996 ≈ 5.99
+    int expected_k_default = static_cast<int>(2.0 * std::log(20.0));
+    result.assert_true(cl.k() >= expected_k_default - 1, "Factory should set k near 2.0 * log(n)");
+    result.assert_true(cl.k() <= expected_k_default + 2, "Factory should set k near 2.0 * log(n)");
 
     // Test custom k_factor
     auto cl_large = utils::make_candidate_list(dist, 5.0);
+    int expected_k_large = static_cast<int>(5.0 * std::log(20.0));
     result.assert_true(cl_large.k() > cl.k(), "Larger k_factor should produce larger k");
+    result.assert_true(cl_large.k() >= expected_k_large - 1,
+                       "Factory should set k near 5.0 * log(n)");
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_tsp_integration() {
+int test_tsp_integration() {
     TestResult result;
 
     // Create small TSP instance
@@ -282,10 +303,10 @@ void test_tsp_integration() {
     result.assert_true(cl_ptr3 != nullptr, "TSP should create new candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
 
-    result.print_summary();
+    return result.print_summary();
 }
 
-void test_large_instance_performance() {
+int test_large_instance_performance() {
     TestResult result;
 
     // Test with larger instance to verify scalability
@@ -317,39 +338,47 @@ void test_large_instance_performance() {
     // Get all pairs (should handle large count efficiently)
     auto pairs = cl.get_all_candidate_pairs();
     result.assert_true(pairs.size() <= static_cast<size_t>(n * 20),
-                       "Pair count should be reasonable");
+                       "Pair count should be at most n*k");
 
-    result.print_summary();
+    return result.print_summary();
 }
 
 int main() {
     std::cout << "=== Candidate List Comprehensive Test Suite ===\n\n";
 
+    int total_failures = 0;
+
     std::cout << "Test: Basic Construction\n";
-    test_construction_basic();
+    total_failures += test_construction_basic();
 
     std::cout << "Test: Edge Cases (k boundaries)\n";
-    test_construction_edge_cases();
+    total_failures += test_construction_edge_cases();
 
     std::cout << "Test: Nearest Neighbor Correctness\n";
-    test_nearest_neighbor_correctness();
+    total_failures += test_nearest_neighbor_correctness();
 
     std::cout << "Test: Mutual Candidates\n";
-    test_mutual_candidates();
+    total_failures += test_mutual_candidates();
 
     std::cout << "Test: Candidate Pairs\n";
-    test_candidate_pairs();
+    total_failures += test_candidate_pairs();
 
     std::cout << "Test: Factory Function\n";
-    test_factory_function();
+    total_failures += test_factory_function();
 
     std::cout << "Test: TSP Integration\n";
-    test_tsp_integration();
+    total_failures += test_tsp_integration();
 
     std::cout << "Test: Large Instance Performance\n";
-    test_large_instance_performance();
+    total_failures += test_large_instance_performance();
 
     std::cout << "=== All Candidate List Tests Completed ===\n";
 
+    if (total_failures > 0) {
+        std::cout << "FAILURE: " << total_failures << " test(s) failed\n";
+        return 1;
+    }
+
+    std::cout << "SUCCESS: All tests passed\n";
     return 0;
 }
