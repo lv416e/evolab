@@ -42,6 +42,10 @@ void test_selection_operators() {
         selected_counts[selected]++;
     }
 
+    // Sanity check: counts should sum to total iterations
+    int total_selections = std::accumulate(selected_counts.begin(), selected_counts.end(), 0);
+    result.assert_equals(1000, total_selections, "Tournament counts sum to iterations");
+
     // Better individuals (lower fitness) should be selected more often
     result.assert_true(selected_counts[1] > selected_counts[0],
                        "Tournament favors better fitness (index 1 vs 0)");
@@ -332,6 +336,8 @@ void test_factory_functions() {
 
     result.assert_true(tsp.is_valid_tour(result_tsp_advanced.best_genome),
                        "TSP advanced GA factory produces valid solution");
+    result.assert_true(std::isfinite(result_tsp_advanced.best_fitness.value),
+                       "Best fitness is finite");
 
     result.print_summary();
 }
