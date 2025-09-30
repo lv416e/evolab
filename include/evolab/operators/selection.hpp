@@ -32,19 +32,13 @@ namespace detail {
 /// In release builds, compiler intrinsics provide optimization hints.
 [[noreturn]] inline void unreachable() noexcept {
 #if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
-    std::terminate();
-    std::unreachable(); // hint after termination call
+    std::unreachable();
 #elif defined(_MSC_VER)
-    __assume(false);  // MSVC optimization hint
-    std::terminate(); // Fallback if assumption is incorrect
+    __assume(false);
 #elif defined(__GNUC__) || defined(__clang__)
-    // Terminate to preserve defined behavior if reached, then provide hint
-    std::terminate();
     __builtin_unreachable();
-#else
-    // Fallback: terminate to maintain defined behavior
-    std::terminate();
 #endif
+    std::terminate();
 }
 
 /// Helper to create fitness value-based comparison function for consistent sorting
