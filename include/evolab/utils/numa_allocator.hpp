@@ -143,7 +143,11 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     ///
     /// @param node_id NUMA node ID (-1 for local node)
     explicit NumaMemoryResource(int node_id)
-        : numa_node_(node_id), numa_available_(detail::is_numa_system_available()) {}
+        : numa_node_(node_id), numa_available_(detail::is_numa_system_available()) {
+#ifndef NDEBUG
+        assert(node_id >= -1 && "node_id must be -1 (local) or a non-negative NUMA node id");
+#endif
+    }
 
     /// Destructor with debug assert for allocation tracking
     ~NumaMemoryResource() {
@@ -259,7 +263,8 @@ class NumaMemoryResource : public std::pmr::memory_resource {
             std::size_t alloc_size = bytes + overhead;
             void* original_ptr = nullptr;
 
-            if (numa_node_ == -1) {
+            // Treat any negative node ID as "local"
+            if (numa_node_ < 0) {
                 // Allocate on local NUMA node
                 original_ptr = numa_alloc_local(alloc_size);
             } else {
@@ -523,7 +528,7 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
 ///
 /// @return Owned memory resource (nullptr indicates use std::pmr::get_default_resource())
 /// @see create_optimized_ga_resource() for thread-local alternative
-inline std::unique_ptr<NumaMemoryResource> create_owned_optimized_ga_resource() {
+[[nodiscard]] inline std::unique_ptr<NumaMemoryResource> create_owned_optimized_ga_resource() {
     if (NumaMemoryResource::get_numa_node_count() > 1) {
         // Multi-node system: return owned local NUMA resource
         return NumaMemoryResource::create_local();
@@ -545,7 +550,8 @@ inline std::unique_ptr<NumaMemoryResource> create_owned_optimized_ga_resource() 
 /// @param island_id Island identifier (maps to NUMA node via round-robin)
 /// @return Owned memory resource (nullptr indicates use std::pmr::get_default_resource())
 /// @see create_island_resource() for thread-local alternative
-inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int island_id) {
+[[nodiscard]] inline std::unique_ptr<NumaMemoryResource>
+create_owned_island_resource(int island_id) {
     const int node_count = NumaMemoryResource::get_numa_node_count();
     if (node_count <= 1 || island_id < 0) {
         return nullptr; // Use default resource
