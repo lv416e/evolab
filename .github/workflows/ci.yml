@@ -127,10 +127,28 @@ jobs:
           CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)
           EXCLUDE=""
           if [[ "$NUMA" != "on" ]]; then EXCLUDE="-E numa"; fi
+
+          # Print diagnostic info
+          echo "::group::Test Configuration"
+          echo "Cores available: $CORES"
+          echo "NUMA enabled: $NUMA"
+          echo "Full test suite: $FULL"
+          echo "Exclude pattern: $EXCLUDE"
+          echo "::endgroup::"
+
+          # List available tests for diagnostics
+          echo "::group::Available Tests"
+          ctest --test-dir build --show-only=json-v1 $EXCLUDE | jq -r '.tests[] | "\(.name): \(.properties[] | select(.name=="LABELS") | .value // "no-label")"' 2>/dev/null || ctest --test-dir build --show-only $EXCLUDE
+          echo "::endgroup::"
+
           if [[ "$FULL" == "true" ]]; then
+            echo "::group::Running Full Test Suite"
             ctest --test-dir build --output-on-failure -j "$CORES" --timeout 300 $EXCLUDE
+            echo "::endgroup::"
           else
+            echo "::group::Running Smoke Tests"
             ctest --test-dir build --output-on-failure -j "$CORES" --timeout 120 -L smoke $EXCLUDE
+            echo "::endgroup::"
           fi
 
       - name: Test (Windows, smoke by default)
@@ -138,10 +156,28 @@ jobs:
         run: |
           $cores = [Environment]::ProcessorCount
           $full = "${{ github.event.inputs.full || 'false' }}"
+
+          # Print diagnostic info
+          Write-Host "::group::Test Configuration"
+          Write-Host "Cores available: $cores"
+          Write-Host "NUMA enabled: off (Windows)"
+          Write-Host "Full test suite: $full"
+          Write-Host "Exclude pattern: -E numa"
+          Write-Host "::endgroup::"
+
+          # List available tests for diagnostics
+          Write-Host "::group::Available Tests"
+          ctest --test-dir build -C Release --show-only -E numa
+          Write-Host "::endgroup::"
+
           if ($full -eq "true") {
+            Write-Host "::group::Running Full Test Suite"
             ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 300 -E numa
+            Write-Host "::endgroup::"
           } else {
+            Write-Host "::group::Running Smoke Tests"
             ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 120 -L smoke -E numa
+            Write-Host "::endgroup::"
           }
         shell: pwsh
 
@@ -149,6 +185,16 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ctest-logs
-          path: build/Testing/Temporary/LastTest.log
+          name: ctest-logs-${{ matrix.os }}-numa-${{ matrix.numa }}
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/Testing/Temporary/LastTestsFailed.log
+          if-no-files-found: ignore
+
+      - name: Upload compilation database (on failure, Linux only)
+        if: failure() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-commands-${{ matrix.numa }}
+          path: build/compile_commands.json
           if-no-files-found: ignore
