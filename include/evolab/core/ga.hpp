@@ -11,6 +11,7 @@
 #include <chrono>
 #include <concepts>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <random>
@@ -152,6 +153,7 @@ class GeneticAlgorithm {
         // Handle population_size == 0 to prevent undefined behavior with empty ranges.
         if (config.population_size == 0) {
             GAResult<GenomeT> result;
+            result.best_fitness = Fitness{std::numeric_limits<double>::infinity()};
             result.generations = 0;
             result.evaluations = 0;
             result.total_time = std::chrono::duration_cast<std::chrono::milliseconds>(

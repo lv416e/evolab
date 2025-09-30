@@ -368,7 +368,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @param bytes Size of the allocation
     /// @param alignment Alignment used for allocation
     void do_deallocate(void* ptr, [[maybe_unused]] std::size_t bytes,
-                       [[maybe_unused]] std::size_t alignment) override {
+                       [[maybe_unused]] std::size_t alignment) noexcept override {
         AllocationInfo alloc_info{};
         bool found = false;
         {
