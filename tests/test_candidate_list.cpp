@@ -296,7 +296,18 @@ int test_tsp_integration() {
 
     // Test caching: second call with same k should return same pointer
     const auto* cl_ptr2 = tsp.get_candidate_list(5);
-    result.assert_true(cl_ptr == cl_ptr2, "TSP should cache candidate lists");
+    result.assert_true(cl_ptr == cl_ptr2, "TSP should cache candidate lists (pointer identity)");
+
+    // Verify structural equality as well (in case pointer identity isn't guaranteed)
+    result.assert_eq(cl_ptr->size(), cl_ptr2->size(), "Cached list should have same size");
+    result.assert_eq(cl_ptr->k(), cl_ptr2->k(), "Cached list should have same k");
+    for (int i = 0; i < 10; ++i) {
+        const auto& candidates1 = cl_ptr->get_candidates(i);
+        const auto& candidates2 = cl_ptr2->get_candidates(i);
+        result.assert_true(candidates1 == candidates2,
+                           "Cached list should have identical candidates for city " +
+                               std::to_string(i));
+    }
 
     // Test different k creates new list
     const auto* cl_ptr3 = tsp.get_candidate_list(8);
