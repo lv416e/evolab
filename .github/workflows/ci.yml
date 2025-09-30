@@ -54,7 +54,7 @@ jobs:
           - os: windows-latest
             numa: on
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -90,15 +90,13 @@ jobs:
 
       - name: Configure (Linux)
         if: runner.os == 'Linux'
+        env:
+          NUMA: ${{ matrix.numa }}
         run: |
-          EXTRA_FLAGS=""
-          if [[ "${{ matrix.numa || 'off' }}" == "on" ]]; then
-            EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=ON"
-          else
-            EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=OFF"
-          fi
+          EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=$([[ "$NUMA" == "on" ]] && echo ON || echo OFF)"
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             $EXTRA_FLAGS
@@ -122,12 +120,17 @@ jobs:
 
       - name: Test (Linux, smoke by default)
         if: runner.os == 'Linux'
+        env:
+          NUMA: ${{ matrix.numa }}
+          FULL: ${{ github.event.inputs.full || 'false' }}
         run: |
           CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)
-          if [[ "${{ github.event.inputs.full || 'false' }}" == "true" ]]; then
-            ctest --test-dir build --output-on-failure -j "$CORES" --timeout 300
+          EXCLUDE=""
+          if [[ "$NUMA" != "on" ]]; then EXCLUDE="-E numa"; fi
+          if [[ "$FULL" == "true" ]]; then
+            ctest --test-dir build --output-on-failure -j "$CORES" --timeout 300 $EXCLUDE
           else
-            ctest --test-dir build --output-on-failure -j "$CORES" --timeout 120 -L smoke
+            ctest --test-dir build --output-on-failure -j "$CORES" --timeout 120 -L smoke $EXCLUDE
           fi
 
       - name: Test (Windows, smoke by default)

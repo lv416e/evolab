@@ -306,9 +306,10 @@ class RouletteWheelSelection {
 
         // First pass: calculate total weight (avoiding heap allocation)
         double total_weight = 0.0;
+        const double base = max_fitness + 1.0;
         for (const auto& fitness : fitnesses) {
             // Convert minimization to maximization weights (uniform case handled above)
-            double weight = (max_fitness - fitness.value + 1.0);
+            double weight = base - fitness.value;
             total_weight += weight;
         }
 
@@ -326,7 +327,7 @@ class RouletteWheelSelection {
         // Second pass: find target bucket without storing weights
         double cumulative = 0.0;
         for (std::size_t i = 0; i < fitnesses.size(); ++i) {
-            const double weight = (max_fitness - fitnesses[i].value + 1.0);
+            const double weight = base - fitnesses[i].value;
             cumulative += weight;
             if (cumulative >= target) {
                 return i;
@@ -473,7 +474,8 @@ class RankSelection {
 
         // Select using on-the-fly probability calculation (no intermediate storage)
         const double n = static_cast<double>(fitnesses.size());
-        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        using std::nextafter;
+        std::uniform_real_distribution<double> dist(0.0, nextafter(1.0, 0.0));
         const double target = dist(rng);
 
         double cumulative = 0.0;

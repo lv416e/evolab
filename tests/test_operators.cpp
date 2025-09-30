@@ -26,8 +26,7 @@ bool is_valid_permutation(const std::vector<int>& perm, int n) {
 void test_selection_operators() {
     TestResult result;
 
-    // Create test population and fitnesses
-    std::vector<std::vector<int>> population = {{0, 1, 2}, {1, 2, 0}, {2, 0, 1}, {0, 2, 1}};
+    // Create test fitnesses
     std::vector<core::Fitness> fitnesses = {core::Fitness{10.0}, core::Fitness{5.0},
                                             core::Fitness{15.0}, core::Fitness{8.0}};
 
