@@ -5,6 +5,7 @@
 /// with TSP problem instances following TDD methodology.
 
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -300,7 +301,7 @@ int test_tsp_integration() {
     return result.summary();
 }
 
-int test_large_instance_performance() {
+int test_large_instance_scalability() {
     TestResult result;
 
     // Test with larger instance to verify scalability
@@ -340,39 +341,24 @@ int test_large_instance_performance() {
 int main() {
     std::cout << "=== Candidate List Comprehensive Test Suite ===\n\n";
 
+    using test_case = std::function<int()>;
+    const std::vector<std::pair<std::string, test_case>> tests = {
+        {"Basic Construction", test_construction_basic},
+        {"Edge Cases (k boundaries)", test_construction_edge_cases},
+        {"Nearest Neighbor Correctness", test_nearest_neighbor_correctness},
+        {"Mutual Candidates", test_mutual_candidates},
+        {"Candidate Pairs", test_candidate_pairs},
+        {"Factory Function", test_factory_function},
+        {"TSP Integration", test_tsp_integration},
+        {"Large Instance Scalability", test_large_instance_scalability},
+    };
+
     int total_failures = 0;
-
-    std::cout << "Test: Basic Construction\n";
-    int failures = test_construction_basic();
-    total_failures += failures;
-
-    std::cout << "Test: Edge Cases (k boundaries)\n";
-    failures = test_construction_edge_cases();
-    total_failures += failures;
-
-    std::cout << "Test: Nearest Neighbor Correctness\n";
-    failures = test_nearest_neighbor_correctness();
-    total_failures += failures;
-
-    std::cout << "Test: Mutual Candidates\n";
-    failures = test_mutual_candidates();
-    total_failures += failures;
-
-    std::cout << "Test: Candidate Pairs\n";
-    failures = test_candidate_pairs();
-    total_failures += failures;
-
-    std::cout << "Test: Factory Function\n";
-    failures = test_factory_function();
-    total_failures += failures;
-
-    std::cout << "Test: TSP Integration\n";
-    failures = test_tsp_integration();
-    total_failures += failures;
-
-    std::cout << "Test: Large Instance Performance\n";
-    failures = test_large_instance_performance();
-    total_failures += failures;
+    for (const auto& [name, func] : tests) {
+        std::cout << "Test: " << name << "\n";
+        int failures = func();
+        total_failures += failures;
+    }
 
     std::cout << "=== All Candidate List Tests Completed ===\n";
 
