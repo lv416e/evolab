@@ -4,7 +4,6 @@
 /// Tests verify correctness of k-NN pre-computation, API completeness, and integration
 /// with TSP problem instances following TDD methodology.
 
-#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <string>
