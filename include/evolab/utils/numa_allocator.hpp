@@ -60,6 +60,11 @@ inline std::vector<int> get_available_numa_nodes() {
         const int node_count = n > 0 ? n : 1;
 
         if (node_count > 1) {
+            // Defensive: ensure libnuma's global bitmask is available
+            if (numa_all_nodes_ptr == nullptr) {
+                nodes.push_back(0);
+                return nodes;
+            }
             const int max_id = numa_max_node();
             for (int id = 0; id <= max_id; ++id) {
                 if (numa_bitmask_isbitset(numa_all_nodes_ptr, id)) {
@@ -242,8 +247,14 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @throws std::bad_alloc if allocation fails
     void* do_allocate(std::size_t bytes, std::size_t alignment) override {
         // Precondition check for std::align and aligned allocation functions
+#ifndef NDEBUG
         assert((alignment > 0) && ((alignment & (alignment - 1)) == 0) &&
                "alignment must be a power of two");
+#else
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
+            throw std::bad_alloc{};
+        }
+#endif
 
         // Ensure minimum alignment and handle zero-byte allocations
         if (alignment < alignof(std::max_align_t)) {
