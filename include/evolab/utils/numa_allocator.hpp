@@ -34,19 +34,18 @@ namespace evolab::utils {
 
 /// Thread-safe NUMA system detection
 namespace detail {
-/// Check if NUMA system is available (called once per program)
-inline bool numa_system_available() noexcept {
+/// Program-wide cached NUMA availability (one initialization across all TUs)
+inline const bool kNumaAvailable = []() noexcept {
 #ifdef EVOLAB_NUMA_SUPPORT
     return numa_available() >= 0;
 #else
     return false;
 #endif
-}
+}();
 
-/// Get cached NUMA availability (thread-safe)
+/// Thread-safe accessor
 inline bool is_numa_system_available() noexcept {
-    static const bool available = numa_system_available();
-    return available;
+    return kNumaAvailable;
 }
 
 /// Get list of available NUMA node IDs (handles sparse topologies)
@@ -154,6 +153,12 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 #endif
     }
 
+    /// Prevent accidental copies/moves that would duplicate allocation maps
+    NumaMemoryResource(const NumaMemoryResource&) = delete;
+    NumaMemoryResource& operator=(const NumaMemoryResource&) = delete;
+    NumaMemoryResource(NumaMemoryResource&&) = delete;
+    NumaMemoryResource& operator=(NumaMemoryResource&&) = delete;
+
     /// Create NUMA memory resource for local node
     ///
     /// @return Unique pointer to memory resource that allocates on local NUMA node
@@ -166,6 +171,22 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// @param node_id The NUMA node ID to allocate on
     /// @return Unique pointer to memory resource that allocates on specified node
     static std::unique_ptr<NumaMemoryResource> create_on_node(int node_id) {
+#ifdef EVOLAB_NUMA_SUPPORT
+        if (detail::is_numa_system_available()) {
+            const auto nodes = detail::get_available_numa_nodes();
+            bool valid = false;
+            for (int n : nodes) {
+                if (n == node_id) {
+                    valid = true;
+                    break;
+                }
+            }
+            if (!valid) {
+                assert(false && "Invalid NUMA node id; falling back to local resource");
+                return std::make_unique<NumaMemoryResource>(-1);
+            }
+        }
+#endif
         return std::make_unique<NumaMemoryResource>(node_id);
     }
 
@@ -547,7 +568,7 @@ inline std::unique_ptr<NumaMemoryResource> create_owned_island_resource(int isla
 ///
 /// @param owned_resource The owned resource (may be nullptr)
 /// @return Valid memory resource pointer (never nullptr)
-inline std::pmr::memory_resource*
+[[nodiscard]] inline std::pmr::memory_resource*
 get_resource_or_default(const std::unique_ptr<NumaMemoryResource>& owned_resource) {
     return owned_resource ? owned_resource.get() : std::pmr::get_default_resource();
 }
