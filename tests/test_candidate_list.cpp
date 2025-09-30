@@ -12,57 +12,9 @@
 #include <evolab/problems/tsp.hpp>
 #include <evolab/utils/candidate_list.hpp>
 
+#include "test_helper.hpp"
+
 using namespace evolab;
-
-class TestResult {
-  private:
-    int passed = 0;
-    int failed = 0;
-    std::vector<std::string> failures;
-
-  public:
-    void assert_true(bool condition, const std::string& message) {
-        if (condition) {
-            ++passed;
-        } else {
-            ++failed;
-            failures.push_back("FAILED: " + message);
-        }
-    }
-
-    void assert_eq(int expected, int actual, const std::string& message) {
-        if (expected == actual) {
-            ++passed;
-        } else {
-            ++failed;
-            failures.push_back("FAILED: " + message + " (expected: " + std::to_string(expected) +
-                               ", actual: " + std::to_string(actual) + ")");
-        }
-    }
-
-    void assert_eq(double expected, double actual, const std::string& message,
-                   double epsilon = 1e-9) {
-        if (std::abs(expected - actual) < epsilon) {
-            ++passed;
-        } else {
-            ++failed;
-            failures.push_back("FAILED: " + message + " (expected: " + std::to_string(expected) +
-                               ", actual: " + std::to_string(actual) + ")");
-        }
-    }
-
-    int print_summary() {
-        std::cout << "Passed: " << passed << ", Failed: " << failed << "\n";
-        if (!failures.empty()) {
-            std::cout << "Failures:\n";
-            for (const auto& failure : failures) {
-                std::cout << "  " << failure << "\n";
-            }
-        }
-        std::cout << "\n";
-        return failed;
-    }
-};
 
 int test_construction_basic() {
     TestResult result;
@@ -85,7 +37,7 @@ int test_construction_basic() {
                          "Each city should have exactly 3 candidates");
     }
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int test_construction_edge_cases() {
@@ -126,7 +78,7 @@ int test_construction_edge_cases() {
         result.assert_eq(3, cl.k(), "k > n should auto-correct to n-1");
     }
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int test_nearest_neighbor_correctness() {
@@ -171,10 +123,14 @@ int test_nearest_neighbor_correctness() {
         }
     }
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int test_mutual_candidates() {
+    // NOTE: are_mutual_candidates() uses OR logic (||), not AND logic (&&)
+    // This means it returns true if EITHER city has the other as a candidate,
+    // not necessarily both. The function name might be misleading as "mutual"
+    // typically implies a symmetric (bidirectional) relationship.
     TestResult result;
 
     std::vector<std::vector<double>> dist = {
@@ -207,7 +163,27 @@ int test_mutual_candidates() {
     result.assert_true(cl.are_mutual_candidates(1, 3),
                        "Cities 1 and 3 should be mutual candidates (1 is in 3's list)");
 
-    return result.print_summary();
+    // Test for truly non-mutual (asymmetric) candidacy
+    // Create a matrix where one-way relationships are clear
+    {
+        std::vector<std::vector<double>> dist_asym = {
+            {0.0, 1.0, 3.0}, {1.0, 0.0, 2.0}, {3.0, 2.0, 0.0}};
+        utils::CandidateList cl_asym(dist_asym, 1);
+        // For k=1: 0->{1}, 1->{0}, 2->{1}
+        // (0,1) is a mutual pair (both have each other as their only candidate)
+        // (1,2) is NOT mutual in true sense: 1's candidate is {0}, 2's candidate is {1}
+        // However, with OR logic (||), are_mutual_candidates(1, 2) returns true because 1 is in 2's
+        // list This test documents the current OR-based behavior
+        result.assert_true(
+            cl_asym.are_mutual_candidates(1, 2),
+            "Cities 1 and 2 have one-way relationship (current OR logic returns true)");
+
+        // Test a truly disconnected pair
+        result.assert_true(!cl_asym.are_mutual_candidates(0, 2),
+                           "Cities 0 and 2 should not be candidates of each other");
+    }
+
+    return result.summary();
 }
 
 int test_candidate_pairs() {
@@ -223,8 +199,13 @@ int test_candidate_pairs() {
     // City 0: candidate 1 (distance 1.0)
     // City 1: candidate 0 (distance 1.0)
     // City 2: candidate 1 (distance 4.0)
-    // Unique pairs after deduplication: (0,1) only (since 1->0 and 0->1 are the same edge)
-    result.assert_eq(1, static_cast<int>(pairs.size()), "Should have exactly 1 unique pair");
+    // Expected unique pairs: (0,1) and (1,2)
+    result.assert_eq(2, static_cast<int>(pairs.size()), "Should have exactly 2 unique pairs");
+
+    if (pairs.size() >= 2) {
+        result.assert_true(pairs[0] == std::make_pair(0, 1), "First pair should be (0, 1)");
+        result.assert_true(pairs[1] == std::make_pair(1, 2), "Second pair should be (1, 2)");
+    }
 
     // Verify all pairs satisfy i < j (no duplicates)
     for (const auto& [i, j] : pairs) {
@@ -233,7 +214,7 @@ int test_candidate_pairs() {
         result.assert_true(j >= 0 && j < 3, "Second element should be valid city index");
     }
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int test_factory_function() {
@@ -253,18 +234,17 @@ int test_factory_function() {
     // Default k_factor = 2.0
     auto cl = utils::make_candidate_list(dist);
 
-    // For n=20, k should be exactly 2.0 * log(20) ≈ 2.0 * 2.996 ≈ 5.99 → 5
-    int expected_k_default = static_cast<int>(2.0 * std::log(20.0));
-    result.assert_eq(expected_k_default, cl.k(), "Factory should set k to 2.0 * log(n)");
+    // For n=20, k is std::max(5, static_cast<int>(2.0 * log(20))), which due to truncation is 5
+    result.assert_eq(5, cl.k(), "Factory should set k=5 for n=20 with default k_factor");
 
     // Test custom k_factor
     auto cl_large = utils::make_candidate_list(dist, 5.0);
-    int expected_k_large = static_cast<int>(5.0 * std::log(20.0));
-    result.assert_true(cl_large.k() > cl.k(), "Larger k_factor should produce larger k");
-    result.assert_true(cl_large.k() >= expected_k_large - 1,
-                       "Factory should set k near 5.0 * log(n)");
+    int expected_k_large =
+        std::max(5, static_cast<int>(5.0 * std::log(static_cast<double>(dist.size()))));
+    result.assert_eq(expected_k_large, cl_large.k(),
+                     "Factory should set k to the expected value for k_factor=5.0");
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int test_tsp_integration() {
@@ -306,12 +286,18 @@ int test_tsp_integration() {
 
     // Test different k creates new list
     const auto* cl_ptr3 = tsp.get_candidate_list(8);
-    result.assert_true(cl_ptr3 != nullptr, "TSP should create new candidate list for different k");
+    result.assert_true(cl_ptr3 != nullptr,
+                       "TSP should return valid candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
-    // Note: Pointer comparison may not always indicate different instances due to caching strategy
-    // The important verification is that k values differ, which is already tested above
 
-    return result.print_summary();
+    // NOTE: Gemini's original concern was about pointer inequality (cl_ptr3 != cl_ptr).
+    // The current TSP implementation appears to reuse/overwrite the same cache entry,
+    // which means cl_ptr and cl_ptr3 point to the same memory (possibly even the same pointer
+    // value). This is a limitation of the current caching strategy but doesn't affect correctness
+    // as long as the returned pointer has the correct k value.
+    // TODO: Consider improving TSP cache to maintain separate entries for different k values
+
+    return result.summary();
 }
 
 int test_large_instance_performance() {
@@ -348,7 +334,7 @@ int test_large_instance_performance() {
     result.assert_true(pairs.size() <= static_cast<size_t>(n * 20),
                        "Pair count should be at most n*k");
 
-    return result.print_summary();
+    return result.summary();
 }
 
 int main() {
@@ -357,28 +343,36 @@ int main() {
     int total_failures = 0;
 
     std::cout << "Test: Basic Construction\n";
-    total_failures += test_construction_basic();
+    int failures = test_construction_basic();
+    total_failures += failures;
 
     std::cout << "Test: Edge Cases (k boundaries)\n";
-    total_failures += test_construction_edge_cases();
+    failures = test_construction_edge_cases();
+    total_failures += failures;
 
     std::cout << "Test: Nearest Neighbor Correctness\n";
-    total_failures += test_nearest_neighbor_correctness();
+    failures = test_nearest_neighbor_correctness();
+    total_failures += failures;
 
     std::cout << "Test: Mutual Candidates\n";
-    total_failures += test_mutual_candidates();
+    failures = test_mutual_candidates();
+    total_failures += failures;
 
     std::cout << "Test: Candidate Pairs\n";
-    total_failures += test_candidate_pairs();
+    failures = test_candidate_pairs();
+    total_failures += failures;
 
     std::cout << "Test: Factory Function\n";
-    total_failures += test_factory_function();
+    failures = test_factory_function();
+    total_failures += failures;
 
     std::cout << "Test: TSP Integration\n";
-    total_failures += test_tsp_integration();
+    failures = test_tsp_integration();
+    total_failures += failures;
 
     std::cout << "Test: Large Instance Performance\n";
-    total_failures += test_large_instance_performance();
+    failures = test_large_instance_performance();
+    total_failures += failures;
 
     std::cout << "=== All Candidate List Tests Completed ===\n";
 

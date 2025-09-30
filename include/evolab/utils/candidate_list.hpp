@@ -49,17 +49,25 @@ class CandidateList {
     }
 
     /// Get all candidate pairs for efficient iteration
+    /// Returns unique undirected edges where at least one city has the other as a candidate
     std::vector<std::pair<int, int>> get_all_candidate_pairs() const {
         std::vector<std::pair<int, int>> pairs;
         pairs.reserve(n_ * k_);
 
+        // Use a set-like approach to avoid duplicates while gathering all edges
+        // where at least one direction exists in the candidate lists
         for (int i = 0; i < static_cast<int>(n_); ++i) {
             for (int j : candidates_[i]) {
-                if (i < j) { // Avoid duplicates by ensuring i < j
-                    pairs.emplace_back(i, j);
-                }
+                // Normalize pair to (min, max) to avoid duplicates
+                int first = std::min(i, j);
+                int second = std::max(i, j);
+                pairs.emplace_back(first, second);
             }
         }
+
+        // Remove duplicates
+        std::sort(pairs.begin(), pairs.end());
+        pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
 
         return pairs;
     }
