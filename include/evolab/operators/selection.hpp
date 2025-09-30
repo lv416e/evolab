@@ -418,7 +418,7 @@ class RankSelection {
     ///    - Sort indices by corresponding fitness values
     ///    - Best individual gets rank 0, worst gets rank n-1
     /// 2. **Probability Calculation**: Apply linear ranking formula
-    ///    - P(rank) = (2-s)/n + 2*s*(n-rank-1)/(n*(n-1))
+    ///    - P(rank) = (2-s)/n + 2*(s-1)*(n-rank-1)/(n*(n-1))
     ///    - Higher pressure → stronger bias toward better ranks
     /// 3. **Selection**: Use roulette wheel on rank-based probabilities
     ///
