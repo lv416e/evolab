@@ -29,6 +29,10 @@ add_executable(test_config_integration test_config_integration.cpp)
 target_link_libraries(test_config_integration PRIVATE evolab)
 target_compile_features(test_config_integration PRIVATE cxx_std_23)
 
+add_executable(test_candidate_list test_candidate_list.cpp)
+target_link_libraries(test_candidate_list PRIVATE evolab)
+target_compile_features(test_candidate_list PRIVATE cxx_std_23)
+
 # Conditional TBB parallel tests
 if(TBB_FOUND)
     add_executable(test_parallel test_parallel.cpp)
@@ -56,6 +60,7 @@ add_test(NAME SchedulerTests COMMAND test_schedulers)
 add_test(NAME TSPLIBTests COMMAND test_tsplib)
 add_test(NAME ConfigTests COMMAND test_config)
 add_test(NAME ConfigIntegrationTests COMMAND test_config_integration)
+add_test(NAME CandidateListTests COMMAND test_candidate_list)
 add_test(NAME NumaTests COMMAND test_numa)
 
 # Check for NUMA support
