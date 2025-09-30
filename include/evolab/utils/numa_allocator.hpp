@@ -177,7 +177,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     /// Create NUMA memory resource for local node
     ///
     /// @return Unique pointer to memory resource that allocates on local NUMA node
-    static std::unique_ptr<NumaMemoryResource> create_local() {
+    [[nodiscard]] static std::unique_ptr<NumaMemoryResource> create_local() {
         return std::make_unique<NumaMemoryResource>(-1);
     }
 
@@ -185,7 +185,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
     ///
     /// @param node_id The NUMA node ID to allocate on
     /// @return Unique pointer to memory resource that allocates on specified node
-    static std::unique_ptr<NumaMemoryResource> create_on_node(int node_id) {
+    [[nodiscard]] static std::unique_ptr<NumaMemoryResource> create_on_node(int node_id) {
 #ifdef EVOLAB_NUMA_SUPPORT
         if (detail::is_numa_system_available()) {
             const auto nodes = detail::get_available_numa_nodes();

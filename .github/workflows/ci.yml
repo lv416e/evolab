@@ -46,8 +46,13 @@ jobs:
     needs: path-filter
     if: needs.path-filter.outputs.run_ci == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        numa: [off, on]
+        exclude:
+          - os: windows-latest
+            numa: on
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
@@ -58,6 +63,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build ccache build-essential cmake
+
+      - name: Install NUMA deps (Linux, when numa=on)
+        if: runner.os == 'Linux' && matrix.numa == 'on'
+        run: |
+          sudo apt-get install -y libnuma1 libnuma-dev numactl
 
       - name: Setup MSVC (Windows)
         if: runner.os == 'Windows'
@@ -72,21 +82,39 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-
 
+      - name: Init ccache (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ccache --zero-stats || true
+          ccache --max-size=500M || true
+
       - name: Configure (Linux)
         if: runner.os == 'Linux'
         run: |
+          EXTRA_FLAGS=""
+          if [[ "${{ matrix.numa || 'off' }}" == "on" ]]; then
+            EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=ON"
+          else
+            EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=OFF"
+          fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            $EXTRA_FLAGS
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -A x64
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -A x64 -DEVOLAB_WITH_NUMA=OFF
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
-        run: cmake --build build --parallel
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_NOHASHDIR: "true"
+        run: |
+          cmake --build build --parallel
+          ccache --show-stats || true
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
@@ -106,10 +134,11 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           $cores = [Environment]::ProcessorCount
-          if ("${{ github.event.inputs.full }}" -eq "true") {
-            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 300
+          $full = "${{ github.event.inputs.full || 'false' }}"
+          if ($full -eq "true") {
+            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 300 -E numa
           } else {
-            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 120 -L smoke
+            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 120 -L smoke -E numa
           }
         shell: pwsh
 
