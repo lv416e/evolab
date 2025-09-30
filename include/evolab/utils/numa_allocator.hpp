@@ -60,15 +60,21 @@ inline std::vector<int> get_available_numa_nodes() {
         const int node_count = n > 0 ? n : 1;
 
         if (node_count > 1) {
-            // Defensive: ensure libnuma's global bitmask is available
-            if (numa_all_nodes_ptr == nullptr) {
-                nodes.push_back(0);
-                return nodes;
-            }
-            const int max_id = numa_max_node();
-            for (int id = 0; id <= max_id; ++id) {
-                if (numa_bitmask_isbitset(numa_all_nodes_ptr, id)) {
-                    nodes.push_back(id);
+            // Prefer the calling thread's allowed memory nodes
+            if (auto* mask = numa_get_mems_allowed(); mask) {
+                const int max_id = numa_max_node();
+                for (int id = 0; id <= max_id; ++id) {
+                    if (numa_bitmask_isbitset(mask, id)) {
+                        nodes.push_back(id);
+                    }
+                }
+                numa_bitmask_free(mask);
+            } else if (numa_all_nodes_ptr) {
+                const int max_id = numa_max_node();
+                for (int id = 0; id <= max_id; ++id) {
+                    if (numa_bitmask_isbitset(numa_all_nodes_ptr, id)) {
+                        nodes.push_back(id);
+                    }
                 }
             }
         }
@@ -490,11 +496,8 @@ inline std::pmr::memory_resource* create_island_resource(int island_id) {
     static thread_local std::unordered_map<int, std::unique_ptr<NumaMemoryResource>>
         numa_node_resource_cache;
 
-    // Enumerate available NUMA nodes once per thread using helper
-    static thread_local std::vector<int> available_nodes;
-    if (available_nodes.empty()) {
-        available_nodes = detail::get_available_numa_nodes();
-    }
+    // Recompute each call to respect current affinity/topology
+    const auto available_nodes = detail::get_available_numa_nodes();
 
     const int node_count = static_cast<int>(available_nodes.size());
     if (node_count <= 1 || island_id < 0) {
