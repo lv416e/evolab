@@ -45,17 +45,26 @@ jobs:
   build-test:
     needs: path-filter
     if: needs.path-filter.outputs.run_ci == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchain
+      - name: Install toolchain (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build ccache build-essential cmake
 
-      - name: Cache ccache
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Cache ccache (Linux)
+        if: runner.os == 'Linux'
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
@@ -63,17 +72,31 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-
 
-      - name: Configure (Ninja + ccache)
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      - name: Build
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -A x64
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
         run: cmake --build build --parallel
 
-      - name: Test (smoke by default)
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release --parallel
+
+      - name: Test (Linux, smoke by default)
+        if: runner.os == 'Linux'
         run: |
           CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu || echo 2)
           if [[ "${{ github.event.inputs.full || 'false' }}" == "true" ]]; then
@@ -81,6 +104,17 @@ jobs:
           else
             ctest --test-dir build --output-on-failure -j "$CORES" --timeout 120 -L smoke
           fi
+
+      - name: Test (Windows, smoke by default)
+        if: runner.os == 'Windows'
+        run: |
+          $cores = [Environment]::ProcessorCount
+          if ("${{ github.event.inputs.full }}" -eq "true") {
+            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 300
+          } else {
+            ctest --test-dir build -C Release --output-on-failure -j $cores --timeout 120 -L smoke
+          }
+        shell: pwsh
 
       - name: Upload failing logs (only on failure)
         if: failure()
