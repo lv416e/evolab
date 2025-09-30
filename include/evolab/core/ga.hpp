@@ -7,12 +7,15 @@
 /// Uses concept-based design for type safety and clear compile-time requirements.
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <concepts>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <random>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -20,6 +23,7 @@
 
 // EvoLab core concepts - fundamental type requirements for genetic algorithms
 #include <evolab/core/concepts.hpp>
+#include <evolab/core/population.hpp>
 
 namespace evolab::core {
 
@@ -50,6 +54,9 @@ struct GAConfig {
     // Performance tracking
     bool track_operator_performance = false;
     bool save_population_snapshots = false;
+
+    // Memory allocation
+    std::pmr::memory_resource* memory_resource = std::pmr::get_default_resource();
 };
 
 /// Operator performance statistics
@@ -143,24 +150,36 @@ class GeneticAlgorithm {
 
         const auto start_time = std::chrono::steady_clock::now();
 
-        // Initialize population
-        std::vector<GenomeT> population;
-        std::vector<Fitness> fitnesses;
-        population.reserve(config.population_size);
-        fitnesses.reserve(config.population_size);
+        // Handle population_size == 0 to prevent undefined behavior with empty ranges.
+        if (config.population_size == 0) {
+            GAResult<GenomeT> result;
+            // Note: best_genome is default-constructed (empty for container types)
+            // Use infinity to clearly indicate no valid solution was found
+            result.best_fitness = Fitness{std::numeric_limits<double>::infinity()};
+            result.generations = 0;
+            result.evaluations = 0;
+            result.total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start_time);
+            return result;
+        }
+
+        // Initialize population with Structure-of-Arrays layout for better memory efficiency
+        Population<GenomeT> population(config.population_size, config.memory_resource);
 
         for (std::size_t i = 0; i < config.population_size; ++i) {
             auto genome = problem.random_genome(rng_);
             repair_if_available(problem, genome);
 
-            population.push_back(std::move(genome));
-            fitnesses.push_back(problem.evaluate(population.back()));
+            auto fitness = problem.evaluate(genome);
+            population.push_back(std::move(genome), fitness);
         }
 
         // Track best solution
-        auto best_idx = std::min_element(fitnesses.begin(), fitnesses.end()) - fitnesses.begin();
-        auto best_genome = population[best_idx];
-        auto best_fitness = fitnesses[best_idx];
+        auto fitness_span = population.fitness_values();
+        auto best_idx =
+            std::min_element(fitness_span.begin(), fitness_span.end()) - fitness_span.begin();
+        auto best_genome = population.genome(best_idx);
+        auto best_fitness = population.fitness(best_idx);
 
         GAResult<GenomeT> result;
         result.history.reserve(config.max_generations);
@@ -180,41 +199,49 @@ class GeneticAlgorithm {
             if (config.max_evaluations > 0 && evaluations >= config.max_evaluations)
                 break;
 
-            // Create next generation
-            std::vector<GenomeT> new_population;
-            std::vector<Fitness> new_fitnesses;
-            new_population.reserve(config.population_size);
-            new_fitnesses.reserve(config.population_size);
+            // Create next generation with optimized memory layout
+            Population<GenomeT> new_population(config.population_size, config.memory_resource);
 
             // Elite preservation
             const std::size_t elite_count =
                 static_cast<std::size_t>(config.elite_ratio * config.population_size);
             if (elite_count > 0) {
-                // Sort by fitness and keep elite
+                // Use nth_element for O(n) elite selection instead of O(n log n) sort
                 std::vector<std::size_t> indices(population.size());
                 std::iota(indices.begin(), indices.end(), 0);
-                std::sort(indices.begin(), indices.end(), [&](std::size_t a, std::size_t b) {
-                    return fitnesses[a] < fitnesses[b];
-                });
 
-                for (std::size_t i = 0; i < elite_count && i < indices.size(); ++i) {
-                    new_population.push_back(population[indices[i]]);
-                    new_fitnesses.push_back(fitnesses[indices[i]]);
+                // Partition so that the elite_count best elements are at the beginning
+                if (elite_count < indices.size()) {
+                    std::nth_element(indices.begin(), indices.begin() + elite_count, indices.end(),
+                                     [&](std::size_t a, std::size_t b) {
+                                         return population.fitness(a) < population.fitness(b);
+                                     });
+                }
+
+                // Copy elite individuals
+                const std::size_t actual_elite_count = std::min(elite_count, indices.size());
+                for (std::size_t i = 0; i < actual_elite_count; ++i) {
+                    const auto idx = indices[i];
+                    new_population.push_back(population.genome(idx), population.fitness(idx));
                 }
             }
 
             // Generate offspring
-            while (new_population.size() < config.population_size) {
-                // Selection
-                auto parent1_idx = selection_.select(population, fitnesses, rng_);
-                auto parent2_idx = selection_.select(population, fitnesses, rng_);
+            // Use fitness span directly for selection - major performance improvement
+            auto fitness_span = population.fitness_values();
 
-                auto offspring = population[parent1_idx];
+            while (new_population.size() < config.population_size) {
+
+                auto parent1_idx = selection_.select(fitness_span, rng_);
+                auto parent2_idx = selection_.select(fitness_span, rng_);
+
+                auto offspring = population.genome(parent1_idx);
 
                 // Crossover
                 if (std::uniform_real_distribution<>(0.0, 1.0)(rng_) < config.crossover_prob) {
-                    auto [child1, child2] = crossover_.cross(problem, population[parent1_idx],
-                                                             population[parent2_idx], rng_);
+                    auto [child1, child2] =
+                        crossover_.cross(problem, population.genome(parent1_idx),
+                                         population.genome(parent2_idx), rng_);
                     offspring = std::move(child1);
 
                     // Add second child if there's room
@@ -235,8 +262,7 @@ class GeneticAlgorithm {
                             evaluations++;
                         }
 
-                        new_population.push_back(std::move(child2));
-                        new_fitnesses.push_back(fitness2);
+                        new_population.push_back(std::move(child2), fitness2);
                     }
                 }
 
@@ -255,25 +281,23 @@ class GeneticAlgorithm {
                     evaluations++;
                 }
 
-                new_population.push_back(std::move(offspring));
-                new_fitnesses.push_back(fitness);
+                new_population.push_back(std::move(offspring), fitness);
             }
 
-            // Trim to exact population size
-            if (new_population.size() > config.population_size) {
-                new_population.resize(config.population_size);
-                new_fitnesses.resize(config.population_size);
-            }
+            // At this point, the population size should exactly match the configured size.
+            // If it can be larger, it indicates a logic error in the offspring generation loop.
+            assert(new_population.size() == config.population_size);
 
             population = std::move(new_population);
-            fitnesses = std::move(new_fitnesses);
 
             // Update best solution
+            auto current_fitness_span = population.fitness_values();
             auto gen_best_idx =
-                std::min_element(fitnesses.begin(), fitnesses.end()) - fitnesses.begin();
-            if (fitnesses[gen_best_idx] < best_fitness) {
-                best_genome = population[gen_best_idx];
-                best_fitness = fitnesses[gen_best_idx];
+                std::min_element(current_fitness_span.begin(), current_fitness_span.end()) -
+                current_fitness_span.begin();
+            if (population.fitness(gen_best_idx) < best_fitness) {
+                best_genome = population.genome(gen_best_idx);
+                best_fitness = population.fitness(gen_best_idx);
                 stagnation_count = 0;
             } else {
                 stagnation_count++;
@@ -284,14 +308,20 @@ class GeneticAlgorithm {
                 GenerationStats stats;
                 stats.generation = gen;
                 stats.best_fitness = best_fitness;
+
+                auto current_fitness_span = population.fitness_values();
                 stats.mean_fitness = Fitness(
-                    std::accumulate(fitnesses.begin(), fitnesses.end(), 0.0,
+                    std::accumulate(current_fitness_span.begin(), current_fitness_span.end(), 0.0,
                                     [](double sum, const Fitness& f) { return sum + f.value; }) /
-                    fitnesses.size());
-                stats.worst_fitness = *std::max_element(fitnesses.begin(), fitnesses.end());
-                stats.diversity = config.enable_diversity_tracking
-                                      ? calculate_diversity(population, rng_, config)
-                                      : 0.0;
+                    current_fitness_span.size());
+                stats.worst_fitness =
+                    *std::max_element(current_fitness_span.begin(), current_fitness_span.end());
+
+                // Calculate diversity directly from spans (no copying needed)
+                stats.diversity =
+                    config.enable_diversity_tracking
+                        ? calculate_diversity<GenomeT>(population.genomes(), rng_, config)
+                        : 0.0;
                 stats.elapsed_time = elapsed;
 
                 result.history.push_back(stats);
@@ -329,7 +359,9 @@ class GeneticAlgorithm {
     }
 
     template <typename GenomeT>
-    double calculate_diversity(const std::vector<GenomeT>& population, std::mt19937& rng,
+    // Using std::span instead of const std::vector<GenomeT>& for zero-copy access
+    // and better performance - spans avoid iterator overhead and enable vectorization
+    double calculate_diversity(std::span<const GenomeT> population, std::mt19937& rng,
                                const GAConfig& config) {
         if (population.size() < 2)
             return 0.0;

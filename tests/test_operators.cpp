@@ -26,8 +26,7 @@ bool is_valid_permutation(const std::vector<int>& perm, int n) {
 void test_selection_operators() {
     TestResult result;
 
-    // Create test population and fitnesses
-    std::vector<std::vector<int>> population = {{0, 1, 2}, {1, 2, 0}, {2, 0, 1}, {0, 2, 1}};
+    // Create test fitnesses
     std::vector<core::Fitness> fitnesses = {core::Fitness{10.0}, core::Fitness{5.0},
                                             core::Fitness{15.0}, core::Fitness{8.0}};
 
@@ -35,14 +34,17 @@ void test_selection_operators() {
 
     // Test tournament selection
     operators::TournamentSelection tournament(2);
-    std::vector<int> selected_counts(population.size(), 0);
+    std::vector<int> selected_counts(fitnesses.size(), 0);
 
     for (int i = 0; i < 1000; ++i) {
-        auto selected = tournament.select(population, fitnesses, rng);
-        result.assert_true(selected < population.size(),
-                           "Tournament selection returns valid index");
+        auto selected = tournament.select(fitnesses, rng);
+        result.assert_true(selected < fitnesses.size(), "Tournament selection returns valid index");
         selected_counts[selected]++;
     }
+
+    // Sanity check: counts should sum to total iterations
+    int total_selections = std::accumulate(selected_counts.begin(), selected_counts.end(), 0);
+    result.assert_equals(1000, total_selections, "Tournament counts sum to iterations");
 
     // Better individuals (lower fitness) should be selected more often
     result.assert_true(selected_counts[1] > selected_counts[0],
@@ -55,8 +57,8 @@ void test_selection_operators() {
     std::fill(selected_counts.begin(), selected_counts.end(), 0);
 
     for (int i = 0; i < 1000; ++i) {
-        auto selected = roulette.select(population, fitnesses, rng);
-        result.assert_true(selected < population.size(), "Roulette selection returns valid index");
+        auto selected = roulette.select(fitnesses, rng);
+        result.assert_true(selected < fitnesses.size(), "Roulette selection returns valid index");
         selected_counts[selected]++;
     }
 
@@ -68,8 +70,8 @@ void test_selection_operators() {
     std::fill(selected_counts.begin(), selected_counts.end(), 0);
 
     for (int i = 0; i < 1000; ++i) {
-        auto selected = ranking.select(population, fitnesses, rng);
-        result.assert_true(selected < population.size(), "Ranking selection returns valid index");
+        auto selected = ranking.select(fitnesses, rng);
+        result.assert_true(selected < fitnesses.size(), "Ranking selection returns valid index");
         selected_counts[selected]++;
     }
 
@@ -334,6 +336,8 @@ void test_factory_functions() {
 
     result.assert_true(tsp.is_valid_tour(result_tsp_advanced.best_genome),
                        "TSP advanced GA factory produces valid solution");
+    result.assert_true(std::isfinite(result_tsp_advanced.best_fitness.value),
+                       "Best fitness is finite");
 
     result.print_summary();
 }

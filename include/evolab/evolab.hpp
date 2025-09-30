@@ -50,6 +50,7 @@
 // Core algorithmic components - fundamental concepts and GA implementation
 #include <evolab/core/concepts.hpp>
 #include <evolab/core/ga.hpp>
+#include <evolab/core/population.hpp>
 
 // Problem domain implementations - currently focused on combinatorial optimization
 #include <evolab/problems/tsp.hpp>
@@ -67,6 +68,7 @@
 
 // Performance optimization utilities
 #include <evolab/utils/candidate_list.hpp>
+#include <evolab/utils/numa_allocator.hpp>
 
 // Data I/O and format support
 #include <evolab/io/tsplib.hpp>
