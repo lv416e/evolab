@@ -568,8 +568,8 @@ create_owned_island_resource(int island_id) {
         return nullptr; // Use default resource
     }
 
-    // Use the same enumeration helper as create_island_resource with static caching
-    static const auto available = detail::get_available_numa_nodes();
+    // Recompute available nodes each time to respect current thread affinity/topology
+    const auto available = detail::get_available_numa_nodes();
     if (available.size() > 1) {
         const int node = available[island_id % static_cast<int>(available.size())];
         return NumaMemoryResource::create_on_node(node);
