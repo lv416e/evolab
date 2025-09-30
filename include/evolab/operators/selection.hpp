@@ -32,7 +32,8 @@ namespace detail {
 /// In release builds, compiler intrinsics provide optimization hints.
 [[noreturn]] inline void unreachable() noexcept {
 #if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
-    std::unreachable(); // C++23 standard unreachable - may be optimized away
+    std::terminate();
+    std::unreachable(); // hint after termination call
 #elif defined(_MSC_VER)
     __assume(false);  // MSVC optimization hint
     std::terminate(); // Fallback if assumption is incorrect
@@ -168,6 +169,12 @@ class TournamentSelection {
         }
         if (fitnesses.size() == 1) {
             return 0;
+        }
+
+        // Micro-optimization: tournament size 1 means random selection
+        if (tournament_size_ == 1) {
+            std::uniform_int_distribution<std::size_t> dist(0, fitnesses.size() - 1);
+            return dist(rng);
         }
 
         std::uniform_int_distribution<std::size_t> dist(0, fitnesses.size() - 1);
@@ -463,6 +470,12 @@ class RankSelection {
         }
         if (fitnesses.size() == 1) {
             return 0;
+        }
+
+        // Micro-optimization: selection pressure 1.0 means uniform selection
+        if (selection_pressure_ == 1.0) {
+            std::uniform_int_distribution<std::size_t> dist(0, fitnesses.size() - 1);
+            return dist(rng);
         }
 
         // Create ranking using modern algorithms
