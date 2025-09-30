@@ -117,7 +117,8 @@ concept SelectionOperator =
     Problem<P> &&
     requires(const S& selector, std::span<const Fitness> fitnesses, std::mt19937& rng) {
         // Select parents for reproduction using fitness-based selection
-        // Returns index of selected individual in the fitness span
+        // Returns index of selected individual within the provided fitness span
+        // (index corresponds to position in the span, not global population position)
         { selector.select(fitnesses, rng) } -> std::same_as<std::size_t>;
     };
 

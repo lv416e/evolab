@@ -153,6 +153,8 @@ class GeneticAlgorithm {
         // Handle population_size == 0 to prevent undefined behavior with empty ranges.
         if (config.population_size == 0) {
             GAResult<GenomeT> result;
+            // Note: best_genome is default-constructed (empty for container types)
+            // Use infinity to clearly indicate no valid solution was found
             result.best_fitness = Fitness{std::numeric_limits<double>::infinity()};
             result.generations = 0;
             result.evaluations = 0;
@@ -357,6 +359,8 @@ class GeneticAlgorithm {
     }
 
     template <typename GenomeT>
+    // Using std::span instead of const std::vector<GenomeT>& for zero-copy access
+    // and better performance - spans avoid iterator overhead and enable vectorization
     double calculate_diversity(std::span<const GenomeT> population, std::mt19937& rng,
                                const GAConfig& config) {
         if (population.size() < 2)

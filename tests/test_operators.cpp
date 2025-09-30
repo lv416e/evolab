@@ -35,12 +35,11 @@ void test_selection_operators() {
 
     // Test tournament selection
     operators::TournamentSelection tournament(2);
-    std::vector<int> selected_counts(population.size(), 0);
+    std::vector<int> selected_counts(fitnesses.size(), 0);
 
     for (int i = 0; i < 1000; ++i) {
         auto selected = tournament.select(fitnesses, rng);
-        result.assert_true(selected < population.size(),
-                           "Tournament selection returns valid index");
+        result.assert_true(selected < fitnesses.size(), "Tournament selection returns valid index");
         selected_counts[selected]++;
     }
 
@@ -56,7 +55,7 @@ void test_selection_operators() {
 
     for (int i = 0; i < 1000; ++i) {
         auto selected = roulette.select(fitnesses, rng);
-        result.assert_true(selected < population.size(), "Roulette selection returns valid index");
+        result.assert_true(selected < fitnesses.size(), "Roulette selection returns valid index");
         selected_counts[selected]++;
     }
 
@@ -69,7 +68,7 @@ void test_selection_operators() {
 
     for (int i = 0; i < 1000; ++i) {
         auto selected = ranking.select(fitnesses, rng);
-        result.assert_true(selected < population.size(), "Ranking selection returns valid index");
+        result.assert_true(selected < fitnesses.size(), "Ranking selection returns valid index");
         selected_counts[selected]++;
     }
 

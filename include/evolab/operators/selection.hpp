@@ -163,7 +163,7 @@ class TournamentSelection {
                                      std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        if (fitnesses.empty()) [[unlikely]] {
+        if (fitnesses.empty()) {
             detail::unreachable();
         }
         if (fitnesses.size() == 1) {
@@ -285,7 +285,7 @@ class RouletteWheelSelection {
                                      std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        if (fitnesses.empty()) [[unlikely]] {
+        if (fitnesses.empty()) {
             detail::unreachable();
         }
         if (fitnesses.size() == 1) {
@@ -457,7 +457,7 @@ class RankSelection {
                                      std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        if (fitnesses.empty()) [[unlikely]] {
+        if (fitnesses.empty()) {
             detail::unreachable();
         }
         if (fitnesses.size() == 1) {
@@ -621,7 +621,7 @@ class SteadyStateSelection {
                                      std::mt19937& rng) const {
 
         assert(!fitnesses.empty());
-        if (fitnesses.empty()) [[unlikely]] {
+        if (fitnesses.empty()) {
             detail::unreachable();
         }
         if (fitnesses.size() == 1) {

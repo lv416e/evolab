@@ -435,6 +435,7 @@ class NumaMemoryResource : public std::pmr::memory_resource {
 /// - On UMA systems: returns default resource
 ///
 /// ## ⚠️  CRITICAL THREAD-LOCAL LIFETIME WARNING ⚠️
+/// **THIS RESOURCE IS UNSAFE TO SHARE ACROSS THREADS**
 /// **DANGER**: Returns a pointer to a thread_local resource that is destroyed when
 /// the creating thread exits. Using this resource after thread termination causes
 /// undefined behavior, memory corruption, or crashes.
@@ -480,6 +481,7 @@ inline std::pmr::memory_resource* create_optimized_ga_resource() {
 ///                  Negative values return default resource.
 ///                  Note: cache size is bounded by NUMA node count; large IDs are modulo-mapped.
 /// ## ⚠️  CRITICAL THREAD-LOCAL LIFETIME WARNING ⚠️
+/// **THIS RESOURCE IS UNSAFE TO SHARE ACROSS THREADS**
 /// **DANGER**: Returns a pointer to a thread_local resource that is destroyed when
 /// the creating thread exits. Using this resource after thread termination causes
 /// undefined behavior, memory corruption, or crashes.
