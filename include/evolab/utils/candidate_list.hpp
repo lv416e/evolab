@@ -49,10 +49,13 @@ class CandidateList {
     /// @note This uses OR logic (||) which is appropriate for checking edge validity
     ///       in local search operations (e.g., 2-opt). Use this to determine if an
     ///       edge between two cities should be considered in the search.
-    /// @param city1 First city index
-    /// @param city2 Second city index
+    /// @param city1 First city index (must be in [0, n))
+    /// @param city2 Second city index (must be in [0, n))
     /// @return true if at least one city has the other as a candidate
     [[nodiscard]] bool has_candidate_edge(int city1, int city2) const {
+        assert(city1 >= 0 && city1 < static_cast<int>(n_) && "City1 index out of bounds");
+        assert(city2 >= 0 && city2 < static_cast<int>(n_) && "City2 index out of bounds");
+
         const auto& candidates1 = candidates_[city1];
         const auto& candidates2 = candidates_[city2];
 
