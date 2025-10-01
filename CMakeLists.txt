@@ -4,7 +4,11 @@ project(EvoLab
     DESCRIPTION "A modern C++23 metaheuristics research platform for TSP/VRP/QAP problems"
     LANGUAGES CXX)
 
-# C++23 standard (experimental support in GCC 12+ and Clang 15+)
+# C++23 standard
+# Minimum requirements:
+#   - GCC 13+ (for std::format support in libstdc++)
+#   - Clang 15+ with libc++ 16+ (for std::format support)
+#   - MSVC 19.29+ (Visual Studio 2019 16.10+)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

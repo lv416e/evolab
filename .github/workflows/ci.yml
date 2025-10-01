@@ -64,6 +64,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build ccache build-essential cmake
 
+          # Verify compiler version (GCC 13+ required for std::format support)
+          gcc_version=$(gcc -dumpversion | cut -d. -f1)
+          echo "GCC version: $(gcc --version | head -1)"
+          if [ "$gcc_version" -lt 13 ]; then
+            echo "::error::GCC 13+ required for C++23 std::format support (found GCC $gcc_version)"
+            exit 1
+          fi
+
       - name: Install NUMA deps (Linux, when numa=on)
         if: runner.os == 'Linux' && matrix.numa == 'on'
         run: |
