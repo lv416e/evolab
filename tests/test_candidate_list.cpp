@@ -80,6 +80,12 @@ int test_construction_edge_cases() {
         result.assert_eq(3, cl.k(), "k > n should auto-correct to n-1");
     }
 
+    // Test k < 0 (invalid, should auto-correct to n-1)
+    {
+        utils::CandidateList cl(dist, -7);
+        result.assert_eq(3, cl.k(), "k < 0 should auto-correct to n-1");
+    }
+
     return result.summary();
 }
 
@@ -246,6 +252,20 @@ int test_factory_function() {
     result.assert_eq(expected_k_large, cl_large.k(),
                      "Factory should set k to the expected value for k_factor=5.0");
 
+    // Test trivial cases: n <= 1 should yield k=0
+    {
+        std::vector<std::vector<double>> d0;
+        auto cl0 = utils::make_candidate_list(d0);
+        result.assert_eq(0, cl0.size(), "n=0 should have size 0");
+        result.assert_eq(0, cl0.k(), "n=0 should have k=0");
+    }
+    {
+        std::vector<std::vector<double>> d1(1, std::vector<double>(1, 0.0));
+        auto cl1 = utils::make_candidate_list(d1);
+        result.assert_eq(1, cl1.size(), "n=1 should have size 1");
+        result.assert_eq(0, cl1.k(), "n=1 should have k=0");
+    }
+
     return result.summary();
 }
 
@@ -287,11 +307,16 @@ int test_tsp_integration() {
             std::format("Cached list should have identical candidates for city {}", i));
     }
 
-    // Test different k creates new list
+    // Test different k - this demonstrates the caching bug
     const auto* cl_ptr3 = tsp.get_candidate_list(8);
     result.assert_true(cl_ptr3 != nullptr,
                        "TSP should return valid candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
+    // NOTE: Due to the UB bug documented below, cl_ptr3 may equal cl_ptr (same address)
+    // because TSP reuses the same std::optional storage. This is the memory safety issue!
+    // Once the bug is fixed with proper caching (e.g., std::map<int, CandidateList>),
+    // we should add: result.assert_true(cl_ptr3 != cl_ptr, "Different k should have different
+    // pointers");
 
     // CRITICAL BUG (GitHub Issue #23): The current TSP caching implementation for candidate lists
     // is UNSAFE and causes use-after-free vulnerabilities. It reuses a single cache entry via
