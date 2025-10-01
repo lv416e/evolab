@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -30,15 +31,18 @@ class CandidateList {
     }
 
     /// Get k nearest neighbors for a given city
-    /// @param city City index
+    /// @param city City index (must be in [0, n))
     /// @return Vector of nearest neighbor indices sorted by distance
-    const std::vector<int>& get_candidates(int city) const { return candidates_[city]; }
+    [[nodiscard]] const std::vector<int>& get_candidates(int city) const {
+        assert(city >= 0 && city < static_cast<int>(n_) && "City index out of bounds");
+        return candidates_[city];
+    }
 
     /// Get number of cities
-    int size() const { return static_cast<int>(n_); }
+    [[nodiscard]] int size() const { return static_cast<int>(n_); }
 
     /// Get k value (number of candidates per city)
-    int k() const { return k_; }
+    [[nodiscard]] int k() const { return k_; }
 
     /// Check if there is a candidate edge between two cities
     /// Returns true if EITHER city has the other in its candidate list (OR logic)
@@ -107,13 +111,13 @@ class CandidateList {
             }
 
             // Partially sort by distance to get k nearest neighbors
-            auto kth_it = distances.begin() + std::min(k_, static_cast<int>(distances.size()));
-            std::nth_element(distances.begin(), kth_it, distances.end());
-            std::sort(distances.begin(), kth_it);
+            // Use partial_sort instead of nth_element+sort to avoid UB when k==distances.size()
+            const int k_eff = std::min(k_, static_cast<int>(distances.size()));
+            std::partial_sort(distances.begin(), distances.begin() + k_eff, distances.end());
 
             // Take k nearest neighbors
-            candidates_[i].reserve(k_);
-            for (int idx = 0; idx < std::min(k_, static_cast<int>(distances.size())); ++idx) {
+            candidates_[i].reserve(k_eff);
+            for (int idx = 0; idx < k_eff; ++idx) {
                 candidates_[i].push_back(distances[idx].second);
             }
         }
