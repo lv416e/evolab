@@ -52,8 +52,10 @@ class CandidateList {
     /// Get all candidate pairs for efficient iteration
     /// Returns unique undirected edges where at least one city has the other as a candidate
     std::vector<std::pair<int, int>> get_all_candidate_pairs() const {
-        // Use std::set to automatically handle uniqueness and sorting
-        // More efficient than collecting all pairs and then removing duplicates
+        // Use std::set for automatic deduplication and sorted order
+        // This approach prioritizes code clarity and correctness.
+        // For very large instances where this becomes a bottleneck, consider:
+        // vector-based approach with sort + unique for better cache locality.
         std::set<std::pair<int, int>> unique_pairs;
 
         for (int i = 0; i < static_cast<int>(n_); ++i) {
