@@ -254,20 +254,21 @@ int test_tsp_integration() {
     TestResult result;
 
     // Create small TSP instance
-    auto tsp = problems::create_random_tsp(10, 100.0, 42);
+    constexpr int n = 10;
+    auto tsp = problems::create_random_tsp(n, 100.0, 42);
 
     // Get candidate list through TSP interface
     const auto* cl_ptr = tsp.get_candidate_list(5);
 
     result.assert_true(cl_ptr != nullptr, "TSP should return valid candidate list pointer");
-    result.assert_eq(10, cl_ptr->size(), "Candidate list size should match TSP size");
+    result.assert_eq(n, cl_ptr->size(), "Candidate list size should match TSP size");
     result.assert_eq(5, cl_ptr->k(), "Candidate list k should match requested k");
 
     // Verify candidates are valid city indices
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < n; ++i) {
         const auto& candidates = cl_ptr->get_candidates(i);
         for (int c : candidates) {
-            result.assert_true(c >= 0 && c < 10, "Candidate should be valid city index");
+            result.assert_true(c >= 0 && c < n, "Candidate should be valid city index");
             result.assert_true(c != i, "City should not be its own candidate");
         }
     }
@@ -279,7 +280,7 @@ int test_tsp_integration() {
     // Verify structural equality as well (in case pointer identity isn't guaranteed)
     result.assert_eq(cl_ptr->size(), cl_ptr2->size(), "Cached list should have same size");
     result.assert_eq(cl_ptr->k(), cl_ptr2->k(), "Cached list should have same k");
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < n; ++i) {
         const auto& candidates1 = cl_ptr->get_candidates(i);
         const auto& candidates2 = cl_ptr2->get_candidates(i);
         result.assert_true(
