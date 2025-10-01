@@ -16,6 +16,11 @@ class CandidateList {
     /// @param k Number of nearest neighbors to maintain
     explicit CandidateList(const std::vector<std::vector<double>>& distance_matrix, int k)
         : n_(distance_matrix.size()), k_(k), candidates_(n_) {
+        // Handle trivial instances up-front
+        if (n_ <= 1) {
+            k_ = 0;
+            return; // candidates_ already sized to n_, nothing to build
+        }
 
         if (k_ <= 0 || k_ >= static_cast<int>(n_)) {
             k_ = static_cast<int>(n_) - 1; // Use all other cities if k is invalid
@@ -81,10 +86,12 @@ class CandidateList {
 
   private:
     void build_candidate_lists(const std::vector<std::vector<double>>& distance_matrix) {
+        if (n_ <= 1)
+            return;
         for (std::size_t i = 0; i < n_; ++i) {
             // Create vector of (distance, city_index) pairs
             std::vector<std::pair<double, int>> distances;
-            distances.reserve(n_ - 1);
+            distances.reserve(n_ > 0 ? n_ - 1 : 0);
 
             for (std::size_t j = 0; j < n_; ++j) {
                 if (i != j) {
@@ -116,6 +123,9 @@ class CandidateList {
 inline CandidateList make_candidate_list(const std::vector<std::vector<double>>& distance_matrix,
                                          double k_factor = 2.0) {
     int n = static_cast<int>(distance_matrix.size());
+    if (n <= 1) {
+        return CandidateList(distance_matrix, 0);
+    }
     int k = std::max(5, static_cast<int>(k_factor * std::log(n))); // Minimum k=5
     k = std::min(k, n - 1);                                        // Maximum k=n-1
     return CandidateList(distance_matrix, k);
