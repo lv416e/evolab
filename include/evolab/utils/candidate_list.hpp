@@ -86,12 +86,11 @@ class CandidateList {
 
   private:
     void build_candidate_lists(const std::vector<std::vector<double>>& distance_matrix) {
-        if (n_ <= 1)
-            return;
+        // Pre-condition: n_ > 1 (enforced by constructor early return)
         for (std::size_t i = 0; i < n_; ++i) {
             // Create vector of (distance, city_index) pairs
             std::vector<std::pair<double, int>> distances;
-            distances.reserve(n_ > 0 ? n_ - 1 : 0);
+            distances.reserve(n_ - 1);
 
             for (std::size_t j = 0; j < n_; ++j) {
                 if (i != j) {
