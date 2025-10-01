@@ -294,14 +294,20 @@ int test_tsp_integration() {
                        "TSP should return valid candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
 
-    // NOTE: The current TSP caching implementation for candidate lists is unsafe.
-    // It reuses a single cache entry, which means a call to `get_candidate_list(k)`
-    // invalidates any pointer returned from a previous call with a different `k`.
-    // Using such an invalidated pointer leads to undefined behavior (use-after-free).
-    // This test verifies the behavior for a new `k`, but avoids using the old, invalidated pointer.
-    // TODO: The caching mechanism in `TSP` must be redesigned to be safe, for example
-    // by caching a list for each `k` value requested (e.g., using a `std::map<int,
-    // utils::CandidateList>`).
+    // CRITICAL BUG (GitHub Issue #23): The current TSP caching implementation for candidate lists
+    // is UNSAFE and causes use-after-free vulnerabilities. It reuses a single cache entry via
+    // std::optional, which means any call to `get_candidate_list(k)` with a different `k` value
+    // invalidates all previously returned pointers by resetting the optional and constructing a new
+    // CandidateList in place. Using such invalidated pointers leads to undefined behavior,
+    // potential crashes, and silent data corruption in production.
+    //
+    // This test verifies the behavior for a new `k`, but deliberately avoids using the old,
+    // invalidated pointer to prevent triggering UB in the test suite itself.
+    //
+    // REQUIRED FIX (HIGHEST PRIORITY): Redesign the caching mechanism to be safe, for example:
+    // - Use std::map<int, utils::CandidateList> to cache one list per k value
+    // - Or use std::shared_ptr to enable safe pointer sharing
+    // - Or document that only one k value should be used per TSP instance lifetime
 
     return result.summary();
 }
