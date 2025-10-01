@@ -40,14 +40,15 @@ class CandidateList {
     /// Get k value (number of candidates per city)
     int k() const { return k_; }
 
-    /// Check if there is a candidate link between two cities (asymmetric OR logic)
-    /// Returns true if EITHER city has the other as a candidate (not necessarily both)
-    /// @note Uses OR logic (||), not AND. For symmetric mutual relationship, both
-    ///       cities would need to have each other in their candidate lists.
+    /// Check if there is a candidate edge between two cities
+    /// Returns true if EITHER city has the other in its candidate list (OR logic)
+    /// @note This uses OR logic (||) which is appropriate for checking edge validity
+    ///       in local search operations (e.g., 2-opt). Use this to determine if an
+    ///       edge between two cities should be considered in the search.
     /// @param city1 First city index
     /// @param city2 Second city index
     /// @return true if at least one city has the other as a candidate
-    bool are_mutual_candidates(int city1, int city2) const {
+    [[nodiscard]] bool has_candidate_edge(int city1, int city2) const {
         const auto& candidates1 = candidates_[city1];
         const auto& candidates2 = candidates_[city2];
 
@@ -57,6 +58,13 @@ class CandidateList {
             std::find(candidates2.begin(), candidates2.end(), city1) != candidates2.end();
 
         return city1_has_city2 || city2_has_city1;
+    }
+
+    /// @deprecated Use has_candidate_edge() instead. The name "are_mutual_candidates"
+    ///             is misleading as it suggests AND logic, but the function uses OR logic.
+    [[deprecated("Use has_candidate_edge() instead")]] [[nodiscard]] bool
+    are_mutual_candidates(int city1, int city2) const {
+        return has_candidate_edge(city1, city2);
     }
 
     /// Get all candidate pairs for efficient iteration

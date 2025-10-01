@@ -126,11 +126,11 @@ int test_nearest_neighbor_correctness() {
     return result.summary();
 }
 
-int test_mutual_candidates() {
-    // NOTE: are_mutual_candidates() uses OR logic (||), not AND logic (&&)
-    // This means it returns true if EITHER city has the other as a candidate,
-    // not necessarily both. The function name might be misleading as "mutual"
-    // typically implies a symmetric (bidirectional) relationship.
+int test_candidate_edges() {
+    // NOTE: has_candidate_edge() uses OR logic (||), not AND logic (&&).
+    // This is semantically correct for checking if an edge between two cities
+    // should be considered in local search operations. It returns true if
+    // EITHER city has the other in its candidate list.
     TestResult result;
 
     std::vector<std::vector<double>> dist = {
@@ -140,47 +140,46 @@ int test_mutual_candidates() {
 
     // City 0's candidates: [1, 2] (distances: 1.0, 5.0)
     // City 1's candidates: [0, 2] (distances: 1.0, 4.0)
-    // They share each other as candidates
-    result.assert_true(cl.are_mutual_candidates(0, 1),
-                       "Cities 0 and 1 should be mutual candidates");
+    // Both have each other in their candidate lists → edge exists
+    result.assert_true(cl.has_candidate_edge(0, 1),
+                       "Cities 0 and 1 should have a candidate edge (bidirectional)");
 
     // City 0's candidates: [1, 2]
     // City 3's candidates: [2, 1] (distances: 3.0, 7.0)
-    // They don't share each other (asymmetric relationship)
-    result.assert_true(!cl.are_mutual_candidates(0, 3),
-                       "Cities 0 and 3 should not be mutual candidates");
+    // Neither has the other in their candidate lists → no edge
+    result.assert_true(!cl.has_candidate_edge(0, 3),
+                       "Cities 0 and 3 should not have a candidate edge");
 
     // City 2's candidates: [3, 1] (distances: 3.0, 4.0)
     // City 3's candidates: [2, 1] (distances: 3.0, 7.0)
-    // They share each other
-    result.assert_true(cl.are_mutual_candidates(2, 3),
-                       "Cities 2 and 3 should be mutual candidates");
+    // Both have each other → edge exists
+    result.assert_true(cl.has_candidate_edge(2, 3),
+                       "Cities 2 and 3 should have a candidate edge (bidirectional)");
 
-    // Test asymmetric candidate relationship explicitly
+    // Test unidirectional candidate edge
     // City 1's candidates: [0, 2] → 3 is NOT in 1's candidates
     // City 3's candidates: [2, 1] → 1 IS in 3's candidates
-    // This is still mutual because 1 appears in 3's list (even though 3 doesn't appear in 1's)
-    result.assert_true(cl.are_mutual_candidates(1, 3),
-                       "Cities 1 and 3 should be mutual candidates (1 is in 3's list)");
+    // Edge exists because at least one direction exists (OR logic)
+    result.assert_true(cl.has_candidate_edge(1, 3),
+                       "Cities 1 and 3 should have a candidate edge (unidirectional: 3→1)");
 
-    // Test for truly non-mutual (asymmetric) candidacy
-    // Create a matrix where one-way relationships are clear
+    // Test with minimal k=1 to verify edge detection
     {
         std::vector<std::vector<double>> dist_asym = {
             {0.0, 1.0, 3.0}, {1.0, 0.0, 2.0}, {3.0, 2.0, 0.0}};
         utils::CandidateList cl_asym(dist_asym, 1);
-        // For k=1: 0->{1}, 1->{0}, 2->{1}
-        // (0,1) is a mutual pair (both have each other as their only candidate)
-        // (1,2) is NOT mutual in true sense: 1's candidate is {0}, 2's candidate is {1}
-        // However, with OR logic (||), are_mutual_candidates(1, 2) returns true because 1 is in 2's
-        // list This test documents the current OR-based behavior
-        result.assert_true(
-            cl_asym.are_mutual_candidates(1, 2),
-            "Cities 1 and 2 have one-way relationship (current OR logic returns true)");
+        // For k=1: 0→{1}, 1→{0}, 2→{1}
+        // (0,1): bidirectional edge (both have each other)
+        result.assert_true(cl_asym.has_candidate_edge(0, 1),
+                           "Cities 0 and 1 should have bidirectional candidate edge");
 
-        // Test a truly disconnected pair
-        result.assert_true(!cl_asym.are_mutual_candidates(0, 2),
-                           "Cities 0 and 2 should not be candidates of each other");
+        // (1,2): unidirectional edge (2→1 only, not 1→2)
+        result.assert_true(cl_asym.has_candidate_edge(1, 2),
+                           "Cities 1 and 2 should have unidirectional candidate edge (2→1)");
+
+        // (0,2): no edge (neither has the other)
+        result.assert_true(!cl_asym.has_candidate_edge(0, 2),
+                           "Cities 0 and 2 should have no candidate edge");
     }
 
     return result.summary();
@@ -402,7 +401,7 @@ int main() {
         {"Basic Construction", test_construction_basic},
         {"Edge Cases (k boundaries)", test_construction_edge_cases},
         {"Nearest Neighbor Correctness", test_nearest_neighbor_correctness},
-        {"Mutual Candidates", test_mutual_candidates},
+        {"Candidate Edges", test_candidate_edges},
         {"Candidate Pairs", test_candidate_pairs},
         {"Factory Function", test_factory_function},
         {"TSP Integration", test_tsp_integration},
