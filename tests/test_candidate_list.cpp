@@ -86,6 +86,22 @@ int test_construction_edge_cases() {
         result.assert_eq(3, cl.k(), "k < 0 should auto-correct to n-1");
     }
 
+    // Test with n=0 (empty problem)
+    {
+        std::vector<std::vector<double>> d0;
+        utils::CandidateList cl(d0, 5);
+        result.assert_eq(0, cl.size(), "n=0 should have size 0");
+        result.assert_eq(0, cl.k(), "n=0 should have k=0");
+    }
+
+    // Test with n=1 (trivial problem)
+    {
+        std::vector<std::vector<double>> d1(1, std::vector<double>(1, 0.0));
+        utils::CandidateList cl(d1, 5);
+        result.assert_eq(1, cl.size(), "n=1 should have size 1");
+        result.assert_eq(0, cl.k(), "n=1 should have k=0");
+    }
+
     return result.summary();
 }
 
