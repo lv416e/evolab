@@ -36,7 +36,13 @@ class CandidateList {
     /// Get k value (number of candidates per city)
     int k() const { return k_; }
 
-    /// Check if two cities are candidates of each other
+    /// Check if there is a candidate link between two cities (asymmetric OR logic)
+    /// Returns true if EITHER city has the other as a candidate (not necessarily both)
+    /// @note Uses OR logic (||), not AND. For symmetric mutual relationship, both
+    ///       cities would need to have each other in their candidate lists.
+    /// @param city1 First city index
+    /// @param city2 Second city index
+    /// @return true if at least one city has the other as a candidate
     bool are_mutual_candidates(int city1, int city2) const {
         const auto& candidates1 = candidates_[city1];
         const auto& candidates2 = candidates_[city2];
