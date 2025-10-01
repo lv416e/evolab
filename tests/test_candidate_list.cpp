@@ -234,8 +234,11 @@ int test_factory_function() {
     // Default k_factor = 2.0
     auto cl = utils::make_candidate_list(dist);
 
-    // For n=20, k is std::max(5, static_cast<int>(2.0 * log(20))), which due to truncation is 5
-    result.assert_eq(5, cl.k(), "Factory should set k=5 for n=20 with default k_factor");
+    // For n=20, k is std::max(5, static_cast<int>(2.0 * log(20)))
+    int expected_k_default =
+        std::max(5, static_cast<int>(2.0 * std::log(static_cast<double>(dist.size()))));
+    result.assert_eq(expected_k_default, cl.k(),
+                     "Factory should set k to expected value for default k_factor");
 
     // Test custom k_factor
     auto cl_large = utils::make_candidate_list(dist, 5.0);
@@ -296,7 +299,8 @@ int test_tsp_integration() {
     // Using such an invalidated pointer leads to undefined behavior (use-after-free).
     // This test verifies the behavior for a new `k`, but avoids using the old, invalidated pointer.
     // TODO: The caching mechanism in `TSP` must be redesigned to be safe, for example
-    // by caching a list for each `k` value requested (e.g., using a `std::map<int, utils::CandidateList>`).
+    // by caching a list for each `k` value requested (e.g., using a `std::map<int,
+    // utils::CandidateList>`).
 
     return result.summary();
 }
