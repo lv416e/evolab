@@ -342,11 +342,56 @@ int test_large_instance_scalability() {
     return result.summary();
 }
 
+#ifdef ENABLE_ASAN_DEMONSTRATION_TESTS
+/// Demonstrates the use-after-free bug in TSP candidate list caching.
+/// This test is DISABLED by default and should only be enabled when running with
+/// AddressSanitizer (ASan) or MemorySanitizer (MSan) to verify the bug exists.
+///
+/// To enable: compile with -DENABLE_ASAN_DEMONSTRATION_TESTS and run with ASan:
+///   cmake -DCMAKE_CXX_FLAGS="-fsanitize=address -DENABLE_ASAN_DEMONSTRATION_TESTS" ..
+///
+/// This test will deliberately trigger undefined behavior (use-after-free) to
+/// demonstrate the critical bug tracked in GitHub Issue #23.
+int test_tsp_cache_use_after_free_demonstration() {
+    TestResult result;
+
+    auto tsp = problems::create_random_tsp(10, 100.0, 42);
+
+    // Get candidate list with k=5
+    const auto* cl_ptr_k5 = tsp.get_candidate_list(5);
+    result.assert_true(cl_ptr_k5 != nullptr, "First candidate list should be valid");
+    result.assert_eq(5, cl_ptr_k5->k(), "First candidate list should have k=5");
+
+    // This call invalidates the memory cl_ptr_k5 points to
+    // because TSP reuses a single cache entry
+    const auto* cl_ptr_k8 = tsp.get_candidate_list(8);
+    result.assert_true(cl_ptr_k8 != nullptr, "Second candidate list should be valid");
+    result.assert_eq(8, cl_ptr_k8->k(), "Second candidate list should have k=8");
+
+    // CRITICAL: Accessing cl_ptr_k5 now is use-after-free!
+    // ASan/MSan should detect this and report an error.
+    // In production, this could cause crashes or silent data corruption.
+    [[maybe_unused]] int size = cl_ptr_k5->size(); // Use-after-free here!
+    [[maybe_unused]] int k_value = cl_ptr_k5->k(); // Use-after-free here!
+
+    // Try to use the invalidated pointer's data
+    // This will likely show wrong values or crash
+    std::cout << "WARNING: Accessing potentially invalidated pointer:\n";
+    std::cout << "  Size: " << size << " (expected 10)\n";
+    std::cout << "  k: " << k_value << " (expected 5, might show 8 due to corruption)\n";
+
+    // Note: We can't assert correctness here because the behavior is undefined.
+    // The purpose is to trigger ASan/MSan detection, not to validate results.
+
+    return result.summary();
+}
+#endif // ENABLE_ASAN_DEMONSTRATION_TESTS
+
 int main() {
     std::cout << "=== Candidate List Comprehensive Test Suite ===\n\n";
 
     using test_case = std::function<int()>;
-    const std::vector<std::pair<std::string, test_case>> tests = {
+    std::vector<std::pair<std::string, test_case>> tests = {
         {"Basic Construction", test_construction_basic},
         {"Edge Cases (k boundaries)", test_construction_edge_cases},
         {"Nearest Neighbor Correctness", test_nearest_neighbor_correctness},
@@ -356,6 +401,13 @@ int main() {
         {"TSP Integration", test_tsp_integration},
         {"Large Instance Scalability", test_large_instance_scalability},
     };
+
+#ifdef ENABLE_ASAN_DEMONSTRATION_TESTS
+    // Add ASan demonstration test only when explicitly enabled
+    tests.emplace_back("TSP Cache Use-After-Free (ASan Demo)",
+                       test_tsp_cache_use_after_free_demonstration);
+    std::cout << "⚠️  ASan demonstration test enabled - expect memory errors!\n\n";
+#endif
 
     int total_failures = 0;
     for (const auto& [name, func] : tests) {
