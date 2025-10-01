@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
-#include <set>
 #include <vector>
 
 namespace evolab {
@@ -58,21 +57,26 @@ class CandidateList {
     /// Get all candidate pairs for efficient iteration
     /// Returns unique undirected edges where at least one city has the other as a candidate
     std::vector<std::pair<int, int>> get_all_candidate_pairs() const {
-        // Use std::set for automatic deduplication and sorted order
-        // This approach prioritizes code clarity and correctness.
-        // For very large instances where this becomes a bottleneck, consider:
-        // vector-based approach with sort + unique for better cache locality.
-        std::set<std::pair<int, int>> unique_pairs;
+        // Use vector-based approach with sort + unique for better performance.
+        // This avoids repeated heap allocations and improves cache locality
+        // compared to std::set, which is important for large problem instances.
+        std::vector<std::pair<int, int>> pairs;
+        // Reserve space to minimize reallocations. n_ * k_ is an upper bound.
+        pairs.reserve(n_ * k_);
 
         for (int i = 0; i < static_cast<int>(n_); ++i) {
             for (int j : candidates_[i]) {
-                // Normalize pair to (min, max) and insert into set
-                unique_pairs.insert({std::min(i, j), std::max(i, j)});
+                // Normalize pair to (min, max) to represent an undirected edge
+                pairs.emplace_back(std::min(i, j), std::max(i, j));
             }
         }
 
-        // Convert set to vector for return
-        return {unique_pairs.begin(), unique_pairs.end()};
+        // Sort to bring duplicates together
+        std::sort(pairs.begin(), pairs.end());
+        // Erase adjacent duplicates
+        pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
+
+        return pairs;
     }
 
   private:
