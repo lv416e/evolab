@@ -5,6 +5,7 @@
 /// with TSP problem instances following TDD methodology.
 
 #include <cmath>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -107,8 +108,7 @@ int test_nearest_neighbor_correctness() {
         // Verify all expected candidates are present in order
         for (size_t i = 0; i < expected.size(); ++i) {
             result.assert_eq(expected[i], candidates[i],
-                             "City 0 candidate " + std::to_string(i) + " should be " +
-                                 std::to_string(expected[i]));
+                             std::format("City 0 candidate {} should be {}", i, expected[i]));
         }
     }
 
@@ -119,8 +119,7 @@ int test_nearest_neighbor_correctness() {
 
         for (size_t i = 0; i < expected.size(); ++i) {
             result.assert_eq(expected[i], candidates[i],
-                             "City 2 candidate " + std::to_string(i) + " should be " +
-                                 std::to_string(expected[i]));
+                             std::format("City 2 candidate {} should be {}", i, expected[i]));
         }
     }
 
@@ -203,7 +202,7 @@ int test_candidate_pairs() {
     // Expected unique pairs: (0,1) and (1,2)
     result.assert_eq(2, static_cast<int>(pairs.size()), "Should have exactly 2 unique pairs");
 
-    if (pairs.size() >= 2) {
+    if (pairs.size() == 2) {
         result.assert_true(pairs[0] == std::make_pair(0, 1), "First pair should be (0, 1)");
         result.assert_true(pairs[1] == std::make_pair(1, 2), "Second pair should be (1, 2)");
     }
@@ -280,9 +279,9 @@ int test_tsp_integration() {
     for (int i = 0; i < 10; ++i) {
         const auto& candidates1 = cl_ptr->get_candidates(i);
         const auto& candidates2 = cl_ptr2->get_candidates(i);
-        result.assert_true(candidates1 == candidates2,
-                           "Cached list should have identical candidates for city " +
-                               std::to_string(i));
+        result.assert_true(
+            candidates1 == candidates2,
+            std::format("Cached list should have identical candidates for city {}", i));
     }
 
     // Test different k creates new list
