@@ -62,7 +62,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build ccache build-essential cmake
+          sudo apt-get install -y ninja-build ccache build-essential cmake gcc-13 g++-13
+
+          # Verify C++ compiler version (G++ 13+ required for std::format support)
+          echo "Installed: $(g++-13 --version | head -1)"
+          gxx_version=$(g++-13 -dumpversion | cut -d. -f1)
+          if [ "$gxx_version" -lt 13 ]; then
+            echo "::error::Failed to install G++ 13+ for C++23 std::format support"
+            exit 1
+          fi
 
       - name: Install NUMA deps (Linux, when numa=on)
         if: runner.os == 'Linux' && matrix.numa == 'on'
@@ -96,6 +104,8 @@ jobs:
           EXTRA_FLAGS="-DEVOLAB_WITH_NUMA=$([[ "$NUMA" == "on" ]] && echo ON || echo OFF)"
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \

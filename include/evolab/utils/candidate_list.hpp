@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -16,6 +17,11 @@ class CandidateList {
     /// @param k Number of nearest neighbors to maintain
     explicit CandidateList(const std::vector<std::vector<double>>& distance_matrix, int k)
         : n_(distance_matrix.size()), k_(k), candidates_(n_) {
+        // Handle trivial instances up-front
+        if (n_ <= 1) {
+            k_ = 0;
+            return; // candidates_ already sized to n_, nothing to build
+        }
 
         if (k_ <= 0 || k_ >= static_cast<int>(n_)) {
             k_ = static_cast<int>(n_) - 1; // Use all other cities if k is invalid
@@ -25,18 +31,31 @@ class CandidateList {
     }
 
     /// Get k nearest neighbors for a given city
-    /// @param city City index
+    /// @param city City index (must be in [0, n))
     /// @return Vector of nearest neighbor indices sorted by distance
-    const std::vector<int>& get_candidates(int city) const { return candidates_[city]; }
+    [[nodiscard]] const std::vector<int>& get_candidates(int city) const {
+        assert(city >= 0 && city < static_cast<int>(n_) && "City index out of bounds");
+        return candidates_[city];
+    }
 
     /// Get number of cities
-    int size() const { return static_cast<int>(n_); }
+    [[nodiscard]] int size() const { return static_cast<int>(n_); }
 
     /// Get k value (number of candidates per city)
-    int k() const { return k_; }
+    [[nodiscard]] int k() const { return k_; }
 
-    /// Check if two cities are candidates of each other
-    bool are_mutual_candidates(int city1, int city2) const {
+    /// Check if there is a candidate edge between two cities
+    /// Returns true if EITHER city has the other in its candidate list (OR logic)
+    /// @note This uses OR logic (||) which is appropriate for checking edge validity
+    ///       in local search operations (e.g., 2-opt). Use this to determine if an
+    ///       edge between two cities should be considered in the search.
+    /// @param city1 First city index (must be in [0, n))
+    /// @param city2 Second city index (must be in [0, n))
+    /// @return true if at least one city has the other as a candidate
+    [[nodiscard]] bool has_candidate_edge(int city1, int city2) const {
+        assert(city1 >= 0 && city1 < static_cast<int>(n_) && "City1 index out of bounds");
+        assert(city2 >= 0 && city2 < static_cast<int>(n_) && "City2 index out of bounds");
+
         const auto& candidates1 = candidates_[city1];
         const auto& candidates2 = candidates_[city2];
 
@@ -48,24 +67,41 @@ class CandidateList {
         return city1_has_city2 || city2_has_city1;
     }
 
+    /// @deprecated Use has_candidate_edge() instead. The name "are_mutual_candidates"
+    ///             is misleading as it suggests AND logic, but the function uses OR logic.
+    [[deprecated("Use has_candidate_edge() instead")]] [[nodiscard]] bool
+    are_mutual_candidates(int city1, int city2) const {
+        return has_candidate_edge(city1, city2);
+    }
+
     /// Get all candidate pairs for efficient iteration
+    /// Returns unique undirected edges where at least one city has the other as a candidate
     std::vector<std::pair<int, int>> get_all_candidate_pairs() const {
+        // Use vector-based approach with sort + unique for better performance.
+        // This avoids repeated heap allocations and improves cache locality
+        // compared to std::set, which is important for large problem instances.
         std::vector<std::pair<int, int>> pairs;
+        // Reserve space to minimize reallocations. n_ * k_ is an upper bound.
         pairs.reserve(n_ * k_);
 
         for (int i = 0; i < static_cast<int>(n_); ++i) {
             for (int j : candidates_[i]) {
-                if (i < j) { // Avoid duplicates by ensuring i < j
-                    pairs.emplace_back(i, j);
-                }
+                // Normalize pair to (min, max) to represent an undirected edge
+                pairs.emplace_back(std::min(i, j), std::max(i, j));
             }
         }
+
+        // Sort to bring duplicates together
+        std::sort(pairs.begin(), pairs.end());
+        // Erase adjacent duplicates
+        pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
 
         return pairs;
     }
 
   private:
     void build_candidate_lists(const std::vector<std::vector<double>>& distance_matrix) {
+        // Pre-condition: n_ > 1 (enforced by constructor early return)
         for (std::size_t i = 0; i < n_; ++i) {
             // Create vector of (distance, city_index) pairs
             std::vector<std::pair<double, int>> distances;
@@ -78,13 +114,13 @@ class CandidateList {
             }
 
             // Partially sort by distance to get k nearest neighbors
-            auto kth_it = distances.begin() + std::min(k_, static_cast<int>(distances.size()));
-            std::nth_element(distances.begin(), kth_it, distances.end());
-            std::sort(distances.begin(), kth_it);
+            // Use partial_sort instead of nth_element+sort to avoid UB when k==distances.size()
+            const int k_eff = std::min(k_, static_cast<int>(distances.size()));
+            std::partial_sort(distances.begin(), distances.begin() + k_eff, distances.end());
 
             // Take k nearest neighbors
-            candidates_[i].reserve(k_);
-            for (int idx = 0; idx < std::min(k_, static_cast<int>(distances.size())); ++idx) {
+            candidates_[i].reserve(k_eff);
+            for (int idx = 0; idx < k_eff; ++idx) {
                 candidates_[i].push_back(distances[idx].second);
             }
         }
@@ -101,6 +137,9 @@ class CandidateList {
 inline CandidateList make_candidate_list(const std::vector<std::vector<double>>& distance_matrix,
                                          double k_factor = 2.0) {
     int n = static_cast<int>(distance_matrix.size());
+    if (n <= 1) {
+        return CandidateList(distance_matrix, 0);
+    }
     int k = std::max(5, static_cast<int>(k_factor * std::log(n))); // Minimum k=5
     k = std::min(k, n - 1);                                        // Maximum k=n-1
     return CandidateList(distance_matrix, k);
