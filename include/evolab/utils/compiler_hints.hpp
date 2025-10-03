@@ -8,8 +8,6 @@
 /// restrict pointers. These hints help the compiler generate more
 /// efficient code for performance-critical paths.
 
-namespace evolab::utils {
-
 /// Branch prediction hint: condition is likely to be true
 /// Use when a branch is taken in >90% of cases
 #if defined(__GNUC__) || defined(__clang__)
@@ -62,4 +60,4 @@ namespace evolab::utils {
 #define EVOLAB_NO_INLINE
 #endif
 
-} // namespace evolab::utils
+namespace evolab::utils {} // namespace evolab::utils
