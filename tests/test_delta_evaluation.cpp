@@ -314,9 +314,10 @@ int test_two_opt_is_deterministic() {
     local_search::TwoOpt ls1(false, 5);
     double fitness1 = ls1.improve(tsp, tour1, rng).value;
 
-    // Reset RNG to same state
+    // Reset RNG to same state and clear cache for clean second run
     rng.seed(42);
     tour2 = tsp.random_genome(rng);
+    tsp.clear_distance_cache();
 
     local_search::TwoOpt ls2(false, 5);
     double fitness2 = ls2.improve(tsp, tour2, rng).value;
