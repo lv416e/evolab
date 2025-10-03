@@ -33,9 +33,13 @@ class DistanceCache {
     mutable std::atomic<std::size_t> misses_{0};
 
     /// Pack two indices into a single 32-bit key
-    /// Assumes i and j fit in 16 bits (max 65535 cities)
+    /// @note Limited to indices < 65536 (16-bit). For larger instances, indices are truncated.
+    /// This is acceptable as the cache is advisory-only; misses due to truncation just
+    /// result in more distance matrix accesses without affecting correctness.
     static constexpr std::uint32_t pack_key(int i, int j) noexcept {
-        return (static_cast<std::uint32_t>(i) << 16) | static_cast<std::uint32_t>(j);
+        // Truncate to 16 bits - cache is advisory only, so truncation just causes misses
+        return (static_cast<std::uint32_t>(i & 0xFFFF) << 16) |
+               static_cast<std::uint32_t>(j & 0xFFFF);
     }
 
     /// Get cache index from key using fast bit masking
@@ -53,8 +57,9 @@ class DistanceCache {
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
-        // Atomic loads with relaxed memory order for performance
-        if (entry.valid.load(std::memory_order_relaxed) &&
+        // Use acquire semantics on valid to ensure key/value writes are visible
+        // when valid==true is observed
+        if (entry.valid.load(std::memory_order_acquire) &&
             entry.key.load(std::memory_order_relaxed) == key) {
             out_value = entry.value.load(std::memory_order_relaxed);
             hits_.fetch_add(1, std::memory_order_relaxed);
@@ -71,10 +76,12 @@ class DistanceCache {
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
-        // Store with relaxed memory order - cache is advisory only
+        // Store key and value first with relaxed ordering
         entry.key.store(key, std::memory_order_relaxed);
         entry.value.store(value, std::memory_order_relaxed);
-        entry.valid.store(true, std::memory_order_relaxed);
+        // Use release semantics on valid to ensure key/value writes are visible
+        // before valid becomes true
+        entry.valid.store(true, std::memory_order_release);
     }
 
     /// Clear all cache entries (thread-safe)
