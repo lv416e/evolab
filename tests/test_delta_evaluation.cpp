@@ -307,17 +307,18 @@ int test_two_opt_is_deterministic() {
     auto tsp = problems::create_random_tsp(20, 100.0, 12345);
 
     std::mt19937 rng(42);
-    auto tour1 = tsp.random_genome(rng);
-    auto tour2 = tour1;
+    auto original_tour = tsp.random_genome(rng);
+    auto tour1 = original_tour;
+    auto tour2 = original_tour;
 
     // Run same algorithm twice with identical inputs - should be deterministic
     local_search::TwoOpt ls1(false, 5);
     double fitness1 = ls1.improve(tsp, tour1, rng).value;
 
-    // Reset RNG to same state and clear cache for clean second run
-    rng.seed(42);
-    tour2 = tsp.random_genome(rng);
+    // Clear cache for clean second run
+    tour2 = original_tour;
     tsp.clear_distance_cache();
+    rng.seed(42);
 
     local_search::TwoOpt ls2(false, 5);
     double fitness2 = ls2.improve(tsp, tour2, rng).value;
