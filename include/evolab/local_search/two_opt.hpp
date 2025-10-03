@@ -173,7 +173,7 @@ class CandidateList2Opt {
         bool improved = true;
         core::Fitness current_fitness = problem.evaluate(tour);
         std::size_t iterations = 0;
-        const std::size_t max_iterations = n * 10;
+        const std::size_t max_iterations = n * 10; // Prevent infinite loops
 
         while (improved && iterations < max_iterations) {
             improved = false;
