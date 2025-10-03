@@ -308,20 +308,22 @@ int test_two_opt_is_deterministic() {
 
     std::mt19937 rng(42);
     auto original_tour = tsp.random_genome(rng);
+    auto rng_after_tour = rng; // Snapshot RNG state after tour generation
+
     auto tour1 = original_tour;
     auto tour2 = original_tour;
 
     // Run same algorithm twice with identical inputs - should be deterministic
     local_search::TwoOpt ls1(false, 5);
-    double fitness1 = ls1.improve(tsp, tour1, rng).value;
+    std::mt19937 rng_run1 = rng_after_tour;
+    double fitness1 = ls1.improve(tsp, tour1, rng_run1).value;
 
-    // Clear cache for clean second run
-    tour2 = original_tour;
+    // Clear cache and replay with exact same RNG sequence
     tsp.clear_distance_cache();
-    rng.seed(42);
+    std::mt19937 rng_run2 = rng_after_tour;
 
     local_search::TwoOpt ls2(false, 5);
-    double fitness2 = ls2.improve(tsp, tour2, rng).value;
+    double fitness2 = ls2.improve(tsp, tour2, rng_run2).value;
 
     result.assert_eq(fitness1, fitness2, "Results should be deterministic", 1e-9);
     result.assert_eq(tour1.size(), tour2.size(), "Tour sizes should match");
