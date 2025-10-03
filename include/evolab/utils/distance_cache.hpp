@@ -23,7 +23,7 @@ class DistanceCache {
     static_assert((CacheSize & (CacheSize - 1)) == 0, "CacheSize must be power of 2");
 
     struct CacheEntry {
-        std::atomic<std::uint32_t> key{0}; // Packed (i, j) as single 32-bit value
+        std::atomic<std::uint64_t> key{0}; // Packed (i, j) as single 64-bit value
         std::atomic<T> value{0};
         std::atomic<bool> valid{false};
     };
@@ -32,19 +32,16 @@ class DistanceCache {
     mutable std::atomic<std::size_t> hits_{0};
     mutable std::atomic<std::size_t> misses_{0};
 
-    /// Pack two indices into a single 32-bit key
-    /// @note Limited to indices < 65536 (16-bit). For larger instances, indices are truncated.
-    /// This is acceptable as the cache is advisory-only; misses due to truncation just
-    /// result in more distance matrix accesses without affecting correctness.
-    static constexpr std::uint32_t pack_key(int i, int j) noexcept {
-        // Truncate to 16 bits - cache is advisory only, so truncation just causes misses
-        return (static_cast<std::uint32_t>(i & 0xFFFF) << 16) |
-               static_cast<std::uint32_t>(j & 0xFFFF);
+    /// Pack two indices into a single 64-bit key
+    /// Supports full 32-bit indices without collision
+    static constexpr std::uint64_t pack_key(int i, int j) noexcept {
+        return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(i)) << 32) |
+               static_cast<std::uint64_t>(static_cast<std::uint32_t>(j));
     }
 
     /// Get cache index from key using fast bit masking
-    static constexpr std::size_t cache_index(std::uint32_t key) noexcept {
-        return key & (CacheSize - 1);
+    static constexpr std::size_t cache_index(std::uint64_t key) noexcept {
+        return static_cast<std::size_t>(key & (CacheSize - 1));
     }
 
   public:
@@ -52,16 +49,32 @@ class DistanceCache {
 
     /// Try to retrieve distance from cache (thread-safe)
     /// Returns true if found, false otherwise
+    /// Uses double-check pattern to avoid race between key check and value read
     bool try_get(int i, int j, T& out_value) const noexcept {
-        const std::uint32_t key = pack_key(i, j);
+        const std::uint64_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
         // Use acquire semantics on valid to ensure key/value writes are visible
-        // when valid==true is observed
-        if (entry.valid.load(std::memory_order_acquire) &&
-            entry.key.load(std::memory_order_relaxed) == key) {
-            out_value = entry.value.load(std::memory_order_relaxed);
+        if (!entry.valid.load(std::memory_order_acquire)) {
+            misses_.fetch_add(1, std::memory_order_relaxed);
+            return false;
+        }
+
+        // Check key before reading value
+        const std::uint64_t stored_key = entry.key.load(std::memory_order_relaxed);
+        if (stored_key != key) {
+            misses_.fetch_add(1, std::memory_order_relaxed);
+            return false;
+        }
+
+        // Read value
+        out_value = entry.value.load(std::memory_order_relaxed);
+
+        // Re-check key and valid to ensure entry wasn't overwritten
+        // This prevents returning wrong value if put() happened between checks
+        if (entry.key.load(std::memory_order_relaxed) == key &&
+            entry.valid.load(std::memory_order_relaxed)) {
             hits_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
@@ -72,7 +85,7 @@ class DistanceCache {
 
     /// Insert distance into cache (thread-safe)
     void put(int i, int j, T value) noexcept {
-        const std::uint32_t key = pack_key(i, j);
+        const std::uint64_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
