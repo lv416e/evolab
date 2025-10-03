@@ -60,14 +60,15 @@ class DistanceCache {
         if (entry.valid.load(std::memory_order_acquire) &&
             entry.key.load(std::memory_order_relaxed) == key) {
 
-            // Read value, then re-check to protect against races with other writers
-            out_value = entry.value.load(std::memory_order_relaxed);
+            // Read value into temporary, then re-check to protect against races with other writers
+            T temp_value = entry.value.load(std::memory_order_relaxed);
 
             // The second check ensures that the entry was not invalidated or overwritten
             // between the first check and reading the value
             // Use acquire on valid to synchronize with clear()'s release
             if (entry.key.load(std::memory_order_relaxed) == key &&
                 entry.valid.load(std::memory_order_acquire)) {
+                out_value = temp_value;
                 hits_.fetch_add(1, std::memory_order_relaxed);
                 return true;
             }
