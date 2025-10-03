@@ -73,8 +73,9 @@ class DistanceCache {
 
         // Re-check key and valid to ensure entry wasn't overwritten
         // This prevents returning wrong value if put() happened between checks
+        // Use acquire on valid to synchronize with clear()'s release
         if (entry.key.load(std::memory_order_relaxed) == key &&
-            entry.valid.load(std::memory_order_relaxed)) {
+            entry.valid.load(std::memory_order_acquire)) {
             hits_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
@@ -100,7 +101,8 @@ class DistanceCache {
     /// Clear all cache entries (thread-safe)
     void clear() noexcept {
         for (auto& entry : entries_) {
-            entry.valid.store(false, std::memory_order_relaxed);
+            // Use release to ensure clear is visible to other threads
+            entry.valid.store(false, std::memory_order_release);
         }
         hits_.store(0, std::memory_order_relaxed);
         misses_.store(0, std::memory_order_relaxed);
