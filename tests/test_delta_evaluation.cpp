@@ -8,6 +8,7 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <evolab/local_search/two_opt.hpp>
@@ -356,6 +357,64 @@ int test_compiler_hints_work() {
     return result.summary();
 }
 
+// Test concurrent access to distance cache
+int test_distance_cache_concurrent_access() {
+    TestResult result;
+
+    utils::DistanceCache<double> cache;
+    constexpr int num_threads = 4;
+    constexpr int operations_per_thread = 1000;
+
+    // Pre-populate cache with some entries
+    for (int i = 0; i < 10; ++i) {
+        cache.put(i, i + 1, static_cast<double>(i * 10));
+    }
+
+    auto worker = [&cache](int thread_id) {
+        std::mt19937 rng(thread_id);
+        std::uniform_int_distribution<int> dist(0, 99);
+
+        for (int op = 0; op < operations_per_thread; ++op) {
+            int i = dist(rng);
+            int j = dist(rng);
+            double value = static_cast<double>(i * j);
+
+            // Mix of put and try_get operations
+            if (op % 3 == 0) {
+                cache.put(i, j, value);
+            } else {
+                double retrieved;
+                cache.try_get(i, j, retrieved);
+            }
+
+            // Occasionally clear cache
+            if (op % 100 == 0) {
+                cache.clear();
+            }
+        }
+    };
+
+    // Launch threads
+    std::vector<std::thread> threads;
+    for (int t = 0; t < num_threads; ++t) {
+        threads.emplace_back(worker, t);
+    }
+
+    // Wait for completion
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    // Verify cache is still functional after concurrent access
+    cache.clear();
+    cache.put(42, 43, 99.0);
+    double value;
+    result.assert_true(cache.try_get(42, 43, value), "Cache should work after concurrent access");
+    result.assert_eq(99.0, value, "Value should be correct", 1e-9);
+
+    return result.summary();
+}
+
 int main() {
     std::cout << "=== Running Delta Evaluation Tests ===\n\n";
 
@@ -369,6 +428,7 @@ int main() {
     total_failed += test_distance_cache_clear();
     total_failed += test_distance_cache_hit_rate();
     total_failed += test_distance_cache_large_indices();
+    total_failed += test_distance_cache_concurrent_access();
 
     std::cout << "\n--- TSP Cached Distance Tests ---\n";
     total_failed += test_tsp_cached_distance_matches_regular();

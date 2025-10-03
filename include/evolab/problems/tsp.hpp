@@ -210,6 +210,7 @@ class TSP {
     EVOLAB_FORCE_INLINE double two_opt_gain_cached(const GenomeT& tour, int i,
                                                    int j) const noexcept {
         // Ensure i < j for consistency
+        // This is unlikely since callers typically use nested loops with i < j
         if (EVOLAB_UNLIKELY(i > j)) {
             std::swap(i, j);
         }

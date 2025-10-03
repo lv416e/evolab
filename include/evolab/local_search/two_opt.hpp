@@ -33,6 +33,8 @@ class TwoOpt {
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
                           [[maybe_unused]] std::mt19937& rng) const {
         const int n = static_cast<int>(tour.size());
+        // Tours with < 4 cities cannot be improved by 2-opt (need at least 2 edges to swap)
+        // This is unlikely since typical TSP instances have many cities
         if (EVOLAB_UNLIKELY(n < 4))
             return problem.evaluate(tour);
 
