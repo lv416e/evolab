@@ -56,30 +56,24 @@ class DistanceCache {
         auto& entry = entries_[idx];
 
         // Use acquire semantics on valid to ensure key/value writes are visible
-        if (!entry.valid.load(std::memory_order_acquire)) {
-            misses_.fetch_add(1, std::memory_order_relaxed);
-            return false;
+        // Single check for validity and key match simplifies miss case handling
+        if (entry.valid.load(std::memory_order_acquire) &&
+            entry.key.load(std::memory_order_relaxed) == key) {
+
+            // Read value, then re-check to protect against races with other writers
+            out_value = entry.value.load(std::memory_order_relaxed);
+
+            // The second check ensures that the entry was not invalidated or overwritten
+            // between the first check and reading the value
+            // Use acquire on valid to synchronize with clear()'s release
+            if (entry.key.load(std::memory_order_relaxed) == key &&
+                entry.valid.load(std::memory_order_acquire)) {
+                hits_.fetch_add(1, std::memory_order_relaxed);
+                return true;
+            }
         }
 
-        // Check key before reading value
-        const std::uint64_t stored_key = entry.key.load(std::memory_order_relaxed);
-        if (stored_key != key) {
-            misses_.fetch_add(1, std::memory_order_relaxed);
-            return false;
-        }
-
-        // Read value
-        out_value = entry.value.load(std::memory_order_relaxed);
-
-        // Re-check key and valid to ensure entry wasn't overwritten
-        // This prevents returning wrong value if put() happened between checks
-        // Use acquire on valid to synchronize with clear()'s release
-        if (entry.key.load(std::memory_order_relaxed) == key &&
-            entry.valid.load(std::memory_order_acquire)) {
-            hits_.fetch_add(1, std::memory_order_relaxed);
-            return true;
-        }
-
+        // Single miss increment handles all miss cases
         misses_.fetch_add(1, std::memory_order_relaxed);
         return false;
     }
