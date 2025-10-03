@@ -14,8 +14,9 @@
 #include <vector>
 
 // EvoLab dependencies - core concepts and TSP problem definition
-#include <evolab/core/concepts.hpp> // Type constraints for local search interface
-#include <evolab/problems/tsp.hpp>  // TSP problem class with distance calculations
+#include <evolab/core/concepts.hpp>        // Type constraints for local search interface
+#include <evolab/problems/tsp.hpp>         // TSP problem class with distance calculations
+#include <evolab/utils/compiler_hints.hpp> // Branch prediction hints
 
 namespace evolab::local_search {
 
@@ -32,8 +33,11 @@ class TwoOpt {
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
                           [[maybe_unused]] std::mt19937& rng) const {
         const int n = static_cast<int>(tour.size());
-        if (n < 4)
+        if (EVOLAB_UNLIKELY(n < 4))
             return problem.evaluate(tour);
+
+        // Clear cache for fresh local search
+        problem.clear_distance_cache();
 
         bool improved = true;
         std::size_t iterations = 0;
@@ -45,12 +49,14 @@ class TwoOpt {
             for (int i = 0; i < n - 1 && !improved; ++i) {
                 for (int j = i + 2; j < n && !improved; ++j) {
                     // Skip adjacent edges in circular tour
-                    if (j == n - 1 && i == 0)
+                    if (EVOLAB_UNLIKELY(j == n - 1 && i == 0))
                         continue;
 
-                    double gain = problem.two_opt_gain(tour, i, j);
+                    // Use cached gain calculation for better performance
+                    const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (gain > 1e-9) { // Found improvement
+                    // Most moves don't improve, so mark this as unlikely
+                    if (EVOLAB_UNLIKELY(gain > 1e-9)) {
                         problem.apply_two_opt(tour, i, j);
                         current_fitness = core::Fitness{current_fitness.value - gain};
                         improved = true;
@@ -92,8 +98,10 @@ class Random2Opt {
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
                           std::mt19937& rng) const {
         const int n = static_cast<int>(tour.size());
-        if (n < 4)
+        if (EVOLAB_UNLIKELY(n < 4))
             return problem.evaluate(tour);
+
+        problem.clear_distance_cache();
 
         std::uniform_int_distribution<int> dist(0, n - 1);
         double best_gain = 0.0;
@@ -112,8 +120,8 @@ class Random2Opt {
             if (i > j)
                 std::swap(i, j);
 
-            double gain = problem.two_opt_gain(tour, i, j);
-            if (gain > best_gain) {
+            const double gain = problem.two_opt_gain_cached(tour, i, j);
+            if (EVOLAB_UNLIKELY(gain > best_gain)) {
                 best_gain = gain;
                 best_i = i;
                 best_j = j;
@@ -122,7 +130,7 @@ class Random2Opt {
 
         core::Fitness current_fitness = problem.evaluate(tour);
 
-        if (best_gain > 1e-9) {
+        if (EVOLAB_UNLIKELY(best_gain > 1e-9)) {
             problem.apply_two_opt(tour, best_i, best_j);
             current_fitness = core::Fitness{current_fitness.value - best_gain};
         }
@@ -154,8 +162,10 @@ class CandidateList2Opt {
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
                           [[maybe_unused]] std::mt19937& rng) const {
         const int n = problem.num_cities();
-        if (n < 4)
+        if (EVOLAB_UNLIKELY(n < 4))
             return problem.evaluate(tour);
+
+        problem.clear_distance_cache();
 
         // Get or create candidate list
         const auto* candidate_list = problem.get_candidate_list(k_nearest_);
@@ -163,7 +173,7 @@ class CandidateList2Opt {
         bool improved = true;
         core::Fitness current_fitness = problem.evaluate(tour);
         std::size_t iterations = 0;
-        const std::size_t max_iterations = n * 10; // Prevent infinite loops
+        const std::size_t max_iterations = n * 10;
 
         while (improved && iterations < max_iterations) {
             improved = false;
@@ -177,22 +187,22 @@ class CandidateList2Opt {
 
             // For each edge (i, i+1) in tour, try 2-opt with candidate edges
             for (int i = 0; i < n && !improved; ++i) {
-                int city_i = tour[i];
+                const int city_i = tour[i];
 
                 // Get candidates for city at position i
                 const auto& candidates = candidate_list->get_candidates(city_i);
 
                 for (int candidate : candidates) {
-                    int j = position[candidate];
+                    const int j = position[candidate];
 
                     // Ensure we have a valid 2-opt move (i < j and not adjacent)
-                    if (j <= i || j == i + 1 || (i == 0 && j == n - 1)) {
+                    if (EVOLAB_UNLIKELY(j <= i || j == i + 1 || (i == 0 && j == n - 1))) {
                         continue;
                     }
 
-                    double gain = problem.two_opt_gain(tour, i, j);
+                    const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (gain > 1e-9) {
+                    if (EVOLAB_UNLIKELY(gain > 1e-9)) {
                         problem.apply_two_opt(tour, i, j);
                         current_fitness = core::Fitness{current_fitness.value - gain};
                         improved = true;
