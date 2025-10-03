@@ -33,9 +33,17 @@ add_executable(test_candidate_list test_candidate_list.cpp)
 target_link_libraries(test_candidate_list PRIVATE evolab)
 target_compile_features(test_candidate_list PRIVATE cxx_std_23)
 
+add_executable(test_delta_evaluation test_delta_evaluation.cpp)
+target_link_libraries(test_delta_evaluation PRIVATE evolab)
+target_compile_features(test_delta_evaluation PRIVATE cxx_std_23)
+
 # Register candidate list tests with CTest
 add_test(NAME CandidateListTests COMMAND test_candidate_list)
 set_tests_properties(CandidateListTests PROPERTIES LABELS "unit;tsp;candidate-list")
+
+# Register delta evaluation tests with CTest
+add_test(NAME DeltaEvaluationTests COMMAND test_delta_evaluation)
+set_tests_properties(DeltaEvaluationTests PROPERTIES LABELS "unit;tsp;performance")
 
 # Conditional TBB parallel tests
 if(TBB_FOUND)
