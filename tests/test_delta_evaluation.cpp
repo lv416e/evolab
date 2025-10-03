@@ -301,7 +301,7 @@ int test_delta_evaluation_correctness() {
     return result.summary();
 }
 
-int test_cached_version_is_equivalent() {
+int test_two_opt_is_deterministic() {
     TestResult result;
 
     auto tsp = problems::create_random_tsp(20, 100.0, 12345);
@@ -310,19 +310,23 @@ int test_cached_version_is_equivalent() {
     auto tour1 = tsp.random_genome(rng);
     auto tour2 = tour1;
 
-    // Both versions should produce identical results
+    // Run same algorithm twice with identical inputs - should be deterministic
     local_search::TwoOpt ls1(false, 5);
     double fitness1 = ls1.improve(tsp, tour1, rng).value;
+
+    // Reset RNG to same state
+    rng.seed(42);
+    tour2 = tsp.random_genome(rng);
 
     local_search::TwoOpt ls2(false, 5);
     double fitness2 = ls2.improve(tsp, tour2, rng).value;
 
-    result.assert_eq(fitness1, fitness2, "Results should be identical", 1e-9);
+    result.assert_eq(fitness1, fitness2, "Results should be deterministic", 1e-9);
     result.assert_eq(tour1.size(), tour2.size(), "Tour sizes should match");
 
-    // Tours should be identical
+    // Tours should be identical for deterministic algorithm
     bool tours_match = (tour1 == tour2);
-    result.assert_true(tours_match, "Tours should be identical");
+    result.assert_true(tours_match, "Tours should be deterministic");
 
     return result.summary();
 }
@@ -374,7 +378,7 @@ int main() {
     total_failed += test_candidate_list_uses_cache();
     total_failed += test_random_2opt_uses_cache();
     total_failed += test_delta_evaluation_correctness();
-    total_failed += test_cached_version_is_equivalent();
+    total_failed += test_two_opt_is_deterministic();
 
     std::cout << "\n--- Compiler Hints Tests ---\n";
     total_failed += test_compiler_hints_work();

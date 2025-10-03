@@ -113,7 +113,13 @@ class TSP {
 
     /// Get distance with cache (for local search hot paths)
     /// Significantly reduces memory latency in tight loops
+    /// Canonicalizes indices for symmetric TSP to improve cache hit rate
     double cached_distance(int i, int j) const noexcept {
+        // Canonicalize indices for symmetric TSP: ensure i <= j
+        // This doubles the cache hit rate by treating (i,j) and (j,i) as same entry
+        if (i > j)
+            std::swap(i, j);
+
         double value;
         if (EVOLAB_LIKELY(distance_cache_.try_get(i, j, value))) {
             return value;

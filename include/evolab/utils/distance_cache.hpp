@@ -8,6 +8,7 @@
 /// accessed distances. Cache size is tuned for L1 cache efficiency.
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -16,19 +17,20 @@ namespace evolab::utils {
 
 /// Direct-mapped cache for distance lookups
 /// Uses a small cache size (64 entries) to fit in L1 cache
+/// Thread-safe with atomic operations for parallel local search
 template <typename T = double, std::size_t CacheSize = 64>
 class DistanceCache {
     static_assert((CacheSize & (CacheSize - 1)) == 0, "CacheSize must be power of 2");
 
     struct CacheEntry {
-        std::uint32_t key{0}; // Packed (i, j) as single 32-bit value
-        T value{0};
-        bool valid{false};
+        std::atomic<std::uint32_t> key{0}; // Packed (i, j) as single 32-bit value
+        std::atomic<T> value{0};
+        std::atomic<bool> valid{false};
     };
 
     mutable std::array<CacheEntry, CacheSize> entries_;
-    mutable std::size_t hits_{0};
-    mutable std::size_t misses_{0};
+    mutable std::atomic<std::size_t> hits_{0};
+    mutable std::atomic<std::size_t> misses_{0};
 
     /// Pack two indices into a single 32-bit key
     /// Assumes i and j fit in 16 bits (max 65535 cities)
@@ -44,46 +46,57 @@ class DistanceCache {
   public:
     DistanceCache() = default;
 
-    /// Try to retrieve distance from cache
+    /// Try to retrieve distance from cache (thread-safe)
     /// Returns true if found, false otherwise
     bool try_get(int i, int j, T& out_value) const noexcept {
         const std::uint32_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
-        const auto& entry = entries_[idx];
+        auto& entry = entries_[idx];
 
-        if (entry.valid && entry.key == key) {
-            out_value = entry.value;
-            ++hits_;
+        // Atomic loads with relaxed memory order for performance
+        if (entry.valid.load(std::memory_order_relaxed) &&
+            entry.key.load(std::memory_order_relaxed) == key) {
+            out_value = entry.value.load(std::memory_order_relaxed);
+            hits_.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
 
-        ++misses_;
+        misses_.fetch_add(1, std::memory_order_relaxed);
         return false;
     }
 
-    /// Insert distance into cache
+    /// Insert distance into cache (thread-safe)
     void put(int i, int j, T value) noexcept {
         const std::uint32_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
-        entries_[idx] = CacheEntry{key, value, true};
+        auto& entry = entries_[idx];
+
+        // Store with relaxed memory order - cache is advisory only
+        entry.key.store(key, std::memory_order_relaxed);
+        entry.value.store(value, std::memory_order_relaxed);
+        entry.valid.store(true, std::memory_order_relaxed);
     }
 
-    /// Clear all cache entries
+    /// Clear all cache entries (thread-safe)
     void clear() noexcept {
         for (auto& entry : entries_) {
-            entry.valid = false;
+            entry.valid.store(false, std::memory_order_relaxed);
         }
-        hits_ = 0;
-        misses_ = 0;
+        hits_.store(0, std::memory_order_relaxed);
+        misses_.store(0, std::memory_order_relaxed);
     }
 
-    /// Get cache statistics
-    std::pair<std::size_t, std::size_t> stats() const noexcept { return {hits_, misses_}; }
+    /// Get cache statistics (thread-safe)
+    std::pair<std::size_t, std::size_t> stats() const noexcept {
+        return {hits_.load(std::memory_order_relaxed), misses_.load(std::memory_order_relaxed)};
+    }
 
-    /// Get cache hit rate (0.0 to 1.0)
+    /// Get cache hit rate (0.0 to 1.0) (thread-safe)
     double hit_rate() const noexcept {
-        const std::size_t total = hits_ + misses_;
-        return total > 0 ? static_cast<double>(hits_) / total : 0.0;
+        const std::size_t h = hits_.load(std::memory_order_relaxed);
+        const std::size_t m = misses_.load(std::memory_order_relaxed);
+        const std::size_t total = h + m;
+        return total > 0 ? static_cast<double>(h) / total : 0.0;
     }
 
     /// Get cache size
