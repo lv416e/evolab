@@ -100,6 +100,9 @@ class DistanceCache {
     }
 
     /// Clear all cache entries (thread-safe)
+    /// Note: Entries are invalidated one by one. Concurrent put() calls may
+    /// re-populate entries during clear(). No global snapshot is guaranteed.
+    /// This incremental invalidation is suitable for advisory cache storage.
     void clear() noexcept {
         for (auto& entry : entries_) {
             // Acquire spinlock to prevent races with concurrent put()
