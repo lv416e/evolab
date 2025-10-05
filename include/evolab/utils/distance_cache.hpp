@@ -26,10 +26,10 @@ class DistanceCache {
     static_assert((CacheSize & (CacheSize - 1)) == 0, "CacheSize must be power of 2");
 
     struct CacheEntry {
-        std::atomic<std::uint64_t> key{0}; // Packed (i, j) as single 64-bit value
-        std::atomic<T> value{};
-        std::atomic<bool> valid{false};
-        mutable std::atomic_flag lock = ATOMIC_FLAG_INIT; // Spinlock for put() atomicity
+        std::uint64_t key{0}; // Packed (i, j) as single 64-bit value
+        T value{};
+        bool valid{false};
+        mutable std::atomic_flag lock = ATOMIC_FLAG_INIT; // Spinlock for atomicity
     };
 
     mutable std::array<CacheEntry, CacheSize> entries_;
@@ -60,15 +60,14 @@ class DistanceCache {
         auto& entry = entries_[idx];
 
         // Acquire spinlock to prevent races with writers
-        // This ensures no torn reads when T is not natively atomic
+        // Spinlock provides all necessary memory synchronization
         while (entry.lock.test_and_set(std::memory_order_acquire)) {
             EVOLAB_PAUSE(); // Yield CPU to reduce contention
         }
 
         bool found = false;
-        if (entry.valid.load(std::memory_order_relaxed) &&
-            entry.key.load(std::memory_order_relaxed) == key) {
-            out_value = entry.value.load(std::memory_order_relaxed);
+        if (entry.valid && entry.key == key) {
+            out_value = entry.value;
             hits_.fetch_add(1, std::memory_order_relaxed);
             found = true;
         } else {
@@ -91,11 +90,10 @@ class DistanceCache {
             EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
         }
 
-        // The spinlock guarantees this update is atomic. All stores can use relaxed
-        // memory order because the lock release provides the necessary synchronization barrier.
-        entry.key.store(key, std::memory_order_relaxed);
-        entry.value.store(value, std::memory_order_relaxed);
-        entry.valid.store(true, std::memory_order_relaxed);
+        // Spinlock guarantees atomicity and provides memory synchronization
+        entry.key = key;
+        entry.value = value;
+        entry.valid = true;
 
         // Release spinlock with release barrier to ensure visibility
         entry.lock.clear(std::memory_order_release);
@@ -109,8 +107,8 @@ class DistanceCache {
                 EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
             }
 
-            // Use release to ensure clear is visible to other threads
-            entry.valid.store(false, std::memory_order_release);
+            // Spinlock provides memory synchronization
+            entry.valid = false;
 
             // Release spinlock
             entry.lock.clear(std::memory_order_release);
