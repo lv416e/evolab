@@ -53,34 +53,30 @@ class DistanceCache {
 
     /// Try to retrieve distance from cache (thread-safe)
     /// Returns true if found, false otherwise
-    /// Uses double-check pattern to avoid race between key check and value read
+    /// Uses spinlock to prevent data races with concurrent writers
     bool try_get(int i, int j, T& out_value) const noexcept {
         const std::uint64_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
-        // Use acquire semantics on valid to ensure key/value writes are visible.
-        // This first check is a fast path to quickly discard misses.
-        if (entry.valid.load(std::memory_order_acquire) &&
-            entry.key.load(std::memory_order_relaxed) == key) {
-
-            // Read value into temporary, then re-check to protect against races with other writers
-            T temp_value = entry.value.load(std::memory_order_relaxed);
-
-            // The second check ensures that the entry was not invalidated or overwritten
-            // between the first check and reading the value
-            // Use acquire on valid to synchronize with clear()'s release
-            if (entry.key.load(std::memory_order_relaxed) == key &&
-                entry.valid.load(std::memory_order_acquire)) {
-                out_value = temp_value;
-                hits_.fetch_add(1, std::memory_order_relaxed);
-                return true;
-            }
+        // Acquire spinlock to prevent races with writers
+        // This ensures no torn reads when T is not natively atomic
+        while (entry.lock.test_and_set(std::memory_order_acquire)) {
+            EVOLAB_PAUSE(); // Yield CPU to reduce contention
         }
 
-        // Single miss increment handles all miss cases
-        misses_.fetch_add(1, std::memory_order_relaxed);
-        return false;
+        bool found = false;
+        if (entry.valid.load(std::memory_order_relaxed) &&
+            entry.key.load(std::memory_order_relaxed) == key) {
+            out_value = entry.value.load(std::memory_order_relaxed);
+            hits_.fetch_add(1, std::memory_order_relaxed);
+            found = true;
+        } else {
+            misses_.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        entry.lock.clear(std::memory_order_release);
+        return found;
     }
 
     /// Insert distance into cache (thread-safe)
