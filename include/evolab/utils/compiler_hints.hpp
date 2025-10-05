@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 /// @file compiler_hints.hpp
 /// @brief Compiler hints for branch prediction and optimization
 ///

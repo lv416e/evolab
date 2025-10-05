@@ -20,6 +20,7 @@ namespace evolab::utils {
 /// Thread-safe with atomic operations for parallel local search
 template <typename T = double, std::size_t CacheSize = 64>
 class DistanceCache {
+    static_assert(CacheSize > 0, "CacheSize must be greater than 0");
     static_assert((CacheSize & (CacheSize - 1)) == 0, "CacheSize must be power of 2");
 
     struct CacheEntry {
