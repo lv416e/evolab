@@ -20,6 +20,10 @@
 
 namespace evolab::local_search {
 
+/// Minimum gain threshold for accepting an improvement in local search
+/// Values below this threshold are considered numerical noise
+constexpr double MIN_IMPROVEMENT_GAIN = 1e-9;
+
 /// 2-opt local search for TSP problems
 class TwoOpt {
     bool first_improvement_;
@@ -58,7 +62,7 @@ class TwoOpt {
                     const double gain = problem.two_opt_gain_cached(tour, i, j);
 
                     // Most moves don't improve, so mark this as unlikely
-                    if (EVOLAB_UNLIKELY(gain > 1e-9)) {
+                    if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
                         problem.apply_two_opt(tour, i, j);
                         current_fitness = core::Fitness{current_fitness.value - gain};
                         improved = true;
@@ -132,7 +136,7 @@ class Random2Opt {
 
         core::Fitness current_fitness = problem.evaluate(tour);
 
-        if (EVOLAB_UNLIKELY(best_gain > 1e-9)) {
+        if (EVOLAB_UNLIKELY(best_gain > MIN_IMPROVEMENT_GAIN)) {
             problem.apply_two_opt(tour, best_i, best_j);
             current_fitness = core::Fitness{current_fitness.value - best_gain};
         }
@@ -204,7 +208,7 @@ class CandidateList2Opt {
 
                     const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (EVOLAB_UNLIKELY(gain > 1e-9)) {
+                    if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
                         problem.apply_two_opt(tour, i, j);
                         current_fitness = core::Fitness{current_fitness.value - gain};
                         improved = true;
