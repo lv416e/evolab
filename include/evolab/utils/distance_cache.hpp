@@ -91,15 +91,13 @@ class DistanceCache {
             EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
         }
 
-        // Mark entry invalid while updating to prevent readers from observing partial state
-        entry.valid.store(false, std::memory_order_relaxed);
+        // The spinlock guarantees this update is atomic. All stores can use relaxed
+        // memory order because the lock release provides the necessary synchronization barrier.
         entry.key.store(key, std::memory_order_relaxed);
         entry.value.store(value, std::memory_order_relaxed);
-        // Use release semantics on valid to ensure key/value writes are visible
-        // before valid becomes true
-        entry.valid.store(true, std::memory_order_release);
+        entry.valid.store(true, std::memory_order_relaxed);
 
-        // Release spinlock
+        // Release spinlock with release barrier to ensure visibility
         entry.lock.clear(std::memory_order_release);
     }
 
