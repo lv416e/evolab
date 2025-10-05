@@ -63,3 +63,14 @@
 #else
 #define EVOLAB_NO_INLINE
 #endif
+
+/// CPU pause hint for spinlock loops
+/// Yields execution resources to improve performance under contention
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+#include <immintrin.h>
+#define EVOLAB_PAUSE() _mm_pause()
+#elif defined(__arm__) || defined(__aarch64__)
+#define EVOLAB_PAUSE() __asm__ __volatile__("yield")
+#else
+#define EVOLAB_PAUSE() ((void)0)
+#endif

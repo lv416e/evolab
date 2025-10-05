@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <utility>
 
+#include "evolab/utils/compiler_hints.hpp"
+
 namespace evolab::utils {
 
 /// Direct-mapped cache for distance lookups
@@ -90,7 +92,7 @@ class DistanceCache {
 
         // Acquire spinlock to prevent interleaved writes from multiple threads
         while (entry.lock.test_and_set(std::memory_order_acquire)) {
-            // Spin until lock is acquired
+            EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
         }
 
         // Store key and value first with relaxed ordering
@@ -109,7 +111,7 @@ class DistanceCache {
         for (auto& entry : entries_) {
             // Acquire spinlock to prevent races with concurrent put()
             while (entry.lock.test_and_set(std::memory_order_acquire)) {
-                // Spin until lock is acquired
+                EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
             }
 
             // Use release to ensure clear is visible to other threads
