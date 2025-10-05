@@ -24,10 +24,12 @@
 #define EVOLAB_UNLIKELY(x) (x)
 #endif
 
-/// Pointer aliasing hint (GCC/Clang specific)
+/// Pointer aliasing hint
 /// Indicates that a pointer does not alias with other pointers
 #if defined(__GNUC__) || defined(__clang__)
 #define EVOLAB_RESTRICT __restrict__
+#elif defined(_MSC_VER)
+#define EVOLAB_RESTRICT __restrict
 #else
 #define EVOLAB_RESTRICT
 #endif

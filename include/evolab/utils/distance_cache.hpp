@@ -55,8 +55,8 @@ class DistanceCache {
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
 
-        // Use acquire semantics on valid to ensure key/value writes are visible
-        // Single check for validity and key match simplifies miss case handling
+        // Use acquire semantics on valid to ensure key/value writes are visible.
+        // This first check is a fast path to quickly discard misses.
         if (entry.valid.load(std::memory_order_acquire) &&
             entry.key.load(std::memory_order_relaxed) == key) {
 
