@@ -364,27 +364,34 @@ int test_distance_cache_concurrent_access() {
     utils::DistanceCache<double> cache;
     constexpr int num_threads = 4;
     constexpr int operations_per_thread = 1000;
+    std::atomic<int> validation_errors{0};
 
-    // Pre-populate cache with some entries
+    // Pre-populate cache with some entries using deterministic value function
     for (int i = 0; i < 10; ++i) {
         cache.put(i, i + 1, static_cast<double>(i * 10));
     }
 
-    auto worker = [&cache](int thread_id) {
+    auto worker = [&cache, &validation_errors](int thread_id) {
         std::mt19937 rng(thread_id);
         std::uniform_int_distribution<int> dist(0, 99);
 
         for (int op = 0; op < operations_per_thread; ++op) {
             int i = dist(rng);
             int j = dist(rng);
-            double value = static_cast<double>(i * j);
+            // Deterministic value function: value = i * j
+            double expected_value = static_cast<double>(i * j);
 
             // Mix of put and try_get operations
             if (op % 3 == 0) {
-                cache.put(i, j, value);
+                cache.put(i, j, expected_value);
             } else {
                 double retrieved;
-                cache.try_get(i, j, retrieved);
+                // If we get a cache hit, validate the value is correct
+                if (cache.try_get(i, j, retrieved)) {
+                    if (std::abs(retrieved - expected_value) > 1e-9) {
+                        validation_errors.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
             }
 
             // Occasionally clear cache
@@ -404,6 +411,10 @@ int test_distance_cache_concurrent_access() {
     for (auto& thread : threads) {
         thread.join();
     }
+
+    // Verify no data corruption occurred during concurrent execution
+    result.assert_eq(0, validation_errors.load(),
+                     "No validation errors should occur during concurrent access");
 
     // Verify cache is still functional after concurrent access
     cache.clear();

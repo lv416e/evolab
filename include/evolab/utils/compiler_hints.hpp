@@ -63,5 +63,3 @@
 #else
 #define EVOLAB_NO_INLINE
 #endif
-
-namespace evolab::utils {} // namespace evolab::utils

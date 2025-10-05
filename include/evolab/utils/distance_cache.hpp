@@ -25,8 +25,9 @@ class DistanceCache {
 
     struct CacheEntry {
         std::atomic<std::uint64_t> key{0}; // Packed (i, j) as single 64-bit value
-        std::atomic<T> value{0};
+        std::atomic<T> value{};
         std::atomic<bool> valid{false};
+        mutable std::atomic_flag lock = ATOMIC_FLAG_INIT; // Spinlock for put() atomicity
     };
 
     mutable std::array<CacheEntry, CacheSize> entries_;
@@ -81,10 +82,16 @@ class DistanceCache {
     }
 
     /// Insert distance into cache (thread-safe)
+    /// Uses spinlock to ensure atomic key-value pair updates
     void put(int i, int j, T value) noexcept {
         const std::uint64_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
+
+        // Acquire spinlock to prevent interleaved writes from multiple threads
+        while (entry.lock.test_and_set(std::memory_order_acquire)) {
+            // Spin until lock is acquired
+        }
 
         // Store key and value first with relaxed ordering
         entry.key.store(key, std::memory_order_relaxed);
@@ -92,13 +99,24 @@ class DistanceCache {
         // Use release semantics on valid to ensure key/value writes are visible
         // before valid becomes true
         entry.valid.store(true, std::memory_order_release);
+
+        // Release spinlock
+        entry.lock.clear(std::memory_order_release);
     }
 
     /// Clear all cache entries (thread-safe)
     void clear() noexcept {
         for (auto& entry : entries_) {
+            // Acquire spinlock to prevent races with concurrent put()
+            while (entry.lock.test_and_set(std::memory_order_acquire)) {
+                // Spin until lock is acquired
+            }
+
             // Use release to ensure clear is visible to other threads
             entry.valid.store(false, std::memory_order_release);
+
+            // Release spinlock
+            entry.lock.clear(std::memory_order_release);
         }
         hits_.store(0, std::memory_order_relaxed);
         misses_.store(0, std::memory_order_relaxed);
