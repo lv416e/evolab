@@ -95,7 +95,8 @@ class DistanceCache {
             EVOLAB_PAUSE(); // Yield CPU to reduce contention on hyper-threaded cores
         }
 
-        // Store key and value first with relaxed ordering
+        // Mark entry invalid while updating to prevent readers from observing partial state
+        entry.valid.store(false, std::memory_order_relaxed);
         entry.key.store(key, std::memory_order_relaxed);
         entry.value.store(value, std::memory_order_relaxed);
         // Use release semantics on valid to ensure key/value writes are visible
