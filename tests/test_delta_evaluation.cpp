@@ -112,7 +112,7 @@ int test_distance_cache_large_indices() {
     TestResult result;
 
     utils::DistanceCache<double> cache;
-    const int large_idx = 60000;
+    const int large_idx = 100000; // Test beyond 16-bit boundary (65535)
     cache.put(large_idx, large_idx + 1, 99.0);
 
     double value;
@@ -151,9 +151,10 @@ int test_tsp_cache_improves_performance() {
 
     tsp.cached_distance(0, 1); // Miss
     tsp.cached_distance(0, 1); // Hit
+    tsp.cached_distance(1, 0); // Hit due to canonicalization (i,j) == (j,i)
 
     auto [hits, misses] = tsp.cache_stats();
-    result.assert_eq(1, static_cast<int>(hits), "Should have one hit");
+    result.assert_eq(2, static_cast<int>(hits), "Should have two hits after canonicalized lookup");
     result.assert_eq(1, static_cast<int>(misses), "Should have one miss");
 
     return result.summary();
