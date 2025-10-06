@@ -80,7 +80,7 @@ class DistanceCache {
 
     /// Insert distance into cache (thread-safe)
     /// Uses spinlock to ensure atomic key-value pair updates
-    void put(int i, int j, T value) noexcept {
+    void put(int i, int j, T value) const noexcept {
         const std::uint64_t key = pack_key(i, j);
         const std::size_t idx = cache_index(key);
         auto& entry = entries_[idx];
@@ -103,7 +103,7 @@ class DistanceCache {
     /// Note: Entries are invalidated one by one. Concurrent put() calls may
     /// re-populate entries during clear(). No global snapshot is guaranteed.
     /// This incremental invalidation is suitable for advisory cache storage.
-    void clear() noexcept {
+    void clear() const noexcept {
         for (auto& entry : entries_) {
             // Acquire spinlock to prevent races with concurrent put()
             while (entry.lock.test_and_set(std::memory_order_acquire)) {
