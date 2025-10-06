@@ -239,6 +239,9 @@ class TSP {
     /// Clear distance cache (call before starting new local search)
     void clear_distance_cache() const noexcept { distance_cache_.clear(); }
 
+    /// Reset cache statistics (thread-safe)
+    void reset_cache_stats() const noexcept { distance_cache_.reset_stats(); }
+
     /// Get cache hit rate for performance monitoring
     double cache_hit_rate() const noexcept { return distance_cache_.hit_rate(); }
 

@@ -103,6 +103,7 @@ class DistanceCache {
     /// Note: Entries are invalidated one by one. Concurrent put() calls may
     /// re-populate entries during clear(). No global snapshot is guaranteed.
     /// This incremental invalidation is suitable for advisory cache storage.
+    /// Statistics are not reset - use reset_stats() explicitly if needed.
     void clear() const noexcept {
         for (auto& entry : entries_) {
             // Acquire spinlock to prevent races with concurrent put()
@@ -116,6 +117,12 @@ class DistanceCache {
             // Release spinlock
             entry.lock.clear(std::memory_order_release);
         }
+    }
+
+    /// Reset cache statistics (thread-safe)
+    /// Note: This is separate from clear() to avoid race conditions with
+    /// concurrent try_get() operations that may increment counters.
+    void reset_stats() const noexcept {
         hits_.store(0, std::memory_order_relaxed);
         misses_.store(0, std::memory_order_relaxed);
     }

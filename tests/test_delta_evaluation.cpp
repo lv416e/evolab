@@ -83,10 +83,11 @@ int test_distance_cache_clear() {
     utils::DistanceCache<double> cache;
     cache.put(0, 1, 42.0);
     cache.clear();
+    cache.reset_stats();
 
     double value;
     result.assert_true(!cache.try_get(0, 1, value), "Cache should miss after clear");
-    result.assert_eq(0.0, cache.hit_rate(), "Hit rate should be 0.0 after clear");
+    result.assert_eq(0.0, cache.hit_rate(), "Hit rate should be 0.0 after reset_stats");
 
     return result.summary();
 }
@@ -146,6 +147,7 @@ int test_tsp_cache_improves_performance() {
     std::vector<std::pair<double, double>> cities = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
     problems::TSP tsp(cities);
     tsp.clear_distance_cache();
+    tsp.reset_cache_stats();
 
     tsp.cached_distance(0, 1); // Miss
     tsp.cached_distance(0, 1); // Hit
@@ -165,10 +167,11 @@ int test_tsp_clear_cache_works() {
 
     tsp.cached_distance(0, 1);
     tsp.clear_distance_cache();
+    tsp.reset_cache_stats();
 
     auto [hits, misses] = tsp.cache_stats();
-    result.assert_eq(0, static_cast<int>(hits), "Hits should be zero after clear");
-    result.assert_eq(0, static_cast<int>(misses), "Misses should be zero after clear");
+    result.assert_eq(0, static_cast<int>(hits), "Hits should be zero after reset_stats");
+    result.assert_eq(0, static_cast<int>(misses), "Misses should be zero after reset_stats");
 
     return result.summary();
 }
@@ -261,6 +264,7 @@ int test_random_2opt_uses_cache() {
     auto tour = tsp.random_genome(rng);
 
     tsp.clear_distance_cache();
+    tsp.reset_cache_stats();
 
     local_search::Random2Opt random_2opt(50); // 50 attempts
     [[maybe_unused]] auto fitness = random_2opt.improve(tsp, tour, rng);
