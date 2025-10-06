@@ -11,6 +11,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include <utility>
 
 #include "evolab/utils/compiler_hints.hpp"
@@ -25,7 +26,16 @@ class DistanceCache {
     static_assert(CacheSize > 0, "CacheSize must be greater than 0");
     static_assert((CacheSize & (CacheSize - 1)) == 0, "CacheSize must be power of 2");
 
-    struct CacheEntry {
+    // Cache line size for false sharing prevention
+    // Use hardware value if available, otherwise typical 64 bytes
+#ifdef __cpp_lib_hardware_interference_size
+    static constexpr std::size_t cache_line_size = std::hardware_destructive_interference_size;
+#else
+    static constexpr std::size_t cache_line_size = 64;
+#endif
+
+    // Align to cache line to prevent false sharing between entries
+    struct alignas(cache_line_size) CacheEntry {
         std::uint64_t key{0}; // Packed (i, j) as single 64-bit value
         T value{};
         bool valid{false};
