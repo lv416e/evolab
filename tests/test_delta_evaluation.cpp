@@ -385,7 +385,8 @@ int test_distance_cache_concurrent_access() {
         std::uniform_int_distribution<int> dist(0, 99);
 
         // Synchronize start to maximize overlap and contention
-        while (!start.load(std::memory_order_acquire)) { /* spin */
+        while (!start.load(std::memory_order_acquire)) {
+            EVOLAB_PAUSE(); // Yield CPU to reduce power consumption
         }
 
         for (int op = 0; op < operations_per_thread; ++op) {

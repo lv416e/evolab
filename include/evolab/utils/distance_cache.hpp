@@ -74,7 +74,8 @@ class DistanceCache {
         entry.lock.clear(std::memory_order_release);
 
         // Update statistics outside critical section to minimize lock hold time
-        if (found) {
+        // Cache hit is the expected common case (hint to compiler for branch prediction)
+        if (EVOLAB_LIKELY(found)) {
             hits_.fetch_add(1, std::memory_order_relaxed);
         } else {
             misses_.fetch_add(1, std::memory_order_relaxed);
