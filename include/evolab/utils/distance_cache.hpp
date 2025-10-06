@@ -68,13 +68,17 @@ class DistanceCache {
         bool found = false;
         if (entry.valid && entry.key == key) {
             out_value = entry.value;
-            hits_.fetch_add(1, std::memory_order_relaxed);
             found = true;
-        } else {
-            misses_.fetch_add(1, std::memory_order_relaxed);
         }
 
         entry.lock.clear(std::memory_order_release);
+
+        // Update statistics outside critical section to minimize lock hold time
+        if (found) {
+            hits_.fetch_add(1, std::memory_order_relaxed);
+        } else {
+            misses_.fetch_add(1, std::memory_order_relaxed);
+        }
         return found;
     }
 
