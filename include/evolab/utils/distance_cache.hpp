@@ -53,9 +53,11 @@ class DistanceCache {
                static_cast<std::uint64_t>(static_cast<std::uint32_t>(j));
     }
 
-    /// Get cache index from key using fast bit masking
+    /// Get cache index from key using XOR folding to mix both i and j
+    /// Folds 64-bit key by XORing upper 32 bits (i) with lower 32 bits (j)
+    /// This ensures both indices influence the hash, preventing systematic collisions
     static constexpr std::size_t cache_index(std::uint64_t key) noexcept {
-        return static_cast<std::size_t>(key & (CacheSize - 1));
+        return static_cast<std::size_t>((key ^ (key >> 32)) & (CacheSize - 1));
     }
 
   public:

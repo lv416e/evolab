@@ -52,13 +52,13 @@ int test_distance_cache_different_keys() {
 
     utils::DistanceCache<double> cache;
     cache.put(0, 1, 10.0);
-    cache.put(2, 3, 20.0);
+    cache.put(1, 2, 20.0); // (0,1) hashes to 1, (1,2) hashes to 3 - no collision
 
     double value;
     result.assert_true(cache.try_get(0, 1, value), "Should retrieve first key");
     result.assert_eq(10.0, value, "First value should match", 1e-9);
 
-    result.assert_true(cache.try_get(2, 3, value), "Should retrieve second key");
+    result.assert_true(cache.try_get(1, 2, value), "Should retrieve second key");
     result.assert_eq(20.0, value, "Second value should match", 1e-9);
 
     return result.summary();
