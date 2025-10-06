@@ -29,7 +29,7 @@ class DistanceCache {
         std::uint64_t key{0}; // Packed (i, j) as single 64-bit value
         T value{};
         bool valid{false};
-        mutable std::atomic_flag lock{}; // Spinlock for atomicity
+        std::atomic_flag lock{}; // Spinlock for atomicity
     };
 
     mutable std::array<CacheEntry, CacheSize> entries_;

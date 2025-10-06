@@ -368,7 +368,7 @@ int test_distance_cache_concurrent_access() {
 
     // Pre-populate cache with some entries using deterministic value function
     for (int i = 0; i < 10; ++i) {
-        cache.put(i, i + 1, static_cast<double>(i * 10));
+        cache.put(i, i + 1, static_cast<double>(i * (i + 1)));
     }
 
     auto worker = [&cache, &validation_errors](int thread_id) {
