@@ -51,9 +51,11 @@ class TwoOpt {
 
         while (improved && (max_iterations_ == 0 || iterations < max_iterations_)) {
             improved = false;
+            int best_i = -1, best_j = -1;
+            double best_gain = MIN_IMPROVEMENT_GAIN;
 
-            for (int i = 0; i < n - 1 && !improved; ++i) {
-                for (int j = i + 2; j < n && !improved; ++j) {
+            for (int i = 0; i < n - 1; ++i) {
+                for (int j = i + 2; j < n; ++j) {
                     // Skip adjacent edges in circular tour
                     if (EVOLAB_UNLIKELY(j == n - 1 && i == 0))
                         continue;
@@ -61,18 +63,33 @@ class TwoOpt {
                     // Use cached gain calculation for better performance
                     const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    // Most moves don't improve, so mark this as unlikely
-                    if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
-                        problem.apply_two_opt(tour, i, j);
-                        current_fitness = core::Fitness{current_fitness.value - gain};
-                        improved = true;
-
-                        if (first_improvement_)
-                            break;
+                    if (first_improvement_) {
+                        // First improvement: apply first improving move immediately
+                        if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
+                            problem.apply_two_opt(tour, i, j);
+                            current_fitness = core::Fitness{current_fitness.value - gain};
+                            improved = true;
+                            goto next_iteration;
+                        }
+                    } else {
+                        // Best improvement: track best move across all candidates
+                        if (gain > best_gain) {
+                            best_gain = gain;
+                            best_i = i;
+                            best_j = j;
+                        }
                     }
                 }
             }
 
+            // Apply best improvement if found
+            if (!first_improvement_ && best_i != -1) {
+                problem.apply_two_opt(tour, best_i, best_j);
+                current_fitness = core::Fitness{current_fitness.value - best_gain};
+                improved = true;
+            }
+
+        next_iteration:
             iterations++;
         }
 
@@ -184,6 +201,8 @@ class CandidateList2Opt {
         while (improved && iterations < max_iterations) {
             improved = false;
             iterations++;
+            int best_i = -1, best_j = -1;
+            double best_gain = MIN_IMPROVEMENT_GAIN;
 
             // Build position mapping for O(1) city position lookup
             std::vector<int> position(n);
@@ -192,7 +211,7 @@ class CandidateList2Opt {
             }
 
             // For each edge (i, i+1) in tour, try 2-opt with candidate edges
-            for (int i = 0; i < n && !improved; ++i) {
+            for (int i = 0; i < n; ++i) {
                 const int city_i = tour[i];
 
                 // Get candidates for city at position i
@@ -208,16 +227,37 @@ class CandidateList2Opt {
 
                     const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
-                        problem.apply_two_opt(tour, i, j);
-                        current_fitness = core::Fitness{current_fitness.value - gain};
-                        improved = true;
-
-                        if (first_improvement_)
-                            break;
+                    if (first_improvement_) {
+                        // First improvement: apply first improving move immediately
+                        if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
+                            problem.apply_two_opt(tour, i, j);
+                            current_fitness = core::Fitness{current_fitness.value - gain};
+                            improved = true;
+                            goto next_iteration;
+                        }
+                    } else {
+                        // Best improvement: track best move across all candidates
+                        if (gain > best_gain) {
+                            best_gain = gain;
+                            best_i = i;
+                            best_j = j;
+                        }
                     }
                 }
             }
+
+            // Apply best improvement if found
+            if (!first_improvement_ && best_i != -1) {
+                // Rebuild position mapping after tour changes
+                for (int i = 0; i < n; ++i) {
+                    position[tour[i]] = i;
+                }
+                problem.apply_two_opt(tour, best_i, best_j);
+                current_fitness = core::Fitness{current_fitness.value - best_gain};
+                improved = true;
+            }
+
+        next_iteration:;
         }
 
         return current_fitness;
