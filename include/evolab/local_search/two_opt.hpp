@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <limits>
 #include <random>
+#include <type_traits>
 #include <vector>
 
 // EvoLab dependencies - core concepts and TSP problem definition
