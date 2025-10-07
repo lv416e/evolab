@@ -41,7 +41,8 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define EVOLAB_ASSUME_ALIGNED(ptr, align) __builtin_assume_aligned(ptr, align)
 #elif defined(_MSC_VER)
-#define EVOLAB_ASSUME_ALIGNED(ptr, align) __assume((((uintptr_t)(ptr)) & ((align) - 1)) == 0)
+#define EVOLAB_ASSUME_ALIGNED(ptr, align)                                                          \
+    (__assume((((uintptr_t)(ptr)) & ((align) - 1)) == 0), (ptr))
 #else
 #define EVOLAB_ASSUME_ALIGNED(ptr, align) (ptr)
 #endif

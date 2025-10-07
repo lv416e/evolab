@@ -34,7 +34,12 @@ class DistanceCache {
     static constexpr std::size_t cache_line_size = 64;
 #endif
 
-    // Align to cache line to prevent false sharing between entries
+    // Performance-critical design: Each entry is aligned to cache line (64 bytes)
+    // to prevent false sharing in concurrent access scenarios.
+    // Memory tradeoff: 256 entries × 64 bytes = 16 KB (vs ~4.5 KB without alignment)
+    // This is acceptable for performance-critical TSP solving where concurrent
+    // cache access patterns are unpredictable (hash-based) and false sharing
+    // would significantly degrade performance.
     struct alignas(cache_line_size) CacheEntry {
         std::uint64_t key{0}; // Packed (i, j) as single 64-bit value
         T value{};
