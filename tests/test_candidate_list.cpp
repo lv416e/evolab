@@ -323,31 +323,20 @@ int test_tsp_integration() {
             std::format("Cached list should have identical candidates for city {}", i));
     }
 
-    // Test different k - this demonstrates the caching bug
+    // Test different k - verify proper caching with pointer inequality
     const auto* cl_ptr3 = tsp.get_candidate_list(8);
     result.assert_true(cl_ptr3 != nullptr,
                        "TSP should return valid candidate list for different k");
     result.assert_eq(8, cl_ptr3->k(), "New candidate list should have requested k");
-    // NOTE: Due to the UB bug documented below, cl_ptr3 may equal cl_ptr (same address)
-    // because TSP reuses the same std::optional storage. This is the memory safety issue!
-    // Once the bug is fixed with proper caching (e.g., std::map<int, CandidateList>),
-    // we should add: result.assert_true(cl_ptr3 != cl_ptr, "Different k should have different
-    // pointers");
 
-    // CRITICAL BUG (GitHub Issue #23): The current TSP caching implementation for candidate lists
-    // is UNSAFE and causes use-after-free vulnerabilities. It reuses a single cache entry via
-    // std::optional, which means any call to `get_candidate_list(k)` with a different `k` value
-    // invalidates all previously returned pointers by resetting the optional and constructing a new
-    // CandidateList in place. Using such invalidated pointers leads to undefined behavior,
-    // potential crashes, and silent data corruption in production.
-    //
-    // This test verifies the behavior for a new `k`, but deliberately avoids using the old,
-    // invalidated pointer to prevent triggering UB in the test suite itself.
-    //
-    // REQUIRED FIX (HIGHEST PRIORITY): Redesign the caching mechanism to be safe, for example:
-    // - Use std::map<int, utils::CandidateList> to cache one list per k value
-    // - Or use std::shared_ptr to enable safe pointer sharing
-    // - Or document that only one k value should be used per TSP instance lifetime
+    // Verify cache maintains separate entries per k value (pointer stability requirement)
+    // Different k values must return distinct pointers to prevent use-after-free bugs
+    result.assert_true(cl_ptr3 != cl_ptr, "Different k values should return different pointers");
+
+    // Verify pointer stability: previously returned pointers must remain valid
+    // This is a critical safety guarantee for the caching mechanism
+    result.assert_eq(5, cl_ptr->k(), "Original pointer should still be valid");
+    result.assert_eq(n, cl_ptr->size(), "Original pointer should reference unchanged data");
 
     return result.summary();
 }
