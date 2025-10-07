@@ -286,21 +286,33 @@ class TSP {
 
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
-    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+    // Create distance matrix outside lock to minimize contention
+    // This O(n²) allocation and copy operation should not block other threads
     auto matrix_2d = get_distance_matrix_2d();
+
+    // Acquire lock only for the fast insertion operation
+    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
     candidate_lists_.try_emplace(k, matrix_2d, k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
-    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
-    auto it = candidate_lists_.find(k);
-    if (it == candidate_lists_.end()) {
-        // Construct in-place and get iterator to newly created element
-        // This avoids double lookup and ensures atomicity under the lock
-        auto matrix_2d = get_distance_matrix_2d();
-        it = candidate_lists_.try_emplace(k, matrix_2d, k).first;
+    // Double-checked locking: first check if element exists (common case)
+    {
+        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        auto it = candidate_lists_.find(k);
+        if (it != candidate_lists_.end()) {
+            return &it->second;
+        }
     }
-    return &it->second;
+
+    // Element doesn't exist - create matrix outside lock to minimize contention
+    // This expensive O(n²) operation should not block other threads
+    auto matrix_2d = get_distance_matrix_2d();
+
+    // Re-acquire lock and insert. try_emplace handles race condition safely:
+    // if another thread created the entry in the meantime, it won't overwrite
+    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+    return &candidate_lists_.try_emplace(k, matrix_2d, k).first->second;
 }
 
 /// Create random TSP instance
