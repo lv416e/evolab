@@ -117,6 +117,8 @@ class TwoOpt {
     template <core::Problem P>
     core::Fitness improve(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
         if constexpr (std::is_same_v<P, problems::TSP>) {
+            // Calls non-template overload (C++ overload resolution prioritizes non-template
+            // functions)
             return improve(problem, genome, rng);
         } else {
             // For non-TSP problems, return current fitness without improvement
@@ -181,6 +183,8 @@ class Random2Opt {
     template <core::Problem P>
     core::Fitness improve(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
         if constexpr (std::is_same_v<P, problems::TSP>) {
+            // Calls non-template overload (C++ overload resolution prioritizes non-template
+            // functions)
             return improve(problem, genome, rng);
         } else {
             return problem.evaluate(genome);
@@ -298,6 +302,8 @@ class CandidateList2Opt {
     template <core::Problem P>
     core::Fitness improve(const P& problem, typename P::GenomeT& genome, std::mt19937& rng) const {
         if constexpr (std::is_same_v<P, problems::TSP>) {
+            // Calls non-template overload (C++ overload resolution prioritizes non-template
+            // functions)
             return improve(problem, genome, rng);
         } else {
             return problem.evaluate(genome);
