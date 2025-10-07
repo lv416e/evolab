@@ -15,6 +15,7 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -37,7 +38,7 @@ class TSP {
     int n_;
     std::vector<double> distances_; // Row-major: dist[i*n + j]
     mutable std::unordered_map<int, utils::CandidateList> candidate_lists_;
-    mutable std::mutex candidate_lists_mutex_;            // Thread-safety for candidate list cache
+    mutable std::shared_mutex candidate_lists_mutex_;     // RW lock for candidate list cache
     mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
 
   public:
@@ -260,15 +261,15 @@ class TSP {
     /// Get candidate list (creates it if needed)
     const utils::CandidateList* get_candidate_list(int k = 20) const;
 
-    /// Check if any candidate lists exist (thread-safe)
+    /// Check if any candidate lists exist (thread-safe, allows concurrent reads)
     bool has_candidate_list() const {
-        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
         return !candidate_lists_.empty();
     }
 
-    /// Check if candidate list exists for specific k (thread-safe)
+    /// Check if candidate list exists for specific k (thread-safe, allows concurrent reads)
     bool has_candidate_list(int k) const {
-        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
         return candidate_lists_.contains(k);
     }
 
@@ -290,28 +291,28 @@ inline void TSP::create_candidate_list(int k) const {
     // This O(n²) allocation and copy operation should not block other threads
     auto matrix_2d = get_distance_matrix_2d();
 
-    // Acquire lock only for the fast insertion operation
-    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+    // Exclusive lock for writing
+    std::lock_guard<std::shared_mutex> lock(candidate_lists_mutex_);
     candidate_lists_.try_emplace(k, matrix_2d, k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
-    // Double-checked locking: first check if element exists (common case)
+    // Fast path: shared lock allows concurrent reads (common case: cache hit)
     {
-        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
         auto it = candidate_lists_.find(k);
         if (it != candidate_lists_.end()) {
             return &it->second;
         }
     }
 
-    // Element doesn't exist - create matrix outside lock to minimize contention
+    // Slow path: element doesn't exist - create matrix outside lock
     // This expensive O(n²) operation should not block other threads
     auto matrix_2d = get_distance_matrix_2d();
 
-    // Re-acquire lock and insert. try_emplace handles race condition safely:
+    // Exclusive lock for writing. try_emplace handles race safely:
     // if another thread created the entry in the meantime, it won't overwrite
-    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+    std::lock_guard<std::shared_mutex> lock(candidate_lists_mutex_);
     return &candidate_lists_.try_emplace(k, matrix_2d, k).first->second;
 }
 
