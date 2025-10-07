@@ -298,23 +298,8 @@ class TSP {
 
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
-    k = canonicalize_k(k);
-    // Fast path: check if already exists to avoid expensive O(n²) work
-    {
-        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
-        if (candidate_lists_.contains(k)) {
-            return;
-        }
-    }
-
-    // Create distance matrix outside lock to minimize contention
-    // This O(n²) allocation and copy operation should not block other threads
-    auto matrix_2d = get_distance_matrix_2d();
-
-    // Exclusive lock for writing. try_emplace handles race if another thread
-    // created the entry in the meantime (won't overwrite)
-    std::lock_guard<std::shared_mutex> lock(candidate_lists_mutex_);
-    candidate_lists_.try_emplace(k, matrix_2d, k);
+    // Delegate to get_candidate_list, which handles creation if not present.
+    (void)get_candidate_list(k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
