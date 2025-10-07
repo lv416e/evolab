@@ -54,16 +54,16 @@ class TwoOpt {
             int best_i = -1, best_j = -1;
             double best_gain = MIN_IMPROVEMENT_GAIN;
 
-            for (int i = 0; i < n - 1; ++i) {
-                for (int j = i + 2; j < n; ++j) {
-                    // Skip adjacent edges in circular tour
-                    if (EVOLAB_UNLIKELY(j == n - 1 && i == 0))
-                        continue;
+            if (first_improvement_) {
+                for (int i = 0; i < n - 1; ++i) {
+                    for (int j = i + 2; j < n; ++j) {
+                        // Skip adjacent edges in circular tour
+                        if (EVOLAB_UNLIKELY(j == n - 1 && i == 0))
+                            continue;
 
-                    // Use cached gain calculation for better performance
-                    const double gain = problem.two_opt_gain_cached(tour, i, j);
+                        // Use cached gain calculation for better performance
+                        const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (first_improvement_) {
                         // First improvement: apply first improving move immediately
                         if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
                             problem.apply_two_opt(tour, i, j);
@@ -71,7 +71,18 @@ class TwoOpt {
                             improved = true;
                             goto next_iteration;
                         }
-                    } else {
+                    }
+                }
+            } else {
+                for (int i = 0; i < n - 1; ++i) {
+                    for (int j = i + 2; j < n; ++j) {
+                        // Skip adjacent edges in circular tour
+                        if (EVOLAB_UNLIKELY(j == n - 1 && i == 0))
+                            continue;
+
+                        // Use cached gain calculation for better performance
+                        const double gain = problem.two_opt_gain_cached(tour, i, j);
+
                         // Best improvement: track best move across all candidates
                         if (gain > best_gain) {
                             best_gain = gain;
@@ -80,13 +91,13 @@ class TwoOpt {
                         }
                     }
                 }
-            }
 
-            // Apply best improvement if found
-            if (!first_improvement_ && best_i != -1) {
-                problem.apply_two_opt(tour, best_i, best_j);
-                current_fitness = core::Fitness{current_fitness.value - best_gain};
-                improved = true;
+                // Apply best improvement if found
+                if (best_i != -1) {
+                    problem.apply_two_opt(tour, best_i, best_j);
+                    current_fitness = core::Fitness{current_fitness.value - best_gain};
+                    improved = true;
+                }
             }
 
         next_iteration:
@@ -211,23 +222,23 @@ class CandidateList2Opt {
             }
 
             // For each edge (i, i+1) in tour, try 2-opt with candidate edges
-            for (int i = 0; i < n; ++i) {
-                const int city_i = tour[i];
+            if (first_improvement_) {
+                for (int i = 0; i < n; ++i) {
+                    const int city_i = tour[i];
 
-                // Get candidates for city at position i
-                const auto& candidates = candidate_list->get_candidates(city_i);
+                    // Get candidates for city at position i
+                    const auto& candidates = candidate_list->get_candidates(city_i);
 
-                for (int candidate : candidates) {
-                    const int j = position[candidate];
+                    for (int candidate : candidates) {
+                        const int j = position[candidate];
 
-                    // Ensure we have a valid 2-opt move (i < j and not adjacent)
-                    if (EVOLAB_UNLIKELY(j <= i || j == i + 1 || (i == 0 && j == n - 1))) {
-                        continue;
-                    }
+                        // Ensure we have a valid 2-opt move (i < j and not adjacent)
+                        if (EVOLAB_UNLIKELY(j <= i || j == i + 1 || (i == 0 && j == n - 1))) {
+                            continue;
+                        }
 
-                    const double gain = problem.two_opt_gain_cached(tour, i, j);
+                        const double gain = problem.two_opt_gain_cached(tour, i, j);
 
-                    if (first_improvement_) {
                         // First improvement: apply first improving move immediately
                         if (EVOLAB_UNLIKELY(gain > MIN_IMPROVEMENT_GAIN)) {
                             problem.apply_two_opt(tour, i, j);
@@ -235,7 +246,25 @@ class CandidateList2Opt {
                             improved = true;
                             goto next_iteration;
                         }
-                    } else {
+                    }
+                }
+            } else {
+                for (int i = 0; i < n; ++i) {
+                    const int city_i = tour[i];
+
+                    // Get candidates for city at position i
+                    const auto& candidates = candidate_list->get_candidates(city_i);
+
+                    for (int candidate : candidates) {
+                        const int j = position[candidate];
+
+                        // Ensure we have a valid 2-opt move (i < j and not adjacent)
+                        if (EVOLAB_UNLIKELY(j <= i || j == i + 1 || (i == 0 && j == n - 1))) {
+                            continue;
+                        }
+
+                        const double gain = problem.two_opt_gain_cached(tour, i, j);
+
                         // Best improvement: track best move across all candidates
                         if (gain > best_gain) {
                             best_gain = gain;
@@ -244,17 +273,13 @@ class CandidateList2Opt {
                         }
                     }
                 }
-            }
 
-            // Apply best improvement if found
-            if (!first_improvement_ && best_i != -1) {
-                // Rebuild position mapping after tour changes
-                for (int i = 0; i < n; ++i) {
-                    position[tour[i]] = i;
+                // Apply best improvement if found
+                if (best_i != -1) {
+                    problem.apply_two_opt(tour, best_i, best_j);
+                    current_fitness = core::Fitness{current_fitness.value - best_gain};
+                    improved = true;
                 }
-                problem.apply_two_opt(tour, best_i, best_j);
-                current_fitness = core::Fitness{current_fitness.value - best_gain};
-                improved = true;
             }
 
         next_iteration:;
