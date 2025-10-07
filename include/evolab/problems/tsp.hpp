@@ -14,6 +14,7 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <unordered_map>
 #include <vector>
 
 // EvoLab dependencies - core concepts and supporting utilities
@@ -34,7 +35,7 @@ class TSP {
   private:
     int n_;
     std::vector<double> distances_; // Row-major: dist[i*n + j]
-    mutable std::optional<utils::CandidateList> candidate_list_;
+    mutable std::unordered_map<int, utils::CandidateList> candidate_lists_;
     mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
 
   public:
@@ -257,8 +258,11 @@ class TSP {
     /// Get candidate list (creates it if needed)
     const utils::CandidateList* get_candidate_list(int k = 20) const;
 
-    /// Check if candidate list exists
-    bool has_candidate_list() const { return candidate_list_.has_value(); }
+    /// Check if any candidate lists exist
+    bool has_candidate_list() const { return !candidate_lists_.empty(); }
+
+    /// Check if candidate list exists for specific k
+    bool has_candidate_list(int k) const { return candidate_lists_.contains(k); }
 
     /// Convert distance matrix to 2D format for candidate list creation
     std::vector<std::vector<double>> get_distance_matrix_2d() const {
@@ -275,14 +279,16 @@ class TSP {
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
     auto matrix_2d = get_distance_matrix_2d();
-    candidate_list_ = utils::CandidateList(matrix_2d, k);
+    candidate_lists_.try_emplace(k, matrix_2d, k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
-    if (!candidate_list_.has_value() || candidate_list_->k() != k) {
+    auto it = candidate_lists_.find(k);
+    if (it == candidate_lists_.end()) {
         create_candidate_list(k);
+        it = candidate_lists_.find(k);
     }
-    return &candidate_list_.value();
+    return &it->second;
 }
 
 /// Create random TSP instance
