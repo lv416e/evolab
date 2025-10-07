@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cmath>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <optional>
 #include <random>
@@ -36,6 +37,7 @@ class TSP {
     int n_;
     std::vector<double> distances_; // Row-major: dist[i*n + j]
     mutable std::unordered_map<int, utils::CandidateList> candidate_lists_;
+    mutable std::mutex candidate_lists_mutex_;            // Thread-safety for candidate list cache
     mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
 
   public:
@@ -258,11 +260,17 @@ class TSP {
     /// Get candidate list (creates it if needed)
     const utils::CandidateList* get_candidate_list(int k = 20) const;
 
-    /// Check if any candidate lists exist
-    bool has_candidate_list() const { return !candidate_lists_.empty(); }
+    /// Check if any candidate lists exist (thread-safe)
+    bool has_candidate_list() const {
+        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        return !candidate_lists_.empty();
+    }
 
-    /// Check if candidate list exists for specific k
-    bool has_candidate_list(int k) const { return candidate_lists_.contains(k); }
+    /// Check if candidate list exists for specific k (thread-safe)
+    bool has_candidate_list(int k) const {
+        std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
+        return candidate_lists_.contains(k);
+    }
 
     /// Convert distance matrix to 2D format for candidate list creation
     std::vector<std::vector<double>> get_distance_matrix_2d() const {
@@ -278,15 +286,19 @@ class TSP {
 
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
+    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
     auto matrix_2d = get_distance_matrix_2d();
     candidate_lists_.try_emplace(k, matrix_2d, k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
+    std::lock_guard<std::mutex> lock(candidate_lists_mutex_);
     auto it = candidate_lists_.find(k);
     if (it == candidate_lists_.end()) {
-        create_candidate_list(k);
-        it = candidate_lists_.find(k);
+        // Construct in-place and get iterator to newly created element
+        // This avoids double lookup and ensures atomicity under the lock
+        auto matrix_2d = get_distance_matrix_2d();
+        it = candidate_lists_.try_emplace(k, matrix_2d, k).first;
     }
     return &it->second;
 }
