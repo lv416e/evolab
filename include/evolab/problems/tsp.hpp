@@ -41,6 +41,16 @@ class TSP {
     mutable std::shared_mutex candidate_lists_mutex_;     // RW lock for candidate list cache
     mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
 
+    /// Normalize k to match CandidateList constructor semantics
+    /// Prevents duplicate cache entries for invalid k values that get clamped
+    int canonicalize_k(int k) const noexcept {
+        if (n_ <= 1)
+            return 0;
+        if (k <= 0 || k >= n_)
+            return n_ - 1;
+        return k;
+    }
+
   public:
     TSP() = default;
 
@@ -269,6 +279,7 @@ class TSP {
 
     /// Check if candidate list exists for specific k (thread-safe, allows concurrent reads)
     bool has_candidate_list(int k) const {
+        k = canonicalize_k(k);
         std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
         return candidate_lists_.contains(k);
     }
@@ -287,16 +298,27 @@ class TSP {
 
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
+    k = canonicalize_k(k);
+    // Fast path: check if already exists to avoid expensive O(n²) work
+    {
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
+        if (candidate_lists_.contains(k)) {
+            return;
+        }
+    }
+
     // Create distance matrix outside lock to minimize contention
     // This O(n²) allocation and copy operation should not block other threads
     auto matrix_2d = get_distance_matrix_2d();
 
-    // Exclusive lock for writing
+    // Exclusive lock for writing. try_emplace handles race if another thread
+    // created the entry in the meantime (won't overwrite)
     std::lock_guard<std::shared_mutex> lock(candidate_lists_mutex_);
     candidate_lists_.try_emplace(k, matrix_2d, k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
+    k = canonicalize_k(k);
     // Fast path: shared lock allows concurrent reads (common case: cache hit)
     {
         std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
