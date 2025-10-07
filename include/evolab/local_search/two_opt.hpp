@@ -50,6 +50,11 @@ class TwoOpt {
         std::size_t iterations = 0;
         core::Fitness current_fitness = problem.evaluate(tour);
 
+        // Performance-critical design: first/best improvement strategies are
+        // intentionally separated to hoist the branch outside the hot nested loops.
+        // This eliminates ~500k branch predictions for n=1000 TSP, preventing
+        // pipeline stalls. Code duplication is an acceptable tradeoff for performance
+        // in research-grade optimization algorithms.
         while (improved && (max_iterations_ == 0 || iterations < max_iterations_)) {
             improved = false;
             int best_i = -1, best_j = -1;
@@ -222,7 +227,8 @@ class CandidateList2Opt {
                 position[tour[i]] = i;
             }
 
-            // For each edge (i, i+1) in tour, try 2-opt with candidate edges
+            // Performance-critical: separate first/best improvement to avoid branching
+            // in the hot candidate iteration loop (see TwoOpt::improve for rationale)
             if (first_improvement_) {
                 for (int i = 0; i < n; ++i) {
                     const int city_i = tour[i];
