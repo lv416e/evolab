@@ -20,6 +20,8 @@
 #include <evolab/core/concepts.hpp>        // Type constraints for problem interface
 #include <evolab/io/tsplib.hpp>            // TSPLIB file format support
 #include <evolab/utils/candidate_list.hpp> // Performance optimization for local search
+#include <evolab/utils/compiler_hints.hpp> // Branch prediction hints
+#include <evolab/utils/distance_cache.hpp> // Distance lookup cache
 
 namespace evolab::problems {
 
@@ -33,6 +35,7 @@ class TSP {
     int n_;
     std::vector<double> distances_; // Row-major: dist[i*n + j]
     mutable std::optional<utils::CandidateList> candidate_list_;
+    mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
 
   public:
     TSP() = default;
@@ -106,6 +109,24 @@ class TSP {
     double distance(int i, int j) const noexcept {
         assert(i >= 0 && i < n_ && j >= 0 && j < n_);
         return distances_[i * n_ + j];
+    }
+
+    /// Get distance with cache (for local search hot paths)
+    /// Significantly reduces memory latency in tight loops
+    /// Canonicalizes indices for symmetric TSP to improve cache hit rate
+    double cached_distance(int i, int j) const noexcept {
+        // Canonicalize indices for symmetric TSP: ensure i <= j
+        // This doubles the cache hit rate by treating (i,j) and (j,i) as same entry
+        if (i > j)
+            std::swap(i, j);
+
+        double value;
+        if (EVOLAB_LIKELY(distance_cache_.try_get(i, j, value))) {
+            return value;
+        }
+        value = distances_[i * n_ + j];
+        distance_cache_.put(i, j, value);
+        return value;
     }
 
     /// Get problem size (number of cities)
@@ -184,11 +205,49 @@ class TSP {
         return old_distance - new_distance;
     }
 
+    /// Optimized 2-opt gain with caching and branch prediction hints
+    /// Uses distance cache to reduce memory latency in hot loops
+    EVOLAB_FORCE_INLINE double two_opt_gain_cached(const GenomeT& tour, int i,
+                                                   int j) const noexcept {
+        // Ensure i < j for consistency
+        // This is unlikely since callers typically use nested loops with i < j
+        if (EVOLAB_UNLIKELY(i > j)) {
+            std::swap(i, j);
+        }
+
+        const int city_i = tour[i];
+        const int city_i_next = tour[(i + 1) % n_];
+        const int city_j = tour[j];
+        const int city_j_next = tour[(j + 1) % n_];
+
+        // Use cached distances for reduced memory latency
+        const double old_dist =
+            cached_distance(city_i, city_i_next) + cached_distance(city_j, city_j_next);
+        const double new_dist =
+            cached_distance(city_i, city_j) + cached_distance(city_i_next, city_j_next);
+
+        return old_dist - new_dist;
+    }
+
     /// Apply 2-opt move
     void apply_two_opt(GenomeT& tour, int i, int j) const {
         if (i > j)
             std::swap(i, j);
         std::reverse(tour.begin() + i + 1, tour.begin() + j + 1);
+    }
+
+    /// Clear distance cache (call before starting new local search)
+    void clear_distance_cache() const noexcept { distance_cache_.clear(); }
+
+    /// Reset cache statistics (thread-safe)
+    void reset_cache_stats() const noexcept { distance_cache_.reset_stats(); }
+
+    /// Get cache hit rate for performance monitoring
+    double cache_hit_rate() const noexcept { return distance_cache_.hit_rate(); }
+
+    /// Get cache statistics (hits, misses)
+    std::pair<std::size_t, std::size_t> cache_stats() const noexcept {
+        return distance_cache_.stats();
     }
 
     /// Create candidate list for efficient local search
