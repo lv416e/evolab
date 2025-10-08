@@ -37,6 +37,10 @@ add_executable(test_delta_evaluation test_delta_evaluation.cpp)
 target_link_libraries(test_delta_evaluation PRIVATE evolab)
 target_compile_features(test_delta_evaluation PRIVATE cxx_std_23)
 
+add_executable(test_lk test_lk.cpp)
+target_link_libraries(test_lk PRIVATE evolab)
+target_compile_features(test_lk PRIVATE cxx_std_23)
+
 # Register candidate list tests with CTest
 add_test(NAME CandidateListTests COMMAND test_candidate_list)
 set_tests_properties(CandidateListTests PROPERTIES LABELS "unit;tsp;candidate-list")
@@ -44,6 +48,10 @@ set_tests_properties(CandidateListTests PROPERTIES LABELS "unit;tsp;candidate-li
 # Register delta evaluation tests with CTest
 add_test(NAME DeltaEvaluationTests COMMAND test_delta_evaluation)
 set_tests_properties(DeltaEvaluationTests PROPERTIES LABELS "unit;tsp;performance")
+
+# Register Lin-Kernighan tests with CTest
+add_test(NAME LinKernighanTests COMMAND test_lk)
+set_tests_properties(LinKernighanTests PROPERTIES LABELS "unit;local-search;lk")
 
 # Conditional TBB parallel tests
 if(TBB_FOUND)
