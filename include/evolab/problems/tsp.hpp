@@ -11,9 +11,12 @@
 #include <cassert>
 #include <cmath>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <optional>
 #include <random>
+#include <shared_mutex>
+#include <unordered_map>
 #include <vector>
 
 // EvoLab dependencies - core concepts and supporting utilities
@@ -34,8 +37,19 @@ class TSP {
   private:
     int n_;
     std::vector<double> distances_; // Row-major: dist[i*n + j]
-    mutable std::optional<utils::CandidateList> candidate_list_;
+    mutable std::unordered_map<int, utils::CandidateList> candidate_lists_;
+    mutable std::shared_mutex candidate_lists_mutex_;     // RW lock for candidate list cache
     mutable utils::DistanceCache<double> distance_cache_; // Cache for local search
+
+    /// Normalize k to match CandidateList constructor semantics
+    /// Prevents duplicate cache entries for invalid k values that get clamped
+    int canonicalize_k(int k) const noexcept {
+        if (n_ <= 1)
+            return 0;
+        if (k <= 0 || k >= n_)
+            return n_ - 1;
+        return k;
+    }
 
   public:
     TSP() = default;
@@ -257,8 +271,18 @@ class TSP {
     /// Get candidate list (creates it if needed)
     const utils::CandidateList* get_candidate_list(int k = 20) const;
 
-    /// Check if candidate list exists
-    bool has_candidate_list() const { return candidate_list_.has_value(); }
+    /// Check if any candidate lists exist (thread-safe, allows concurrent reads)
+    bool has_candidate_list() const {
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
+        return !candidate_lists_.empty();
+    }
+
+    /// Check if candidate list exists for specific k (thread-safe, allows concurrent reads)
+    bool has_candidate_list(int k) const {
+        k = canonicalize_k(k);
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
+        return candidate_lists_.contains(k);
+    }
 
     /// Convert distance matrix to 2D format for candidate list creation
     std::vector<std::vector<double>> get_distance_matrix_2d() const {
@@ -274,15 +298,29 @@ class TSP {
 
 // Implementations for candidate list methods
 inline void TSP::create_candidate_list(int k) const {
-    auto matrix_2d = get_distance_matrix_2d();
-    candidate_list_ = utils::CandidateList(matrix_2d, k);
+    // Delegate to get_candidate_list, which handles creation if not present.
+    (void)get_candidate_list(k);
 }
 
 inline const utils::CandidateList* TSP::get_candidate_list(int k) const {
-    if (!candidate_list_.has_value() || candidate_list_->k() != k) {
-        create_candidate_list(k);
+    k = canonicalize_k(k);
+    // Fast path: shared lock allows concurrent reads (common case: cache hit)
+    {
+        std::shared_lock<std::shared_mutex> lock(candidate_lists_mutex_);
+        auto it = candidate_lists_.find(k);
+        if (it != candidate_lists_.end()) {
+            return &it->second;
+        }
     }
-    return &candidate_list_.value();
+
+    // Slow path: element doesn't exist - create matrix outside lock
+    // This expensive O(n²) operation should not block other threads
+    auto matrix_2d = get_distance_matrix_2d();
+
+    // Exclusive lock for writing. try_emplace handles race safely:
+    // if another thread created the entry in the meantime, it won't overwrite
+    std::lock_guard<std::shared_mutex> lock(candidate_lists_mutex_);
+    return &candidate_lists_.try_emplace(k, matrix_2d, k).first->second;
 }
 
 /// Create random TSP instance
