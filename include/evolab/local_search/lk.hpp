@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <limits>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
@@ -20,30 +21,44 @@
 
 namespace evolab::local_search {
 
-/// Lin-Kernighan local search with limited depth and candidate list guidance
+/// Simplified Lin-Kernighan local search with candidate list guidance
 ///
-/// This implementation uses a sequential edge exchange strategy:
-/// 1. Select an edge to remove (breaking the tour)
-/// 2. Select an edge to add (reconnecting differently)
-/// 3. Continue for up to max_depth exchanges
-/// 4. Accept improvement if cumulative gain is positive
+/// Current implementation: Candidate-list-guided 2-opt local search with
+/// iterative improvement. This practical variant is well-suited for memetic
+/// algorithms and provides good performance/quality tradeoff.
+///
+/// Algorithm:
+/// 1. For each edge in the tour, try 2-opt moves with candidate neighbors
+/// 2. Apply best improving move found (best improvement strategy)
+/// 3. Repeat until no improvement found or max iterations reached
 ///
 /// Key features:
-/// - Limited depth to control runtime
-/// - Candidate list guided edge selection
+/// - Candidate list guided edge selection (avoids exhaustive search)
+/// - Best improvement search within candidate set
+/// - Configurable iteration limit via max_depth parameter
 /// - Maintains tour validity throughout
 /// - Suitable for integration with genetic algorithms
+///
+/// @note Future enhancement: Multi-step sequential edge exchanges (true variable k-opt)
 class LinKernighan {
     int k_nearest_; ///< Number of nearest neighbors to consider
-    int max_depth_; ///< Maximum depth of edge exchanges
+    int max_depth_; ///< Maximum improvement iterations per improve() call
 
   public:
     /// Construct Lin-Kernighan local search
     ///
     /// @param k_nearest Number of nearest neighbors in candidate list (default: 20)
-    /// @param max_depth Maximum depth of k-opt moves (default: 5)
+    /// @param max_depth Maximum improvement iterations per improve() call (default: 5)
+    /// @throws std::invalid_argument if k_nearest < 1 or max_depth < 1
     explicit LinKernighan(int k_nearest = 20, int max_depth = 5)
-        : k_nearest_(k_nearest), max_depth_(max_depth) {}
+        : k_nearest_(k_nearest), max_depth_(max_depth) {
+        if (k_nearest < 1) {
+            throw std::invalid_argument("k_nearest must be at least 1");
+        }
+        if (max_depth < 1) {
+            throw std::invalid_argument("max_depth must be at least 1");
+        }
+    }
 
     /// Improve TSP tour using Lin-Kernighan heuristic
     ///
@@ -63,13 +78,18 @@ class LinKernighan {
 
         // Get or create candidate list
         const auto* candidate_list = problem.get_candidate_list(k_nearest_);
+        if (EVOLAB_UNLIKELY(candidate_list == nullptr)) {
+            // Fallback: return current fitness if candidate list unavailable
+            return problem.evaluate(tour);
+        }
 
         core::Fitness current_fitness = problem.evaluate(tour);
         bool improved = true;
         int iteration = 0;
-        const int max_iterations = n * 5; // Prevent infinite loops
 
-        while (improved && iteration < max_iterations) {
+        // Use max_depth to control improvement iterations
+        // This balances solution quality with computational cost
+        while (improved && iteration < max_depth_) {
             improved = false;
             iteration++;
 
@@ -119,17 +139,15 @@ class LinKernighan {
     int max_depth() const { return max_depth_; }
 
   private:
-    /// Attempt a sequential edge exchange starting from a given position
+    /// Attempt to find best 2-opt move starting from a given position
     ///
-    /// This implements a simplified Lin-Kernighan strategy:
-    /// - Remove edge (tour[i], tour[i+1])
-    /// - Add edge to a candidate neighbor
-    /// - Continue exchanges up to max_depth
-    /// - Track cumulative gain
+    /// Implements best improvement strategy:
+    /// - Evaluate all 2-opt moves with candidates of city at start_pos
+    /// - Return the best improving move (if any)
     ///
     /// @param problem TSP problem instance
     /// @param tour Current tour
-    /// @param start_pos Starting position for edge exchange
+    /// @param start_pos Starting position for 2-opt moves
     /// @param position City to position mapping
     /// @param candidate_list Candidate list for edge selection
     /// @param rng Random number generator
@@ -141,11 +159,12 @@ class LinKernighan {
                           [[maybe_unused]] std::mt19937& rng) const {
 
         const int n = static_cast<int>(tour.size());
-        std::vector<int> working_tour = tour;
-        double cumulative_gain = 0.0;
+        double best_gain = 0.0;
+        int best_j = -1;
 
-        // Simple strategy: try 2-opt moves using candidate lists
-        // This is a simplified LK that focuses on practical improvements
+        // Find best 2-opt move using candidate lists
+        // This implements "best improvement" strategy: evaluate all candidates
+        // on the ORIGINAL tour, then apply only the best move
         const int city_at_start = tour[start_pos];
         const auto& candidates = candidate_list.get_candidates(city_at_start);
 
@@ -157,19 +176,20 @@ class LinKernighan {
                 continue;
             }
 
-            // Compute gain for this 2-opt move
-            const double gain = problem.two_opt_gain_cached(working_tour, start_pos, j);
+            // Compute gain for this 2-opt move on ORIGINAL tour
+            const double gain = problem.two_opt_gain_cached(tour, start_pos, j);
 
-            if (gain > cumulative_gain) {
-                cumulative_gain = gain;
-                problem.apply_two_opt(working_tour, start_pos, j);
-
-                // For now, accept first improvement
-                // Future: extend to multi-step exchanges
-                if (cumulative_gain > 0) {
-                    return {cumulative_gain, working_tour};
-                }
+            if (gain > best_gain) {
+                best_gain = gain;
+                best_j = j;
             }
+        }
+
+        // Apply best move if improvement found
+        if (best_gain > 0) {
+            std::vector<int> new_tour = tour;
+            problem.apply_two_opt(new_tour, start_pos, best_j);
+            return {best_gain, std::move(new_tour)};
         }
 
         return {0.0, {}};

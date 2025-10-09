@@ -5,6 +5,7 @@
 /// algorithms that combine evolutionary search with local optimization.
 
 #include <algorithm>
+#include <numeric>
 #include <random>
 #include <vector>
 

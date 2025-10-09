@@ -5,6 +5,7 @@
 /// and integration with TSP problems and candidate lists.
 
 #include <algorithm>
+#include <numeric>
 #include <random>
 #include <vector>
 
