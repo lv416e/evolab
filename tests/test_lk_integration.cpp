@@ -74,7 +74,7 @@ int test_lk_with_basic_ga() {
     return result.summary();
 }
 
-// Test memetic GA (GA + LK) vs pure GA
+// Test memetic GA (GA + LK) vs pure GA performance comparison
 int test_memetic_vs_pure_ga() {
     TestResult result;
 
@@ -82,7 +82,7 @@ int test_memetic_vs_pure_ga() {
     int n = 20;
     problems::TSP tsp = create_random_tsp(n, 42);
 
-    // Configure both GAs with same parameters
+    // Configure both GAs with same parameters for fair comparison
     core::GAConfig config;
     config.population_size = 30;
     config.max_generations = 20;
@@ -90,6 +90,9 @@ int test_memetic_vs_pure_ga() {
     config.mutation_prob = 0.1;
     config.elite_ratio = 0.1;
     config.seed = 999;
+
+    double pure_fitness = 0.0;
+    double memetic_fitness = 0.0;
 
     // Pure GA (no local search)
     {
@@ -101,8 +104,8 @@ int test_memetic_vs_pure_ga() {
         auto pure_ga = core::make_ga(selection, crossover, mutation, no_ls);
         auto pure_result = pure_ga.run(tsp, config);
 
-        result.assert_true(pure_result.best_fitness.value > 0,
-                           "Pure GA should return valid fitness");
+        pure_fitness = pure_result.best_fitness.value;
+        result.assert_true(pure_fitness > 0, "Pure GA should return valid fitness");
     }
 
     // Memetic GA (with LK)
@@ -115,9 +118,15 @@ int test_memetic_vs_pure_ga() {
         auto memetic_ga = core::make_ga(selection, crossover, mutation, lk);
         auto memetic_result = memetic_ga.run(tsp, config);
 
-        result.assert_true(memetic_result.best_fitness.value > 0,
-                           "Memetic GA should return valid fitness");
+        memetic_fitness = memetic_result.best_fitness.value;
+        result.assert_true(memetic_fitness > 0, "Memetic GA should return valid fitness");
     }
+
+    // For TSP, lower fitness is better (minimization)
+    // Memetic GA should achieve equal or better fitness than pure GA
+    result.assert_true(memetic_fitness <= pure_fitness,
+                       "Memetic GA should achieve better or equal fitness compared to pure GA "
+                       "(lower is better for TSP)");
 
     return result.summary();
 }
@@ -172,6 +181,13 @@ int test_lk_improves_during_evolution() {
     int n = 18;
     problems::TSP tsp = create_random_tsp(n, 123);
 
+    // Create initial random population to get baseline fitness
+    std::vector<int> initial_tour(n);
+    std::iota(initial_tour.begin(), initial_tour.end(), 0);
+    std::mt19937 rng(777);
+    std::shuffle(initial_tour.begin(), initial_tour.end(), rng);
+    double initial_fitness = tsp.evaluate(initial_tour).value;
+
     core::GAConfig config;
     config.population_size = 25;
     config.max_generations = 15;
@@ -188,9 +204,13 @@ int test_lk_improves_during_evolution() {
     auto ga = core::make_ga(selection, crossover, mutation, lk);
     auto result_ga = ga.run(tsp, config);
 
-    // LK should help achieve reasonable solution quality
+    // Verify valid solution
     result.assert_true(result_ga.best_fitness.value > 0, "Memetic GA should find valid solution");
     result.assert_true(result_ga.generations > 0, "Should run at least one generation");
+
+    // For TSP (minimization), final fitness should be strictly better than initial
+    result.assert_true(result_ga.best_fitness.value < initial_fitness,
+                       "GA with LK should improve over initial random solution");
 
     return result.summary();
 }
