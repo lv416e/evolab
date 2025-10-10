@@ -45,6 +45,18 @@ double run_ga_with_local_search(const problems::TSP& tsp, const core::GAConfig& 
     return result.best_fitness.value;
 }
 
+// Helper function to run GA with specified crossover and local search operators
+// Further reduces duplication for crossover comparison tests
+template <typename Crossover, typename LocalSearch>
+double run_ga_with_crossover_and_ls(const problems::TSP& tsp, const core::GAConfig& config,
+                                    Crossover cx, LocalSearch ls) {
+    operators::TournamentSelection selection(2);
+    operators::SwapMutation mutation;
+    auto ga = core::make_ga(selection, std::move(cx), mutation, std::move(ls));
+    auto result = ga.run(tsp, config);
+    return result.best_fitness.value;
+}
+
 // Test LK integration with basic GA
 int test_lk_with_basic_ga() {
     TestResult result;
@@ -160,35 +172,19 @@ int test_lk_with_different_crossovers() {
     config.max_generations = 5;
     config.seed = 555;
 
-    operators::TournamentSelection selection(2);
-    operators::SwapMutation mutation;
+    local_search::LinKernighan lk(8, 2);
 
-    // Test with PMX
-    {
-        local_search::LinKernighan lk(8, 2);
-        operators::PMXCrossover pmx;
-        auto ga = core::make_ga(selection, pmx, mutation, lk);
-        auto result_ga = ga.run(tsp, config);
-        result.assert_true(result_ga.best_fitness.value > 0, "PMX + LK should work");
-    }
+    // Test PMX + LK
+    double fitness_pmx = run_ga_with_crossover_and_ls(tsp, config, operators::PMXCrossover{}, lk);
+    result.assert_true(fitness_pmx > 0, "PMX + LK should work");
 
-    // Test with Order Crossover
-    {
-        local_search::LinKernighan lk(8, 2);
-        operators::OrderCrossover ox;
-        auto ga = core::make_ga(selection, ox, mutation, lk);
-        auto result_ga = ga.run(tsp, config);
-        result.assert_true(result_ga.best_fitness.value > 0, "OrderCrossover + LK should work");
-    }
+    // Test OrderCrossover + LK
+    double fitness_ox = run_ga_with_crossover_and_ls(tsp, config, operators::OrderCrossover{}, lk);
+    result.assert_true(fitness_ox > 0, "OrderCrossover + LK should work");
 
-    // Test with Cycle Crossover
-    {
-        local_search::LinKernighan lk(8, 2);
-        operators::CycleCrossover cx;
-        auto ga = core::make_ga(selection, cx, mutation, lk);
-        auto result_ga = ga.run(tsp, config);
-        result.assert_true(result_ga.best_fitness.value > 0, "CycleCrossover + LK should work");
-    }
+    // Test CycleCrossover + LK
+    double fitness_cx = run_ga_with_crossover_and_ls(tsp, config, operators::CycleCrossover{}, lk);
+    result.assert_true(fitness_cx > 0, "CycleCrossover + LK should work");
 
     return result.summary();
 }
