@@ -93,9 +93,10 @@ class LinKernighan {
             improved = false;
             iteration++;
 
-            // Try to find an improving k-opt move
+            // Try to find the best improving k-opt move across all starting positions
             double best_gain = 0.0;
-            std::vector<int> best_tour;
+            int best_i = -1;
+            int best_j = -1;
 
             // Build position mapping for O(1) city position lookup
             std::vector<int> position(n);
@@ -103,22 +104,23 @@ class LinKernighan {
                 position[tour[i]] = i;
             }
 
-            // Try starting from each position in the tour
-            for (int start_pos = 0; start_pos < n && !improved; ++start_pos) {
+            // Try starting from each position in the tour to find the best 2-opt move
+            for (int start_pos = 0; start_pos < n; ++start_pos) {
                 // Attempt a sequential edge exchange starting from this position
-                auto [gain, new_tour] =
+                auto [gain, j] =
                     attempt_edge_exchange(problem, tour, start_pos, position, *candidate_list, rng);
 
                 if (gain > best_gain) {
                     best_gain = gain;
-                    best_tour = std::move(new_tour);
-                    improved = true;
+                    best_i = start_pos;
+                    best_j = j;
                 }
             }
 
-            if (improved && best_gain > 0) {
-                tour = std::move(best_tour);
+            if (best_gain > 0) {
+                problem.apply_two_opt(tour, best_i, best_j);
                 current_fitness = core::Fitness{current_fitness.value - best_gain};
+                improved = true;
             }
         }
 
@@ -151,12 +153,13 @@ class LinKernighan {
     /// @param position City to position mapping
     /// @param candidate_list Candidate list for edge selection
     /// @param rng Random number generator
-    /// @return Pair of (gain, new_tour) if improvement found, (0, empty) otherwise
-    std::pair<double, std::vector<int>>
-    attempt_edge_exchange(const problems::TSP& problem, const std::vector<int>& tour, int start_pos,
-                          const std::vector<int>& position,
-                          const utils::CandidateList& candidate_list,
-                          [[maybe_unused]] std::mt19937& rng) const {
+    /// @return Pair of (gain, j_index) where j_index is the second 2-opt position (-1 if no
+    /// improvement)
+    std::pair<double, int> attempt_edge_exchange(const problems::TSP& problem,
+                                                 const std::vector<int>& tour, int start_pos,
+                                                 const std::vector<int>& position,
+                                                 const utils::CandidateList& candidate_list,
+                                                 [[maybe_unused]] std::mt19937& rng) const {
 
         const int n = static_cast<int>(tour.size());
         double best_gain = 0.0;
@@ -185,14 +188,7 @@ class LinKernighan {
             }
         }
 
-        // Apply best move if improvement found
-        if (best_gain > 0) {
-            std::vector<int> new_tour = tour;
-            problem.apply_two_opt(new_tour, start_pos, best_j);
-            return {best_gain, std::move(new_tour)};
-        }
-
-        return {0.0, {}};
+        return {best_gain, best_j};
     }
 };
 
