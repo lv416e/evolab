@@ -87,6 +87,13 @@ class LinKernighan {
         bool improved = true;
         int iteration = 0;
 
+        // Build position mapping once for O(1) city position lookup
+        // Updated incrementally after each 2-opt move to avoid O(n) rebuilds
+        std::vector<int> position(n);
+        for (int i = 0; i < n; ++i) {
+            position[tour[i]] = i;
+        }
+
         // Use max_depth to control improvement iterations
         // This balances solution quality with computational cost
         while (improved && iteration < max_depth_) {
@@ -97,12 +104,6 @@ class LinKernighan {
             double best_gain = 0.0;
             int best_i = -1;
             int best_j = -1;
-
-            // Build position mapping for O(1) city position lookup
-            std::vector<int> position(n);
-            for (int i = 0; i < n; ++i) {
-                position[tour[i]] = i;
-            }
 
             // Try starting from each position in the tour to find the best 2-opt move
             for (int start_pos = 0; start_pos < n; ++start_pos) {
@@ -119,6 +120,13 @@ class LinKernighan {
 
             if (best_gain > 0) {
                 problem.apply_two_opt(tour, best_i, best_j);
+
+                // Update position mapping for the reversed segment [best_i+1, best_j]
+                // This is O(k) where k is segment length, avoiding full O(n) rebuild
+                for (int i = best_i + 1; i <= best_j; ++i) {
+                    position[tour[i]] = i;
+                }
+
                 current_fitness = core::Fitness{current_fitness.value - best_gain};
                 improved = true;
             }
