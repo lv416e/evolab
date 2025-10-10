@@ -162,10 +162,10 @@ int test_lk_with_different_crossovers() {
 
     operators::TournamentSelection selection(2);
     operators::SwapMutation mutation;
-    local_search::LinKernighan lk(8, 2);
 
     // Test with PMX
     {
+        local_search::LinKernighan lk(8, 2);
         operators::PMXCrossover pmx;
         auto ga = core::make_ga(selection, pmx, mutation, lk);
         auto result_ga = ga.run(tsp, config);
@@ -174,6 +174,7 @@ int test_lk_with_different_crossovers() {
 
     // Test with Order Crossover
     {
+        local_search::LinKernighan lk(8, 2);
         operators::OrderCrossover ox;
         auto ga = core::make_ga(selection, ox, mutation, lk);
         auto result_ga = ga.run(tsp, config);
@@ -182,6 +183,7 @@ int test_lk_with_different_crossovers() {
 
     // Test with Cycle Crossover
     {
+        local_search::LinKernighan lk(8, 2);
         operators::CycleCrossover cx;
         auto ga = core::make_ga(selection, cx, mutation, lk);
         auto result_ga = ga.run(tsp, config);
