@@ -109,6 +109,8 @@ int test_memetic_vs_pure_ga() {
 
     // Statistical testing: 10 trials with deterministic seeds
     // This ensures robustness against stochastic variation
+    // Trial count: 10-20 is industry standard for GA integration tests
+    // 70% threshold: balances CI/CD runtime with realistic performance expectations
     const int num_trials = 10;
     int memetic_wins = 0;
 
@@ -207,6 +209,8 @@ int test_lk_improves_during_evolution() {
     config.elite_ratio = 0.1;
 
     // Statistical testing: 10 trials with varied seeds
+    // Trial count: 10-20 is industry standard for GA integration tests
+    // 90% threshold: reflects strong expected performance of memetic GA over random baseline
     const int num_trials = 10;
     int improvement_count = 0;
 
