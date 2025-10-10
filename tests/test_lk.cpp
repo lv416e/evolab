@@ -130,18 +130,24 @@ int test_lk_depth_limit() {
 
     std::vector<int> tour1(n), tour2(n);
     std::iota(tour1.begin(), tour1.end(), 0);
-    std::iota(tour2.begin(), tour2.end(), 0);
 
-    std::mt19937 rng1(123), rng2(123);
-    std::shuffle(tour1.begin(), tour1.end(), rng1);
+    std::mt19937 rng_shuffle(123);
+    std::shuffle(tour1.begin(), tour1.end(), rng_shuffle);
     tour2 = tour1; // Same starting tour
 
     // Test with different depths
     local_search::LinKernighan lk_depth2(10, 2);
     local_search::LinKernighan lk_depth5(10, 5);
 
+    // Use same RNG seed for deterministic comparison
+    std::mt19937 rng1(456), rng2(456);
     core::Fitness f1 = lk_depth2.improve(tsp, tour1, rng1);
     core::Fitness f2 = lk_depth5.improve(tsp, tour2, rng2);
+
+    // Deeper search should yield a better or equal result (LK is deterministic)
+    result.assert_true(
+        f2.value <= f1.value,
+        "Deeper search (depth 5) should be better or equal to shallower search (depth 2)");
 
     // Both should produce valid improvements
     result.assert_true(f1.value >= 0, "Depth-2 LK should produce valid fitness");
@@ -158,27 +164,32 @@ int test_lk_with_candidate_lists() {
     int n = 25;
     problems::TSP tsp = create_random_tsp(n, 42);
 
-    // Create tour
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
+    // Create initial tour
+    std::vector<int> initial_tour(n);
+    std::iota(initial_tour.begin(), initial_tour.end(), 0);
     std::mt19937 rng(123);
-    std::shuffle(tour.begin(), tour.end(), rng);
+    std::shuffle(initial_tour.begin(), initial_tour.end(), rng);
 
-    double initial_fitness = tsp.evaluate(tour).value;
+    double initial_fitness = tsp.evaluate(initial_tour).value;
 
-    // Apply LK with different candidate list sizes
+    // Apply LK with different candidate list sizes from same starting point
     local_search::LinKernighan lk_k5(5, 3);
     local_search::LinKernighan lk_k15(15, 3);
 
-    auto tour_copy = tour;
+    std::vector<int> tour1 = initial_tour;
+    std::vector<int> tour2 = initial_tour;
     std::mt19937 rng1(456), rng2(456);
 
-    core::Fitness f1 = lk_k5.improve(tsp, tour, rng1);
-    core::Fitness f2 = lk_k15.improve(tsp, tour_copy, rng2);
+    core::Fitness f1 = lk_k5.improve(tsp, tour1, rng1);
+    core::Fitness f2 = lk_k15.improve(tsp, tour2, rng2);
 
     // Both should improve or maintain fitness
     result.assert_true(f1.value <= initial_fitness, "LK with k=5 should not worsen fitness");
     result.assert_true(f2.value <= initial_fitness, "LK with k=15 should not worsen fitness");
+
+    // Larger candidate list should yield better or equal result (k=15 is superset of k=5)
+    result.assert_true(f2.value <= f1.value,
+                       "Larger candidate list (k=15) should be better or equal to smaller (k=5)");
 
     return result.summary();
 }
