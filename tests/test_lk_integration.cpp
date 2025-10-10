@@ -32,6 +32,19 @@ problems::TSP create_random_tsp(int n, unsigned seed) {
     return problems::TSP(cities);
 }
 
+// Helper function to run GA with specified local search operator
+// Reduces code duplication across tests by standardizing GA setup
+template <typename LocalSearch>
+double run_ga_with_local_search(const problems::TSP& tsp, const core::GAConfig& config,
+                                LocalSearch ls) {
+    operators::TournamentSelection selection(3);
+    operators::PMXCrossover crossover;
+    operators::SwapMutation mutation;
+    auto ga = core::make_ga(selection, crossover, mutation, std::move(ls));
+    auto result = ga.run(tsp, config);
+    return result.best_fitness.value;
+}
+
 // Test LK integration with basic GA
 int test_lk_with_basic_ga() {
     TestResult result;
@@ -103,37 +116,19 @@ int test_memetic_vs_pure_ga() {
         config.seed = 999 + trial; // Deterministic but varied
 
         // Pure GA (no local search)
-        double pure_fitness = 0.0;
-        {
-            operators::TournamentSelection selection(3);
-            operators::PMXCrossover crossover;
-            operators::SwapMutation mutation;
-            local_search::NoLocalSearch no_ls;
+        local_search::NoLocalSearch no_ls;
+        double pure_fitness = run_ga_with_local_search(tsp, config, no_ls);
 
-            auto pure_ga = core::make_ga(selection, crossover, mutation, no_ls);
-            auto pure_result = pure_ga.run(tsp, config);
-            pure_fitness = pure_result.best_fitness.value;
-
-            if (trial == 0) {
-                result.assert_true(pure_fitness > 0, "Pure GA should return valid fitness");
-            }
+        if (trial == 0) {
+            result.assert_true(pure_fitness > 0, "Pure GA should return valid fitness");
         }
 
         // Memetic GA (with LK)
-        double memetic_fitness = 0.0;
-        {
-            operators::TournamentSelection selection(3);
-            operators::PMXCrossover crossover;
-            operators::SwapMutation mutation;
-            local_search::LinKernighan lk(10, 3);
+        local_search::LinKernighan lk(10, 3);
+        double memetic_fitness = run_ga_with_local_search(tsp, config, lk);
 
-            auto memetic_ga = core::make_ga(selection, crossover, mutation, lk);
-            auto memetic_result = memetic_ga.run(tsp, config);
-            memetic_fitness = memetic_result.best_fitness.value;
-
-            if (trial == 0) {
-                result.assert_true(memetic_fitness > 0, "Memetic GA should return valid fitness");
-            }
+        if (trial == 0) {
+            result.assert_true(memetic_fitness > 0, "Memetic GA should return valid fitness");
         }
 
         // Count wins (for TSP, lower fitness is better)
