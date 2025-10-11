@@ -182,8 +182,9 @@ class LinKernighan {
         for (int candidate_city : candidates) {
             const int j = position[candidate_city];
 
-            // Ensure valid 2-opt move
-            if (j <= start_pos || j == start_pos + 1 || (start_pos == 0 && j == n - 1)) {
+            // Ensure valid 2-opt move (nodes cannot be adjacent in the tour)
+            // Only skip moves between adjacent nodes, as 2-opt on adjacent edges is a no-op
+            if (j == (start_pos + 1) % n || j == (start_pos + n - 1) % n) {
                 continue;
             }
 
