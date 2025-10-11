@@ -118,12 +118,14 @@ class LinKernighan {
                 }
             }
 
-            if (best_gain > 0) {
+            if (best_gain > 1e-9) {
                 problem.apply_two_opt(tour, best_i, best_j);
 
-                // Update position mapping for the reversed segment [best_i+1, best_j]
-                // This is O(k) where k is segment length, avoiding full O(n) rebuild
-                for (int i = best_i + 1; i <= best_j; ++i) {
+                // Update position mapping for the reversed segment.
+                // This is O(k) where k is segment length, avoiding full O(n) rebuild.
+                // Use minmax to handle both best_i < best_j and best_i > best_j cases.
+                auto [start_rev, end_rev] = std::minmax(best_i, best_j);
+                for (int i = start_rev + 1; i <= end_rev; ++i) {
                     position[tour[i]] = i;
                 }
 
