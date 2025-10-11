@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <limits>
+#include <numeric>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -37,22 +38,31 @@ namespace evolab::local_search {
 /// - Candidate list guided edge selection (avoids exhaustive search)
 /// - Best improvement search within candidate set
 /// - Configurable iteration limit via max_depth parameter
+/// - Optional search order randomization for better diversification
 /// - Maintains tour validity throughout
 /// - Suitable for integration with genetic algorithms
 ///
+/// Search Order Modes:
+/// - Deterministic (default): Sequential order (0→n-1), reproducible results
+/// - Stochastic: Randomized order each iteration, better exploration
+///
 /// @note Future enhancement: Multi-step sequential edge exchanges (true variable k-opt)
 class LinKernighan {
-    int k_nearest_; ///< Number of nearest neighbors to consider
-    int max_depth_; ///< Maximum improvement iterations per improve() call
+    int k_nearest_;        ///< Number of nearest neighbors to consider
+    int max_depth_;        ///< Maximum improvement iterations per improve() call
+    bool randomize_order_; ///< Whether to randomize search order for diversification
 
   public:
     /// Construct Lin-Kernighan local search
     ///
     /// @param k_nearest Number of nearest neighbors in candidate list (default: 20)
     /// @param max_depth Maximum improvement iterations per improve() call (default: 5)
+    /// @param randomize_order Whether to randomize search order each iteration (default: false)
+    ///        - false: deterministic, sequential order (0, 1, 2, ..., n-1)
+    ///        - true: stochastic, shuffled order for better diversification
     /// @throws std::invalid_argument if k_nearest < 1 or max_depth < 1
-    explicit LinKernighan(int k_nearest = 20, int max_depth = 5)
-        : k_nearest_(k_nearest), max_depth_(max_depth) {
+    explicit LinKernighan(int k_nearest = 20, int max_depth = 5, bool randomize_order = false)
+        : k_nearest_(k_nearest), max_depth_(max_depth), randomize_order_(randomize_order) {
         if (k_nearest < 1) {
             throw std::invalid_argument("k_nearest must be at least 1");
         }
@@ -106,8 +116,15 @@ class LinKernighan {
             int best_i = -1;
             int best_j = -1;
 
+            // Prepare search order based on randomization setting
+            std::vector<int> start_positions(n);
+            std::iota(start_positions.begin(), start_positions.end(), 0);
+            if (randomize_order_) {
+                std::shuffle(start_positions.begin(), start_positions.end(), rng);
+            }
+
             // Try starting from each position in the tour to find the best 2-opt move
-            for (int start_pos = 0; start_pos < n; ++start_pos) {
+            for (int start_pos : start_positions) {
                 // Attempt a sequential edge exchange starting from this position
                 auto [gain, j] =
                     attempt_edge_exchange(problem, tour, start_pos, position, *candidate_list, rng);
@@ -150,6 +167,7 @@ class LinKernighan {
 
     int k_nearest() const { return k_nearest_; }
     int max_depth() const { return max_depth_; }
+    bool randomize_order() const { return randomize_order_; }
 
   private:
     /// Attempt to find best 2-opt move starting from a given position
