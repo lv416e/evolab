@@ -187,9 +187,10 @@ int test_lk_with_candidate_lists() {
     result.assert_true(f1.value <= initial_fitness, "LK with k=5 should not worsen fitness");
     result.assert_true(f2.value <= initial_fitness, "LK with k=15 should not worsen fitness");
 
-    // Larger candidate list should yield better or equal result (k=15 is superset of k=5)
-    result.assert_true(f2.value <= f1.value,
-                       "Larger candidate list (k=15) should be better or equal to smaller (k=5)");
+    // Note: We don't assert k=15 >= k=5 because:
+    // - Lin-Kernighan is a local search (can reach different local optima)
+    // - Larger candidate lists don't guarantee monotonic improvement
+    // - Both configurations should improve over initial, which we verify above
 
     return result.summary();
 }
