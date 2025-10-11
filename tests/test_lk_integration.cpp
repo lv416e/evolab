@@ -253,6 +253,50 @@ int test_lk_improves_during_evolution() {
     return result.summary();
 }
 
+// Test randomized LK with memetic GA
+//
+// This test validates that randomized search order provides valid results
+// when integrated with genetic algorithms, demonstrating the feature's
+// practical utility in memetic algorithm contexts.
+int test_randomized_lk_with_ga() {
+    TestResult result;
+
+    const int n = 15;
+    problems::TSP tsp = create_random_tsp(n, 42);
+
+    core::GAConfig config;
+    config.population_size = 20;
+    config.max_generations = 10;
+    config.crossover_prob = 0.8;
+    config.mutation_prob = 0.2;
+    config.elite_ratio = 0.1;
+    config.seed = 999;
+
+    // Test with randomized LK
+    operators::TournamentSelection selection(3);
+    operators::PMXCrossover crossover;
+    operators::SwapMutation mutation;
+    local_search::LinKernighan lk_rand(10, 3, true); // randomize_order = true
+
+    auto ga = core::make_ga(selection, crossover, mutation, lk_rand);
+    auto result_ga = ga.run(tsp, config);
+
+    // Verify valid results
+    result.assert_true(result_ga.best_fitness.value > 0,
+                       "Randomized LK with GA should return valid fitness");
+    result.assert_eq(n, static_cast<int>(result_ga.best_genome.size()),
+                     "Best genome should have correct size");
+
+    // Verify tour validity
+    std::vector<int> sorted = result_ga.best_genome;
+    std::sort(sorted.begin(), sorted.end());
+    for (int i = 0; i < n; ++i) {
+        result.assert_eq(i, sorted[i], "Randomized LK should maintain valid permutation in GA");
+    }
+
+    return result.summary();
+}
+
 int main() {
     std::cout << "Running Lin-Kernighan Integration Tests\n";
     std::cout << "=========================================\n\n";
@@ -263,6 +307,7 @@ int main() {
     failed += test_memetic_vs_pure_ga();
     failed += test_lk_with_different_crossovers();
     failed += test_lk_improves_during_evolution();
+    failed += test_randomized_lk_with_ga();
 
     std::cout << "\n=========================================\n";
     if (failed == 0) {

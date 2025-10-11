@@ -215,6 +215,63 @@ int test_lk_generic_interface() {
     return result.summary();
 }
 
+// Test randomization mode accessor
+int test_lk_randomization_accessor() {
+    TestResult result;
+
+    // Test default (deterministic)
+    local_search::LinKernighan lk_det;
+    result.assert_eq(false, lk_det.randomize_order(), "Default randomize_order should be false");
+
+    // Test explicit deterministic
+    local_search::LinKernighan lk_det2(20, 5, false);
+    result.assert_eq(false, lk_det2.randomize_order(),
+                     "Explicit false randomize_order should be false");
+
+    // Test randomized
+    local_search::LinKernighan lk_rand(20, 5, true);
+    result.assert_eq(true, lk_rand.randomize_order(),
+                     "Explicit true randomize_order should be true");
+
+    return result.summary();
+}
+
+// Test randomized search order mode
+int test_lk_randomized_mode() {
+    TestResult result;
+
+    // Create TSP instance
+    int n = 20;
+    problems::TSP tsp = create_random_tsp(n, 42);
+
+    // Create initial tour
+    std::vector<int> initial_tour(n);
+    std::iota(initial_tour.begin(), initial_tour.end(), 0);
+    std::mt19937 rng_shuffle(123);
+    std::shuffle(initial_tour.begin(), initial_tour.end(), rng_shuffle);
+
+    double initial_fitness = tsp.evaluate(initial_tour).value;
+
+    // Test randomized mode
+    local_search::LinKernighan lk_rand(10, 4, true);
+    std::vector<int> tour_rand = initial_tour;
+    std::mt19937 rng(456);
+    core::Fitness fitness_rand = lk_rand.improve(tsp, tour_rand, rng);
+
+    // Verify tour validity
+    std::vector<int> sorted_tour = tour_rand;
+    std::sort(sorted_tour.begin(), sorted_tour.end());
+    for (int i = 0; i < n; ++i) {
+        result.assert_eq(i, sorted_tour[i], "Randomized LK should maintain valid tour");
+    }
+
+    // Should improve or maintain fitness
+    result.assert_true(fitness_rand.value <= initial_fitness,
+                       "Randomized LK should not worsen fitness");
+
+    return result.summary();
+}
+
 int main() {
     std::cout << "Running Lin-Kernighan Local Search Tests\n";
     std::cout << "==========================================\n\n";
@@ -228,6 +285,8 @@ int main() {
     failed += test_lk_depth_limit();
     failed += test_lk_with_candidate_lists();
     failed += test_lk_generic_interface();
+    failed += test_lk_randomization_accessor();
+    failed += test_lk_randomized_mode();
 
     std::cout << "\n==========================================\n";
     if (failed == 0) {
