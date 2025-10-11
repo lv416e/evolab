@@ -105,6 +105,12 @@ class LinKernighan {
             position[tour[i]] = i;
         }
 
+        // Prepare search order vector once to avoid re-allocations in loop
+        // In deterministic mode, this remains unchanged across iterations
+        // In stochastic mode, shuffled each iteration without reallocation
+        std::vector<int> start_positions(n);
+        std::iota(start_positions.begin(), start_positions.end(), 0);
+
         // Use max_depth to control improvement iterations
         // This balances solution quality with computational cost
         while (improved && iteration < max_depth_) {
@@ -116,9 +122,7 @@ class LinKernighan {
             int best_i = -1;
             int best_j = -1;
 
-            // Prepare search order based on randomization setting
-            std::vector<int> start_positions(n);
-            std::iota(start_positions.begin(), start_positions.end(), 0);
+            // Randomize search order if enabled (reuses existing vector)
             if (randomize_order_) {
                 std::shuffle(start_positions.begin(), start_positions.end(), rng);
             }
