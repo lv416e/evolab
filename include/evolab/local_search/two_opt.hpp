@@ -23,7 +23,7 @@ namespace evolab::local_search {
 
 /// Minimum gain threshold for accepting an improvement in local search
 /// Values below this threshold are considered numerical noise
-constexpr double MIN_IMPROVEMENT_GAIN = 1e-9;
+inline constexpr double MIN_IMPROVEMENT_GAIN = 1e-9;
 
 /// 2-opt local search for TSP problems
 class TwoOpt {

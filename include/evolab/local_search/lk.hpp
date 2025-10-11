@@ -15,6 +15,7 @@
 #include <vector>
 
 #include <evolab/core/concepts.hpp>
+#include <evolab/local_search/two_opt.hpp>
 #include <evolab/problems/tsp.hpp>
 #include <evolab/utils/candidate_list.hpp>
 #include <evolab/utils/compiler_hints.hpp>
@@ -118,7 +119,7 @@ class LinKernighan {
                 }
             }
 
-            if (best_gain > 1e-9) {
+            if (best_gain > MIN_IMPROVEMENT_GAIN) {
                 problem.apply_two_opt(tour, best_i, best_j);
 
                 // Update position mapping for the reversed segment.
