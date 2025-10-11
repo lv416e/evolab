@@ -87,12 +87,8 @@ class LinKernighan {
 
         problem.clear_distance_cache();
 
-        // Get or create candidate list
+        // Get or create candidate list (guaranteed to return valid pointer)
         const auto* candidate_list = problem.get_candidate_list(k_nearest_);
-        if (EVOLAB_UNLIKELY(candidate_list == nullptr)) {
-            // Fallback: return current fitness if candidate list unavailable
-            return problem.evaluate(tour);
-        }
 
         core::Fitness current_fitness = problem.evaluate(tour);
         bool improved = true;
