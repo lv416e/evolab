@@ -1,8 +1,8 @@
 /// @file lk.hpp
 /// @brief Lin-Kernighan local search optimization with limited depth
 ///
-/// Implements a variable k-opt local search algorithm based on the Lin-Kernighan heuristic.
-/// This implementation uses a limited-depth sequential edge exchange strategy guided by
+/// Implements a candidate-list-guided 2-opt local search based on Lin-Kernighan principles.
+/// This implementation uses a limited-depth iterative improvement strategy guided by
 /// candidate lists for research-grade memetic algorithms.
 
 #pragma once
