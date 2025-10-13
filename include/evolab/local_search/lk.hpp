@@ -90,7 +90,6 @@ class LinKernighan {
         // Get or create candidate list (guaranteed to return valid pointer)
         const auto* candidate_list = problem.get_candidate_list(k_nearest_);
 
-        core::Fitness current_fitness = problem.evaluate(tour);
         bool improved = true;
         int iteration = 0;
 
@@ -147,12 +146,12 @@ class LinKernighan {
                     position[tour[i]] = i;
                 }
 
-                current_fitness = core::Fitness{current_fitness.value - best_gain};
                 improved = true;
             }
         }
 
-        return current_fitness;
+        // Evaluate final tour once for accurate fitness (avoids floating-point drift)
+        return problem.evaluate(tour);
     }
 
     /// Generic improve method for concept compliance
