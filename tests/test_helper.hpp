@@ -60,6 +60,11 @@ struct TestResult {
                                             " >= " + std::to_string(min_value) + ")");
     }
 
+    void assert_ge(double value, double min_value, const std::string& message) {
+        assert_true(value >= min_value, message + " (" + std::to_string(value) +
+                                            " >= " + std::to_string(min_value) + ")");
+    }
+
     void assert_lt(int value, int max_value, const std::string& message) {
         assert_true(value < max_value, message + " (" + std::to_string(value) + " < " +
                                            std::to_string(max_value) + ")");
