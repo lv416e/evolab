@@ -44,6 +44,8 @@ struct OperatorStats {
 
 class UCBScheduler {
   private:
+    static std::mt19937& get_thread_rng();
+
     std::vector<OperatorStats> stats_;
     double exploration_constant_;
     size_t total_selections_;
@@ -108,17 +110,18 @@ class UCBScheduler {
         }
         total_selections_ = 0;
     }
-
-  private:
-    static std::mt19937& get_thread_rng() {
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen(rd());
-        return gen;
-    }
 };
+
+inline std::mt19937& UCBScheduler::get_thread_rng() {
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    return gen;
+}
 
 class ThompsonSamplingScheduler {
   private:
+    static std::mt19937& get_thread_rng();
+
     struct BetaDistribution {
         double alpha = 1.0;
         double beta = 1.0;
@@ -203,14 +206,13 @@ class ThompsonSamplingScheduler {
 
     void set_reward_threshold(double threshold) { reward_threshold_ = threshold; }
     double get_reward_threshold() const { return reward_threshold_; }
-
-  private:
-    static std::mt19937& get_thread_rng() {
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen(rd());
-        return gen;
-    }
 };
+
+inline std::mt19937& ThompsonSamplingScheduler::get_thread_rng() {
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    return gen;
+}
 
 // TODO(refactor): Extract common functionality into a templated base class
 // when code duplication becomes unmaintainable or a third selector type is added.
