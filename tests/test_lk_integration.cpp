@@ -5,6 +5,7 @@
 /// algorithms that combine evolutionary search with local optimization.
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 #include <random>
 #include <vector>
@@ -50,7 +51,7 @@ double run_ga_with_local_search(const problems::TSP& tsp, const core::GAConfig& 
 template <typename Crossover, typename LocalSearch>
 double run_ga_with_crossover_and_ls(const problems::TSP& tsp, const core::GAConfig& config,
                                     Crossover cx, LocalSearch ls) {
-    operators::TournamentSelection selection(2);
+    operators::TournamentSelection selection(3);
     operators::SwapMutation mutation;
     auto ga = core::make_ga(selection, std::move(cx), mutation, std::move(ls));
     auto result = ga.run(tsp, config);
