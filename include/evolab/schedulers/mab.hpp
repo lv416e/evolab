@@ -248,12 +248,13 @@ class AdaptiveOperatorSelector {
     }
 
     template <CrossoverOperator<Problem> OpType>
-    void add_operator(const OpType& op, const std::string& name) {
-        operator_names_.push_back(name);
+    void add_operator(OpType op, std::string name) {
+        operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
-            [op](const Problem& problem, const typename Problem::GenomeT& parent1,
-                 const typename Problem::GenomeT& parent2,
-                 std::mt19937& rng) { return op.cross(problem, parent1, parent2, rng); });
+            [op = std::move(op)](const Problem& problem, const typename Problem::GenomeT& parent1,
+                                 const typename Problem::GenomeT& parent2, std::mt19937& rng) {
+                return op.cross(problem, parent1, parent2, rng);
+            });
     }
 
     std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
@@ -342,13 +343,13 @@ class AdaptiveLocalSearchSelector {
     }
 
     template <core::LocalSearchOperator<Problem> OpType>
-    void add_operator(OpType op, const std::string& name) {
+    void add_operator(OpType op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
                 "Cannot add more local search operators than the number specified in the "
                 "selector's constructor. Extra operators will never be selected.");
         }
-        operator_names_.push_back(name);
+        operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
             [op = std::move(op)](const Problem& problem, typename Problem::GenomeT& genome,
                                  std::mt19937& rng) { return op.improve(problem, genome, rng); });
