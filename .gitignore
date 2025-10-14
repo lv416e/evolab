@@ -1,8 +1,8 @@
-.claude/commands/kiro/**
-.claude/commands/projects/**
+# .claude/commands/kiro/**
+# .claude/commands/projects/**
 .serena/**
-.kiro/**
-.mcp.json
+# .kiro/**
+# .mcp.json
 
 # Build directories
 build/
