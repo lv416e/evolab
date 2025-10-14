@@ -77,8 +77,15 @@ class LinKernighan {
     /// @param tour Tour to improve (modified in-place)
     /// @param rng Random number generator
     /// @return Final fitness after improvement
+    /// @throws std::invalid_argument if tour size exceeds INT_MAX (consistent with TSP API design)
     core::Fitness improve(const problems::TSP& problem, problems::TSP::GenomeT& tour,
                           std::mt19937& rng) const {
+        // TSP class uses int for all indices and sizes (see TSP::num_cities, TSP::distance)
+        // This check documents the API contract and fails fast if violated
+        if (EVOLAB_UNLIKELY(tour.size() >
+                            static_cast<std::size_t>(std::numeric_limits<int>::max()))) {
+            throw std::invalid_argument("Tour size exceeds INT_MAX - TSP API uses int indices");
+        }
         const int n = static_cast<int>(tour.size());
 
         // Tours with < 4 cities cannot be improved by k-opt
