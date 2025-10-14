@@ -61,11 +61,33 @@ class UCBScheduler {
     std::mt19937& rng_;
 
   public:
-    explicit UCBScheduler(size_t num_operators, double exploration_constant = 2.0,
+    /**
+           * @brief Construct a UCB-based scheduler for a fixed number of operators.
+           *
+           * Initializes per-operator statistics, sets the exploration constant used in
+           * UCB score computation, and binds the RNG to use for tie-breaking.
+           *
+           * @param num_operators Number of operators to manage; allocates internal stats for each.
+           * @param exploration_constant Exploration weight applied to the UCB exploration term.
+           * @param rng Random number generator used for random tie-breaking between equal UCB scores.
+           */
+          explicit UCBScheduler(size_t num_operators, double exploration_constant = 2.0,
                           std::mt19937& rng = get_thread_rng())
         : stats_(num_operators), exploration_constant_(exploration_constant), total_selections_(0),
           rng_(rng) {}
 
+    /**
+     * @brief Selects an operator index using the Upper Confidence Bound (UCB) policy.
+     *
+     * Balances exploitation (operator average reward) and exploration; operators with zero prior
+     * selections are prioritized to guarantee initial exploration. Ties among equally-scored
+     * operators are broken uniformly at random using the scheduler's RNG. This call also
+     * increments the scheduler's internal total selection count.
+     *
+     * @return int Index of the selected operator.
+     *
+     * @throws std::logic_error if no operators are configured.
+     */
     int select_operator() {
         if (stats_.empty()) {
             throw std::logic_error("UCBScheduler: no operators configured");
@@ -159,11 +181,29 @@ class ThompsonSamplingScheduler {
     double reward_threshold_;
 
   public:
-    explicit ThompsonSamplingScheduler(size_t num_operators, double reward_threshold = 0.0,
+    /**
+           * @brief Construct a ThompsonSamplingScheduler managing a fixed number of operators.
+           *
+           * Initializes per-operator beta distributions and statistics, sets the reward
+           * threshold used to determine successes, and uses the provided RNG for sampling.
+           *
+           * @param num_operators Number of operators to manage.
+           * @param reward_threshold Threshold above which an observed reward is treated as a success.
+           * @param rng Reference to the random number generator used for sampling distributions.
+           */
+          explicit ThompsonSamplingScheduler(size_t num_operators, double reward_threshold = 0.0,
                                        std::mt19937& rng = get_thread_rng())
         : distributions_(num_operators), stats_(num_operators), rng_(rng),
           reward_threshold_(reward_threshold) {}
 
+    /**
+     * Selects an operator by sampling each operator's Beta distribution and choosing the operator
+     * with the largest sampled value.
+     *
+     * @return int Index (0-based) of the operator with the highest sampled value.
+     *
+     * @throws std::logic_error If no operators are configured.
+     */
     int select_operator() {
         if (distributions_.empty()) {
             throw std::logic_error("ThompsonSamplingScheduler: no operators configured");
@@ -318,6 +358,14 @@ class AdaptiveLocalSearchSelector {
 
   public:
     template <typename... Args>
+    /**
+     * @brief Construct an adaptive local-search selector and prepare internal storage.
+     *
+     * Initializes the underlying scheduler with num_operators and forwards any additional arguments to the scheduler's constructor.
+     *
+     * @param num_operators Number of local-search operators to manage; used to initialize the scheduler and reserve internal containers.
+     * @tparam Args Variadic types forwarded to the scheduler constructor.
+     */
     explicit AdaptiveLocalSearchSelector(size_t num_operators, Args&&... args)
         : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
           last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
@@ -326,6 +374,20 @@ class AdaptiveLocalSearchSelector {
     }
 
     template <LocalSearchOperator<Problem> OpType>
+    /**
+     * @brief Register a local search operator with the selector.
+     *
+     * Adds the given operator and its name to the internal lists so the scheduler
+     * can select and invoke it via op.improve(problem, genome, rng).
+     *
+     * @tparam OpType Type of the operator; must satisfy LocalSearchOperator<Problem>.
+     * @param op Local search operator whose `improve(const Problem&, Problem::GenomeT&, std::mt19937&)`
+     *           will be called when selected.
+     * @param name Human-readable name for the operator.
+     *
+     * @throws std::logic_error If adding this operator would exceed the number of operators
+     *                         configured in the selector (such operators would never be selected).
+     */
     void add_operator(OpType op, const std::string& name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
@@ -340,6 +402,20 @@ class AdaptiveLocalSearchSelector {
         });
     }
 
+    /**
+     * @brief Selects a local-search operator, applies it to the provided genome, and records the execution time and selection for later reward reporting.
+     *
+     * The chosen operator is executed and may modify `genome` in-place. Execution duration is stored in `last_execution_time_` and the selection is recorded so a subsequent call to report_fitness_improvement/report_fitness_change can attribute rewards to the operator.
+     *
+     * @param problem Problem instance used by the local-search operator.
+     * @param genome Genome to be improved; may be modified by the operator.
+     * @param rng Random number generator used by the operator.
+     *
+     * @return core::Fitness The fitness value returned by the executed local-search operator.
+     *
+     * @throws std::logic_error If no operators have been added.
+     * @throws std::out_of_range If the scheduler selects an operator index outside the range of added operators.
+     */
     core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
                                      std::mt19937& rng) {
         if (operators_.empty()) {
@@ -365,6 +441,16 @@ class AdaptiveLocalSearchSelector {
         return result;
     }
 
+    /**
+     * @brief Record and report a tracked fitness improvement for the most recently selected operator.
+     *
+     * If an improvement is currently being tracked and a valid operator was selected, stores the
+     * provided improvement value, forwards it to the scheduler as the operator's reward, and stops
+     * tracking further improvements for that selection.
+     *
+     * @param improvement Amount of fitness improvement computed as (old_fitness - new_fitness); a
+     *                    positive value indicates that fitness improved.
+     */
     void report_fitness_improvement(double improvement) {
         if (tracking_improvement_ && current_selection_ >= 0) {
             last_fitness_improvement_ = improvement;
@@ -373,15 +459,41 @@ class AdaptiveLocalSearchSelector {
         }
     }
 
+    /**
+     * @brief Compute the fitness improvement between two evaluations and forward it for operator scoring.
+     *
+     * The improvement is calculated as `old_fitness - new_fitness` and propagated to the selector's
+     * reporting mechanism so the scheduler can update operator rewards.
+     *
+     * @param old_fitness Fitness value before the change.
+     * @param new_fitness Fitness value after the change.
+     */
     void report_fitness_change(double old_fitness, double new_fitness) {
         double improvement = old_fitness - new_fitness;
         report_fitness_improvement(improvement);
     }
 
-    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+    /**
+ * @brief Access the current operator statistics maintained by the scheduler.
+ *
+ * @return const std::vector<OperatorStats>& Const reference to the vector of per-operator statistics, each containing metrics such as `total_reward`, `selection_count`, `avg_reward`, `success_rate`, and `success_count`.
+ */
+const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
 
-    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+    /**
+ * @brief Get the names of registered operators in insertion order.
+ *
+ * @return const std::vector<std::string>& A reference to the vector holding operator names, ordered by when they were added.
+ */
+const std::vector<std::string>& get_operator_names() const { return operator_names_; }
 
+    /**
+     * @brief Reset scheduler statistics and clear last-selection tracking.
+     *
+     * Resets the underlying scheduler's statistics and restores selection/tracking
+     * state (current selection index, last recorded fitness improvement,
+     * last execution time, and the improvement-tracking flag) to their initial values.
+     */
     void reset_stats() {
         scheduler_.reset();
         current_selection_ = -1;
@@ -390,11 +502,31 @@ class AdaptiveLocalSearchSelector {
         tracking_improvement_ = false;
     }
 
-    size_t get_operator_count() const { return operators_.size(); }
+    /**
+ * @brief Retrieves the number of registered operators.
+ *
+ * @return size_t The number of operators currently stored.
+ */
+size_t get_operator_count() const { return operators_.size(); }
 
-    int get_last_selection() const { return current_selection_; }
-    double get_last_improvement() const { return last_fitness_improvement_; }
-    double get_last_execution_time() const { return last_execution_time_; }
+    /**
+ * @brief Retrieve the index of the last selected operator.
+ *
+ * @return int Index of the last selected operator, or -1 if no operator has been selected.
+ */
+int get_last_selection() const { return current_selection_; }
+    /**
+ * @brief Retrieves the last recorded fitness improvement from the most recent operator execution.
+ *
+ * @return double Last recorded fitness improvement; 0.0 if no improvement has been recorded yet.
+ */
+double get_last_improvement() const { return last_fitness_improvement_; }
+    /**
+ * @brief Retrieves the elapsed time of the last executed local search operator.
+ *
+ * @return double Elapsed time in seconds for the last operator execution; 0.0 if no execution has occurred.
+ */
+double get_last_execution_time() const { return last_execution_time_; }
 };
 
 template <typename Problem>

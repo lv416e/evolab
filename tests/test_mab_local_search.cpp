@@ -19,18 +19,38 @@ struct TestTSPInstance {
     TSP tsp;
     std::vector<int> tour;
 
+    /**
+     * @brief Create a small deterministic TSP instance and an initial identity tour.
+     *
+     * Initializes `tsp` with a fixed set of test cities (a simple 10-city grid)
+     * and sets `tour` to the identity permutation [0, 1, ..., tsp.num_cities()-1].
+     */
     TestTSPInstance() : tsp(create_test_cities()), tour(tsp.num_cities()) {
         std::iota(tour.begin(), tour.end(), 0);
     }
 
   private:
+    /**
+     * @brief Creates a small, deterministic set of city coordinates for TSP tests.
+     *
+     * The returned cities form a simple 2x5 grid: five cities on y=0 followed by five on y=1,
+     * with x coordinates 0 through 4.
+     *
+     * @return std::vector<std::pair<double,double>> A list of 10 (x, y) city coordinates.
+     */
     static std::vector<std::pair<double, double>> create_test_cities() {
         return {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0},
                 {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0}, {3.0, 1.0}, {4.0, 1.0}};
     }
 };
 
-// TDD RED: Test LocalSearchOperator concept exists
+/**
+ * @brief Verifies at compile time that common local search implementations satisfy the LocalSearchOperator concept.
+ *
+ * Performs static assertions for LinKernighan, TwoOpt, and Random2Opt specialized for TSP and records a passing assertion in the provided TestResult if compilation succeeds.
+ *
+ * @param result TestResult used to record the outcome of the compile-time check.
+ */
 void test_local_search_operator_concept(TestResult& result) {
     // This should compile if the concept exists
     static_assert(LocalSearchOperator<LinKernighan, TSP>);
@@ -40,7 +60,11 @@ void test_local_search_operator_concept(TestResult& result) {
     result.assert_true(true, "LocalSearchOperator concept compiles");
 }
 
-// TDD RED: Test AdaptiveLocalSearchSelector class exists
+/**
+ * @brief Verifies that a UCB-based adaptive local search selector initializes with no registered operators.
+ *
+ * @param result TestResult used to record the assertion outcome.
+ */
 void test_adaptive_local_search_selector_exists(TestResult& result) {
     std::mt19937 rng(42);
     // Create selector with UCB scheduler
@@ -50,7 +74,14 @@ void test_adaptive_local_search_selector_exists(TestResult& result) {
                      "Selector initializes with zero operators");
 }
 
-// TDD RED: Test adding local search operators
+/**
+ * @brief Verifies adding local search operators to a UCBLocalSearchSelector and validates operator count and names.
+ *
+ * Uses a deterministic RNG and three concrete local search operators to ensure the selector records
+ * the correct number of operators and preserves the registration order of their names.
+ *
+ * @param result Test harness object used to record assertions and test outcomes.
+ */
 void test_add_local_search_operators(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(3, 2.0, rng);
@@ -100,7 +131,15 @@ void test_apply_local_search(TestResult& result) {
     result.assert_lt(selector.get_last_selection(), 2, "Selected operator is within bounds");
 }
 
-// TDD RED: Test performance tracking for local search
+/**
+ * @brief Verifies that the UCB local-search selector tracks per-operator performance across repeated applications.
+ *
+ * Runs 10 local-search applications on a small deterministic TSP instance using two registered operators,
+ * reports the observed fitness improvements to the selector, and asserts that the selector maintains stats
+ * for both operators and that the sum of selection counts equals the number of applications.
+ *
+ * @param result TestResult accumulator used to record assertions and failures for this test.
+ */
 void test_performance_tracking(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
@@ -136,7 +175,14 @@ void test_performance_tracking(TestResult& result) {
                      "Total selections equals number of applications");
 }
 
-// TDD RED: Test execution time tracking
+/**
+ * @brief Verifies that a local search selector records a positive execution time after applying local search.
+ *
+ * Creates a UCBLocalSearchSelector with two local-search operators, applies it to a small deterministic TSP instance,
+ * and asserts that the selector's last recorded execution time is greater than zero.
+ *
+ * @param result TestResult collector used to record the assertion outcome.
+ */
 void test_execution_time_tracking(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
@@ -155,7 +201,13 @@ void test_execution_time_tracking(TestResult& result) {
     result.assert_gt(selector.get_last_execution_time(), 0.0, "Execution time is positive");
 }
 
-// TDD RED: Test improvement rate tracking
+/**
+ * @brief Runs repeated local-search applications to exercise improvement-rate tracking and validates reported rates.
+ *
+ * Executes multiple local-search applications using a Thompson sampling selector with two operators, reports per-run fitness improvements to the selector, and asserts that each operator's recorded success rate (for operators selected at least once) lies between 0.0 and 1.0 inclusive.
+ *
+ * @param result Test harness object used to record assertions and test outcomes.
+ */
 void test_improvement_rate_tracking(TestResult& result) {
     std::mt19937 rng(42);
     ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
@@ -189,7 +241,15 @@ void test_improvement_rate_tracking(TestResult& result) {
     }
 }
 
-// TDD RED: Test Thompson Sampling with local search
+/**
+ * @brief Runs an integration test of Thompson Sampling with local search operators on a TSP.
+ *
+ * Registers two local search operators (LinKernighan and TwoOpt), runs 10 iterations where it
+ * applies selected local search to a test TSP tour and reports the observed fitness changes to the
+ * selector, then verifies that the selector has recorded statistics for both operators.
+ *
+ * @param result Test harness object used to record assertions and the test outcome.
+ */
 void test_thompson_sampling_integration(TestResult& result) {
     std::mt19937 rng(42);
     ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
@@ -217,7 +277,14 @@ void test_thompson_sampling_integration(TestResult& result) {
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 }
 
-// TDD RED: Test hybrid configuration with both crossover and local search
+/**
+ * @brief Verifies that crossover and local-search UCB selectors can be instantiated together.
+ *
+ * Creates a UCBOperatorSelector for crossover and a UCBLocalSearchSelector for local search,
+ * and asserts that each selector starts with zero registered operators.
+ *
+ * @param result TestResult collector used to record assertions and outcomes.
+ */
 void test_hybrid_crossover_and_local_search(TestResult& result) {
     std::mt19937 rng(42);
 
@@ -234,6 +301,15 @@ void test_hybrid_crossover_and_local_search(TestResult& result) {
                      "Local search selector initializes with zero operators");
 }
 
+/**
+ * @brief Executes the EvoLab MAB local search integration test suite.
+ *
+ * Runs all defined unit tests for adaptive local search selectors, operators,
+ * performance and execution-time tracking, Thompson sampling integration, and
+ * hybrid crossover/local-search interaction, then aggregates results.
+ *
+ * @return int Test suite summary code: `0` if all tests passed, non-zero otherwise.
+ */
 int main() {
     std::cout << "=== EvoLab MAB Local Search Integration Tests ===\n\n";
 
