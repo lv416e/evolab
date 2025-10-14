@@ -221,6 +221,92 @@ void test_thompson_sampling_integration(TestResult& result) {
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 }
 
+// Test error handling: adding too many operators
+void test_error_too_many_operators(TestResult& result) {
+    UCBSelectorFixture fixture(2);
+    fixture.add_default_operators(); // Adds 2 operators (LinKernighan, TwoOpt)
+
+    // Try to add a third operator when only 2 were specified in constructor
+    bool caught_exception = false;
+    try {
+        fixture.selector.add_operator(Random2Opt(50), "Random2Opt");
+    } catch (const std::logic_error& e) {
+        caught_exception = true;
+        result.assert_true(std::string(e.what()).find("Cannot add more") != std::string::npos,
+                           "Exception message mentions adding too many operators");
+    }
+
+    result.assert_true(caught_exception, "Adding too many operators throws logic_error");
+}
+
+// Test error handling: applying with no operators
+void test_error_no_operators(TestResult& result) {
+    UCBSelectorFixture fixture(2);
+    // Do not add any operators
+
+    bool caught_exception = false;
+    try {
+        auto tour_copy = fixture.tsp_instance.tour;
+        fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
+    } catch (const std::logic_error& e) {
+        caught_exception = true;
+        result.assert_true(std::string(e.what()).find("no operators") != std::string::npos,
+                           "Exception message mentions no operators");
+    }
+
+    result.assert_true(caught_exception, "Applying with no operators throws logic_error");
+}
+
+// Test error handling: double application without reporting
+void test_error_double_application(TestResult& result) {
+    UCBSelectorFixture fixture;
+    fixture.add_default_operators();
+
+    auto tour_copy1 = fixture.tsp_instance.tour;
+    auto tour_copy2 = fixture.tsp_instance.tour;
+
+    // First application should succeed
+    fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy1, fixture.rng);
+
+    // Second application without report_fitness_improvement should throw
+    bool caught_exception = false;
+    try {
+        fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy2, fixture.rng);
+    } catch (const std::logic_error& e) {
+        caught_exception = true;
+        result.assert_true(std::string(e.what()).find("report_fitness_improvement") !=
+                               std::string::npos,
+                           "Exception message mentions report_fitness_improvement");
+    }
+
+    result.assert_true(caught_exception, "Double application without reporting throws logic_error");
+}
+
+// Test error handling: out-of-bounds selection
+void test_error_out_of_bounds_selection(TestResult& result) {
+    UCBSelectorFixture fixture(3); // Specify 3 operators
+    fixture.selector.add_operator(LinKernighan(20, 5), "LinKernighan");
+    // Only add 1 operator, but constructor expects 3
+
+    // The scheduler might select index 1 or 2 (which don't have operators)
+    // We'll try multiple times to trigger the error
+    bool caught_exception = false;
+    for (int attempt = 0; attempt < 20 && !caught_exception; ++attempt) {
+        try {
+            auto tour_copy = fixture.tsp_instance.tour;
+            fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
+            // If successful, we need to report to reset tracking flag
+            fixture.selector.report_fitness_improvement(0.0);
+        } catch (const std::out_of_range& e) {
+            caught_exception = true;
+            result.assert_true(std::string(e.what()).find("out of bounds") != std::string::npos,
+                               "Exception message mentions out of bounds");
+        }
+    }
+
+    result.assert_true(caught_exception, "Out-of-bounds selection throws out_of_range");
+}
+
 // Test hybrid configuration with both crossover and local search
 void test_hybrid_crossover_and_local_search(TestResult& result) {
     std::mt19937 rng(42);
@@ -302,6 +388,10 @@ int main() {
     test_execution_time_tracking(result);
     test_improvement_rate_tracking(result);
     test_thompson_sampling_integration(result);
+    test_error_too_many_operators(result);
+    test_error_no_operators(result);
+    test_error_double_application(result);
+    test_error_out_of_bounds_selection(result);
     test_hybrid_crossover_and_local_search(result);
 
     return result.summary();
