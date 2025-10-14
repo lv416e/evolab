@@ -318,12 +318,13 @@ class AdaptiveLocalSearchSelector {
     }
 
     template <LocalSearchOperator<Problem> OpType>
-    void add_operator(const OpType& op, const std::string& name) {
+    void add_operator(OpType op, const std::string& name) {
         operator_names_.push_back(name);
-        operators_.emplace_back(
-            [op](const Problem& problem, typename Problem::GenomeT& genome, std::mt19937& rng) {
-                return op.improve(problem, genome, rng);
-            });
+        operators_.emplace_back([op = std::move(op)](const Problem& problem,
+                                                     typename Problem::GenomeT& genome,
+                                                     std::mt19937& rng) mutable {
+            return op.improve(problem, genome, rng);
+        });
     }
 
     core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
