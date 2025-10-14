@@ -363,14 +363,14 @@ class AdaptiveLocalSearchSelector {
 
         current_selection_ = scheduler_.select_operator();
 
-        auto start_time = std::chrono::steady_clock::now();
-
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
             throw std::out_of_range(
                 "Selected operator index is out of bounds. This can happen if the number of "
                 "operators added via add_operator() does not match the num_operators argument in "
                 "the constructor.");
         }
+
+        auto start_time = std::chrono::steady_clock::now();
         core::Fitness result = operators_[current_selection_](problem, genome, rng);
 
         auto end_time = std::chrono::steady_clock::now();
