@@ -253,6 +253,12 @@ class AdaptiveOperatorSelector {
     std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
     apply_crossover(const Problem& problem, const typename Problem::GenomeT& parent1,
                     const typename Problem::GenomeT& parent2, std::mt19937& rng) {
+        if (tracking_improvement_) {
+            throw std::logic_error(
+                "apply_crossover called again before report_fitness_improvement was called for the "
+                "previous operation.");
+        }
+
         current_selection_ = scheduler_.select_operator();
         tracking_improvement_ = true;
 
@@ -338,6 +344,12 @@ class AdaptiveLocalSearchSelector {
                                      std::mt19937& rng) {
         if (operators_.empty()) {
             throw std::logic_error("Cannot apply local search: no operators have been added.");
+        }
+
+        if (tracking_improvement_) {
+            throw std::logic_error(
+                "apply_local_search called again before report_fitness_improvement was called for "
+                "the previous operation.");
         }
 
         current_selection_ = scheduler_.select_operator();
