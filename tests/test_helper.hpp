@@ -85,6 +85,11 @@ struct TestResult {
                                             " <= " + std::to_string(max_value) + ")");
     }
 
+    void assert_lt(double value, double max_value, const std::string& message) {
+        assert_true(value < max_value, message + " (" + std::to_string(value) + " < " +
+                                           std::to_string(max_value) + ")");
+    }
+
     void print_summary() {
         std::cout << "\n=== Test Summary ===\n";
         std::cout << "Passed: " << passed << "\n";
