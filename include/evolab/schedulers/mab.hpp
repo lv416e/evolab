@@ -5,6 +5,7 @@
 #include <cmath>
 #include <concepts>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -253,6 +254,10 @@ class AdaptiveOperatorSelector {
     std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
     apply_crossover(const Problem& problem, const typename Problem::GenomeT& parent1,
                     const typename Problem::GenomeT& parent2, std::mt19937& rng) {
+        if (operators_.empty()) {
+            throw std::logic_error("Cannot apply crossover: no operators have been added.");
+        }
+
         if (tracking_improvement_) {
             throw std::logic_error(
                 "apply_crossover called again before report_fitness_improvement was called for the "
@@ -260,13 +265,17 @@ class AdaptiveOperatorSelector {
         }
 
         current_selection_ = scheduler_.select_operator();
-        tracking_improvement_ = true;
 
-        if (current_selection_ >= 0 && current_selection_ < static_cast<int>(operators_.size())) {
-            return operators_[current_selection_](problem, parent1, parent2, rng);
+        if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
+            throw std::out_of_range(
+                "Selected operator index is out of bounds. This can happen if the number of "
+                "operators added via add_operator() does not match the num_operators argument in "
+                "the constructor.");
         }
 
-        return {parent1, parent2};
+        auto result = operators_[current_selection_](problem, parent1, parent2, rng);
+        tracking_improvement_ = true;
+        return result;
     }
 
     void report_fitness_improvement(double improvement) {
@@ -353,9 +362,8 @@ class AdaptiveLocalSearchSelector {
         }
 
         current_selection_ = scheduler_.select_operator();
-        tracking_improvement_ = true;
 
-        auto start_time = std::chrono::high_resolution_clock::now();
+        auto start_time = std::chrono::steady_clock::now();
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
             throw std::out_of_range(
@@ -365,9 +373,10 @@ class AdaptiveLocalSearchSelector {
         }
         core::Fitness result = operators_[current_selection_](problem, genome, rng);
 
-        auto end_time = std::chrono::high_resolution_clock::now();
+        auto end_time = std::chrono::steady_clock::now();
         last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
 
+        tracking_improvement_ = true;
         return result;
     }
 
