@@ -67,6 +67,10 @@ class UCBScheduler {
           rng_(rng) {}
 
     int select_operator() {
+        if (stats_.empty()) {
+            throw std::logic_error("UCBScheduler: no operators configured");
+        }
+
         total_selections_++;
 
         std::vector<size_t> best_operators;
@@ -161,6 +165,10 @@ class ThompsonSamplingScheduler {
           reward_threshold_(reward_threshold) {}
 
     int select_operator() {
+        if (distributions_.empty()) {
+            throw std::logic_error("ThompsonSamplingScheduler: no operators configured");
+        }
+
         std::vector<double> samples(distributions_.size());
 
         for (size_t i = 0; i < distributions_.size(); ++i) {
@@ -329,6 +337,10 @@ class AdaptiveLocalSearchSelector {
 
     core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
                                      std::mt19937& rng) {
+        if (operators_.empty()) {
+            throw std::logic_error("Cannot apply local search: no operators have been added.");
+        }
+
         current_selection_ = scheduler_.select_operator();
         tracking_improvement_ = true;
 
