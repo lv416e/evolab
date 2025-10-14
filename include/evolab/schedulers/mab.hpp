@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
@@ -332,10 +333,13 @@ class AdaptiveLocalSearchSelector {
 
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        core::Fitness result{0.0};
-        if (current_selection_ >= 0 && current_selection_ < static_cast<int>(operators_.size())) {
-            result = operators_[current_selection_](problem, genome, rng);
+        if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
+            throw std::out_of_range(
+                "Selected operator index is out of bounds. This can happen if the number of "
+                "operators added via add_operator() does not match the num_operators argument in "
+                "the constructor.");
         }
+        core::Fitness result = operators_[current_selection_](problem, genome, rng);
 
         auto end_time = std::chrono::high_resolution_clock::now();
         last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
