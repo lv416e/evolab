@@ -31,6 +31,41 @@ struct TestTSPInstance {
     }
 };
 
+// Test fixture for UCBLocalSearchSelector tests
+struct UCBSelectorFixture {
+    std::mt19937 rng;
+    TestTSPInstance tsp_instance;
+    UCBLocalSearchSelector<TSP> selector;
+
+    explicit UCBSelectorFixture(size_t num_ops = 2) : rng(42), selector(num_ops, 2.0, rng) {}
+
+    void add_default_operators() {
+        selector.add_operator(LinKernighan(20, 5), "LinKernighan");
+        selector.add_operator(TwoOpt(), "TwoOpt");
+    }
+
+    void add_three_operators() {
+        selector.add_operator(LinKernighan(20, 5), "LinKernighan");
+        selector.add_operator(TwoOpt(), "TwoOpt");
+        selector.add_operator(Random2Opt(100), "Random2Opt");
+    }
+};
+
+// Test fixture for ThompsonLocalSearchSelector tests
+struct ThompsonSelectorFixture {
+    std::mt19937 rng;
+    TestTSPInstance tsp_instance;
+    ThompsonLocalSearchSelector<TSP> selector;
+
+    explicit ThompsonSelectorFixture(size_t num_ops = 2, double reward_threshold = 0.0)
+        : rng(42), selector(num_ops, reward_threshold, rng) {}
+
+    void add_default_operators() {
+        selector.add_operator(LinKernighan(20, 5), "LinKernighan");
+        selector.add_operator(TwoOpt(), "TwoOpt");
+    }
+};
+
 // Test LocalSearchOperator concept exists
 void test_local_search_operator_concept(TestResult& result) {
     // This should compile if the concept exists
@@ -78,55 +113,43 @@ void test_add_local_search_operators(TestResult& result) {
 
 // Test applying local search via selector
 void test_apply_local_search(TestResult& result) {
-    std::mt19937 rng(42);
-    UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
+    UCBSelectorFixture fixture;
+    fixture.add_default_operators();
 
-    LinKernighan lk(20, 5);
-    TwoOpt two_opt;
-
-    selector.add_operator(lk, "LinKernighan");
-    selector.add_operator(two_opt, "TwoOpt");
-
-    TestTSPInstance test_instance;
-    auto initial_fitness = test_instance.tsp.evaluate(test_instance.tour);
-    auto tour_copy = test_instance.tour;
+    auto initial_fitness = fixture.tsp_instance.tsp.evaluate(fixture.tsp_instance.tour);
+    auto tour_copy = fixture.tsp_instance.tour;
 
     // Apply local search
-    auto result_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
+    auto result_fitness =
+        fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
 
     // Result should have improved (strict improvement expected for non-optimal initial tour)
     result.assert_lt(result_fitness.value, initial_fitness.value,
                      "Local search should improve the non-optimal initial tour");
-    result.assert_ge(selector.get_last_selection(), 0, "Selected operator is non-negative");
-    result.assert_lt(selector.get_last_selection(), 2, "Selected operator is within bounds");
+    result.assert_ge(fixture.selector.get_last_selection(), 0, "Selected operator is non-negative");
+    result.assert_lt(fixture.selector.get_last_selection(), 2,
+                     "Selected operator is within bounds");
 }
 
 // Test performance tracking for local search
 void test_performance_tracking(TestResult& result) {
-    std::mt19937 rng(42);
-    UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
-
-    LinKernighan lk(20, 5);
-    TwoOpt two_opt;
-
-    selector.add_operator(lk, "LinKernighan");
-    selector.add_operator(two_opt, "TwoOpt");
-
-    TestTSPInstance test_instance;
+    UCBSelectorFixture fixture;
+    fixture.add_default_operators();
 
     // Perform multiple applications
     for (int i = 0; i < 10; ++i) {
-        auto tour_copy = test_instance.tour;
-        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
+        auto tour_copy = fixture.tsp_instance.tour;
+        auto initial_fitness = fixture.tsp_instance.tsp.evaluate(tour_copy);
 
-        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
+        auto final_fitness =
+            fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
 
         // Report improvement
-        selector.report_fitness_improvement(initial_fitness.value - final_fitness.value);
+        fixture.selector.report_fitness_improvement(initial_fitness.value - final_fitness.value);
     }
 
     // Check that stats are tracked
-    const auto& stats = selector.get_operator_stats();
+    const auto& stats = fixture.selector.get_operator_stats();
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 
     size_t total_selections = 0;
@@ -139,49 +162,36 @@ void test_performance_tracking(TestResult& result) {
 
 // Test execution time tracking
 void test_execution_time_tracking(TestResult& result) {
-    std::mt19937 rng(42);
-    UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
+    UCBSelectorFixture fixture;
+    fixture.add_default_operators();
 
-    LinKernighan lk(20, 5);
-    TwoOpt two_opt;
-
-    selector.add_operator(lk, "LinKernighan");
-    selector.add_operator(two_opt, "TwoOpt");
-
-    TestTSPInstance test_instance;
-
-    selector.apply_local_search(test_instance.tsp, test_instance.tour, rng);
+    fixture.selector.apply_local_search(fixture.tsp_instance.tsp, fixture.tsp_instance.tour,
+                                        fixture.rng);
 
     // Check that execution time was recorded
-    result.assert_ge(selector.get_last_execution_time(), 0.0, "Execution time is non-negative");
+    result.assert_ge(fixture.selector.get_last_execution_time(), 0.0,
+                     "Execution time is non-negative");
 }
 
 // Test improvement rate tracking
 void test_improvement_rate_tracking(TestResult& result) {
-    std::mt19937 rng(42);
-    ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
-
-    LinKernighan lk(20, 5);
-    TwoOpt two_opt;
-
-    selector.add_operator(lk, "LinKernighan");
-    selector.add_operator(two_opt, "TwoOpt");
-
-    TestTSPInstance test_instance;
+    ThompsonSelectorFixture fixture(2, 0.0);
+    fixture.add_default_operators();
 
     // Perform multiple applications and track improvements
     for (int i = 0; i < 20; ++i) {
-        auto tour_copy = test_instance.tour;
-        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
+        auto tour_copy = fixture.tsp_instance.tour;
+        auto initial_fitness = fixture.tsp_instance.tsp.evaluate(tour_copy);
 
-        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
+        auto final_fitness =
+            fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
         double improvement = initial_fitness.value - final_fitness.value;
 
-        selector.report_fitness_improvement(improvement);
+        fixture.selector.report_fitness_improvement(improvement);
     }
 
     // Check improvement rate statistics
-    const auto& stats = selector.get_operator_stats();
+    const auto& stats = fixture.selector.get_operator_stats();
     for (const auto& stat : stats) {
         if (stat.selection_count > 0) {
             result.assert_ge(stat.success_rate, 0.0, "Success rate is non-negative");
@@ -192,29 +202,22 @@ void test_improvement_rate_tracking(TestResult& result) {
 
 // Test Thompson Sampling with local search
 void test_thompson_sampling_integration(TestResult& result) {
-    std::mt19937 rng(42);
-    ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
-
-    LinKernighan lk(20, 5);
-    TwoOpt two_opt;
-
-    selector.add_operator(lk, "LinKernighan");
-    selector.add_operator(two_opt, "TwoOpt");
-
-    TestTSPInstance test_instance;
+    ThompsonSelectorFixture fixture(2, 0.0);
+    fixture.add_default_operators();
 
     // Run multiple iterations
     for (int i = 0; i < 10; ++i) {
-        auto tour_copy = test_instance.tour;
-        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
-        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
-        selector.report_fitness_change(initial_fitness.value, final_fitness.value);
+        auto tour_copy = fixture.tsp_instance.tour;
+        auto initial_fitness = fixture.tsp_instance.tsp.evaluate(tour_copy);
+        auto final_fitness =
+            fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
+        fixture.selector.report_fitness_change(initial_fitness.value, final_fitness.value);
     }
 
     // Verify selector state
-    result.assert_eq(selector.get_operator_count(), static_cast<size_t>(2),
+    result.assert_eq(fixture.selector.get_operator_count(), static_cast<size_t>(2),
                      "Selector has correct operator count");
-    const auto& stats = selector.get_operator_stats();
+    const auto& stats = fixture.selector.get_operator_stats();
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 }
 
