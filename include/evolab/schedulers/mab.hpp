@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <concepts>
 #include <functional>
@@ -17,6 +18,12 @@ concept CrossoverOperator =
         {
             op.cross(problem, genome, genome, rng)
         } -> std::convertible_to<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>>;
+    };
+
+template <typename T, typename Problem>
+concept LocalSearchOperator =
+    requires(T op, const Problem& problem, typename Problem::GenomeT& genome, std::mt19937& rng) {
+        { op.improve(problem, genome, rng) } -> std::convertible_to<core::Fitness>;
     };
 
 struct OperatorStats {
@@ -286,5 +293,92 @@ using UCBOperatorSelector = AdaptiveOperatorSelector<UCBScheduler, Problem>;
 
 template <typename Problem>
 using ThompsonOperatorSelector = AdaptiveOperatorSelector<ThompsonSamplingScheduler, Problem>;
+
+template <typename SchedulerType, typename Problem>
+class AdaptiveLocalSearchSelector {
+  private:
+    SchedulerType scheduler_;
+    std::vector<
+        std::function<core::Fitness(const Problem&, typename Problem::GenomeT&, std::mt19937&)>>
+        operators_;
+    std::vector<std::string> operator_names_;
+    int current_selection_;
+    double last_fitness_improvement_;
+    double last_execution_time_;
+    bool tracking_improvement_;
+
+  public:
+    template <typename... Args>
+    explicit AdaptiveLocalSearchSelector(size_t num_operators, Args&&... args)
+        : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
+          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
+        operators_.reserve(num_operators);
+        operator_names_.reserve(num_operators);
+    }
+
+    template <LocalSearchOperator<Problem> OpType>
+    void add_operator(const OpType& op, const std::string& name) {
+        operator_names_.push_back(name);
+        operators_.emplace_back(
+            [op](const Problem& problem, typename Problem::GenomeT& genome, std::mt19937& rng) {
+                return op.improve(problem, genome, rng);
+            });
+    }
+
+    core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
+                                     std::mt19937& rng) {
+        current_selection_ = scheduler_.select_operator();
+        tracking_improvement_ = true;
+
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        core::Fitness result{0.0};
+        if (current_selection_ >= 0 && current_selection_ < static_cast<int>(operators_.size())) {
+            result = operators_[current_selection_](problem, genome, rng);
+        }
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
+
+        return result;
+    }
+
+    void report_fitness_improvement(double improvement) {
+        if (tracking_improvement_ && current_selection_ >= 0) {
+            last_fitness_improvement_ = improvement;
+            scheduler_.update_reward(current_selection_, improvement);
+            tracking_improvement_ = false;
+        }
+    }
+
+    void report_fitness_change(double old_fitness, double new_fitness) {
+        double improvement = old_fitness - new_fitness;
+        report_fitness_improvement(improvement);
+    }
+
+    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+
+    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+
+    void reset_stats() {
+        scheduler_.reset();
+        current_selection_ = -1;
+        last_fitness_improvement_ = 0.0;
+        last_execution_time_ = 0.0;
+        tracking_improvement_ = false;
+    }
+
+    size_t get_operator_count() const { return operators_.size(); }
+
+    int get_last_selection() const { return current_selection_; }
+    double get_last_improvement() const { return last_fitness_improvement_; }
+    double get_last_execution_time() const { return last_execution_time_; }
+};
+
+template <typename Problem>
+using UCBLocalSearchSelector = AdaptiveLocalSearchSelector<UCBScheduler, Problem>;
+
+template <typename Problem>
+using ThompsonLocalSearchSelector = AdaptiveLocalSearchSelector<ThompsonSamplingScheduler, Problem>;
 
 } // namespace evolab::schedulers
