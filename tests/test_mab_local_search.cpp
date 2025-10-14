@@ -223,15 +223,66 @@ void test_hybrid_crossover_and_local_search(TestResult& result) {
 
     // Create crossover selector
     UCBOperatorSelector<TSP> crossover_selector(2, 2.0, rng);
+    crossover_selector.add_operator(OrderCrossover(), "OX");
+    crossover_selector.add_operator(PMXCrossover(), "PMX");
 
     // Create local search selector
     UCBLocalSearchSelector<TSP> ls_selector(2, 2.0, rng);
+    ls_selector.add_operator(TwoOpt(), "TwoOpt");
+    ls_selector.add_operator(Random2Opt(50), "Random2Opt");
 
-    // The existence of both types shows we can use them together
-    result.assert_eq(crossover_selector.get_operator_count(), static_cast<size_t>(0),
-                     "Crossover selector initializes with zero operators");
-    result.assert_eq(ls_selector.get_operator_count(), static_cast<size_t>(0),
-                     "Local search selector initializes with zero operators");
+    TestTSPInstance test_instance;
+
+    // Simulate a memetic algorithm generation: crossover -> local search
+    for (int gen = 0; gen < 5; ++gen) {
+        // Apply crossover to create offspring
+        auto [offspring1, offspring2] = crossover_selector.apply_crossover(
+            test_instance.tsp, test_instance.tour, test_instance.tour, rng);
+
+        // Report crossover improvement (simplified: use fixed reward for creating offspring)
+        crossover_selector.report_fitness_improvement(0.0);
+
+        // Evaluate offspring before local search
+        auto fitness_before_ls1 = test_instance.tsp.evaluate(offspring1);
+        auto fitness_before_ls2 = test_instance.tsp.evaluate(offspring2);
+
+        // Apply local search to first offspring and report improvement
+        auto fitness_after_ls1 = ls_selector.apply_local_search(test_instance.tsp, offspring1, rng);
+        ls_selector.report_fitness_improvement(fitness_before_ls1.value - fitness_after_ls1.value);
+
+        // Apply local search to second offspring and report improvement
+        auto fitness_after_ls2 = ls_selector.apply_local_search(test_instance.tsp, offspring2, rng);
+        ls_selector.report_fitness_improvement(fitness_before_ls2.value - fitness_after_ls2.value);
+    }
+
+    // Verify both selectors tracked statistics
+    result.assert_eq(crossover_selector.get_operator_count(), static_cast<size_t>(2),
+                     "Crossover selector has correct operator count");
+    result.assert_eq(ls_selector.get_operator_count(), static_cast<size_t>(2),
+                     "Local search selector has correct operator count");
+
+    const auto& crossover_stats = crossover_selector.get_operator_stats();
+    const auto& ls_stats = ls_selector.get_operator_stats();
+
+    result.assert_eq(crossover_stats.size(), static_cast<size_t>(2),
+                     "Crossover selector tracked both operators");
+    result.assert_eq(ls_stats.size(), static_cast<size_t>(2),
+                     "Local search selector tracked both operators");
+
+    // Verify operators were actually used
+    size_t total_crossover_selections = 0;
+    size_t total_ls_selections = 0;
+    for (const auto& stat : crossover_stats) {
+        total_crossover_selections += stat.selection_count;
+    }
+    for (const auto& stat : ls_stats) {
+        total_ls_selections += stat.selection_count;
+    }
+
+    result.assert_eq(total_crossover_selections, static_cast<size_t>(5),
+                     "Crossover selector made expected number of selections");
+    result.assert_eq(total_ls_selections, static_cast<size_t>(10),
+                     "Local search selector made expected number of selections");
 }
 
 int main() {
