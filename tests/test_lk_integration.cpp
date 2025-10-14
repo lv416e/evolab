@@ -5,9 +5,12 @@
 /// algorithms that combine evolutionary search with local optimization.
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <evolab/core/ga.hpp>
@@ -154,7 +157,8 @@ int test_memetic_vs_pure_ga() {
 
     // Statistical assertion: memetic should win in 70%+ of trials
     // 70% threshold balances robustness with realistic expectations
-    const int min_wins = static_cast<int>(num_trials * 0.7);
+    // Use ceil to ensure true "70%+" semantics (e.g., 11 trials requires 8 wins, not 7)
+    const int min_wins = static_cast<int>(std::ceil(num_trials * 0.7));
     result.assert_true(memetic_wins >= min_wins,
                        "Memetic GA should outperform pure GA in 70%+ of trials (got " +
                            std::to_string(memetic_wins) + "/" + std::to_string(num_trials) + ")");
@@ -247,7 +251,8 @@ int test_lk_improves_during_evolution() {
 
     // Statistical assertion: should improve in 90%+ of trials
     // 90% threshold reflects strong expected performance of GA+LK
-    const int min_improvements = static_cast<int>(num_trials * 0.9);
+    // Use ceil to ensure true "90%+" semantics (e.g., 11 trials requires 10 wins, not 9)
+    const int min_improvements = static_cast<int>(std::ceil(num_trials * 0.9));
     result.assert_true(
         improvement_count >= min_improvements,
         "GA with LK should improve over initial random solution in 90%+ of trials (got " +

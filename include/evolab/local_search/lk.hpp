@@ -171,9 +171,9 @@ class LinKernighan {
         }
     }
 
-    int k_nearest() const { return k_nearest_; }
-    int max_depth() const { return max_depth_; }
-    bool randomize_order() const { return randomize_order_; }
+    [[nodiscard]] int k_nearest() const noexcept { return k_nearest_; }
+    [[nodiscard]] int max_depth() const noexcept { return max_depth_; }
+    [[nodiscard]] bool randomize_order() const noexcept { return randomize_order_; }
 
   private:
     /// Attempt to find best 2-opt move starting from a given position
