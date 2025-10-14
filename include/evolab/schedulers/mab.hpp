@@ -220,6 +220,11 @@ class ThompsonSamplingScheduler {
     }
 };
 
+// TODO(refactor): Consider extracting common functionality into a base class
+// if a third selector type is needed. AdaptiveOperatorSelector and
+// AdaptiveLocalSearchSelector share significant code (scheduler management,
+// stats tracking, improvement reporting). However, the current duplication
+// is acceptable for two distinct use cases. See Gemini review suggestion.
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
