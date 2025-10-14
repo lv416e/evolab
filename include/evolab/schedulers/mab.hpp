@@ -370,7 +370,7 @@ class AdaptiveLocalSearchSelector {
     // This would require making the lambda mutable:
     //   [op = std::move(op)](...) mutable { return op.improve(...); }
     // The concept in core/concepts.hpp would need to accept non-const L&.
-    // See Gemini review suggestion for future extensibility.
+    // This would improve extensibility for stateful local search algorithms.
     template <core::LocalSearchOperator<Problem> OpType>
     void add_operator(OpType op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
