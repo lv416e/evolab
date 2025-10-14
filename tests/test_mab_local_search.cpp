@@ -30,7 +30,7 @@ struct TestTSPInstance {
     }
 };
 
-// TDD RED: Test LocalSearchOperator concept exists
+// Test LocalSearchOperator concept exists
 void test_local_search_operator_concept(TestResult& result) {
     // This should compile if the concept exists
     static_assert(core::LocalSearchOperator<LinKernighan, TSP>);
@@ -40,7 +40,7 @@ void test_local_search_operator_concept(TestResult& result) {
     result.assert_true(true, "LocalSearchOperator concept compiles");
 }
 
-// TDD RED: Test AdaptiveLocalSearchSelector class exists
+// Test AdaptiveLocalSearchSelector class exists
 void test_adaptive_local_search_selector_exists(TestResult& result) {
     std::mt19937 rng(42);
     // Create selector with UCB scheduler
@@ -50,7 +50,7 @@ void test_adaptive_local_search_selector_exists(TestResult& result) {
                      "Selector initializes with zero operators");
 }
 
-// TDD RED: Test adding local search operators
+// Test adding local search operators
 void test_add_local_search_operators(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(3, 2.0, rng);
@@ -75,7 +75,7 @@ void test_add_local_search_operators(TestResult& result) {
                        "Third operator name is Random2Opt");
 }
 
-// TDD RED: Test applying local search via selector
+// Test applying local search via selector
 void test_apply_local_search(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
@@ -100,7 +100,7 @@ void test_apply_local_search(TestResult& result) {
     result.assert_lt(selector.get_last_selection(), 2, "Selected operator is within bounds");
 }
 
-// TDD RED: Test performance tracking for local search
+// Test performance tracking for local search
 void test_performance_tracking(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
@@ -136,7 +136,7 @@ void test_performance_tracking(TestResult& result) {
                      "Total selections equals number of applications");
 }
 
-// TDD RED: Test execution time tracking
+// Test execution time tracking
 void test_execution_time_tracking(TestResult& result) {
     std::mt19937 rng(42);
     UCBLocalSearchSelector<TSP> selector(2, 2.0, rng);
@@ -155,7 +155,7 @@ void test_execution_time_tracking(TestResult& result) {
     result.assert_ge(selector.get_last_execution_time(), 0.0, "Execution time is non-negative");
 }
 
-// TDD RED: Test improvement rate tracking
+// Test improvement rate tracking
 void test_improvement_rate_tracking(TestResult& result) {
     std::mt19937 rng(42);
     ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
@@ -189,7 +189,7 @@ void test_improvement_rate_tracking(TestResult& result) {
     }
 }
 
-// TDD RED: Test Thompson Sampling with local search
+// Test Thompson Sampling with local search
 void test_thompson_sampling_integration(TestResult& result) {
     std::mt19937 rng(42);
     ThompsonLocalSearchSelector<TSP> selector(2, 0.0, rng);
@@ -217,7 +217,7 @@ void test_thompson_sampling_integration(TestResult& result) {
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 }
 
-// TDD RED: Test hybrid configuration with both crossover and local search
+// Test hybrid configuration with both crossover and local search
 void test_hybrid_crossover_and_local_search(TestResult& result) {
     std::mt19937 rng(42);
 
