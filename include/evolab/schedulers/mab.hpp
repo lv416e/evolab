@@ -424,7 +424,7 @@ class AdaptiveLocalSearchSelector {
     }
 
     void report_fitness_change(double old_fitness, double new_fitness) {
-        double improvement = old_fitness - new_fitness;
+        double improvement = old_fitness - new_fitness; // Assuming minimization
         report_fitness_improvement(improvement);
     }
 
