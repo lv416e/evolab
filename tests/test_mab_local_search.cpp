@@ -183,10 +183,8 @@ void test_improvement_rate_tracking(TestResult& result) {
     const auto& stats = selector.get_operator_stats();
     for (const auto& stat : stats) {
         if (stat.selection_count > 0) {
-            double improvement_rate =
-                static_cast<double>(stat.success_count) / stat.selection_count;
-            result.assert_ge(improvement_rate, 0.0, "Improvement rate is non-negative");
-            result.assert_le(improvement_rate, 1.0, "Improvement rate is at most 1.0");
+            result.assert_ge(stat.success_rate, 0.0, "Success rate is non-negative");
+            result.assert_le(stat.success_rate, 1.0, "Success rate is at most 1.0");
         }
     }
 }
