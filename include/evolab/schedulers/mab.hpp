@@ -16,14 +16,6 @@
 
 namespace evolab::schedulers {
 
-template <typename T, typename Problem>
-concept CrossoverOperator =
-    requires(T op, Problem problem, typename Problem::GenomeT genome, std::mt19937& rng) {
-        {
-            op.cross(problem, genome, genome, rng)
-        } -> std::convertible_to<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>>;
-    };
-
 struct OperatorStats {
     double total_reward = 0.0;
     size_t selection_count = 0;
@@ -266,7 +258,7 @@ class AdaptiveOperatorSelector {
         operator_names_.reserve(num_operators);
     }
 
-    template <CrossoverOperator<Problem> OpType>
+    template <core::CrossoverOperator<Problem> OpType>
     void add_operator(OpType op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
