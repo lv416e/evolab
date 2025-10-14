@@ -327,6 +327,11 @@ class AdaptiveLocalSearchSelector {
 
     template <LocalSearchOperator<Problem> OpType>
     void add_operator(OpType op, const std::string& name) {
+        if (operators_.size() >= scheduler_.get_stats().size()) {
+            throw std::logic_error(
+                "Cannot add more local search operators than the number specified in the "
+                "selector's constructor. Extra operators will never be selected.");
+        }
         operator_names_.push_back(name);
         operators_.emplace_back([op = std::move(op)](const Problem& problem,
                                                      typename Problem::GenomeT& genome,
