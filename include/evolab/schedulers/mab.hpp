@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <evolab/core/concepts.hpp>
+
 namespace evolab::schedulers {
 
 template <typename T, typename Problem>
@@ -19,12 +21,6 @@ concept CrossoverOperator =
         {
             op.cross(problem, genome, genome, rng)
         } -> std::convertible_to<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>>;
-    };
-
-template <typename T, typename Problem>
-concept LocalSearchOperator =
-    requires(T op, const Problem& problem, typename Problem::GenomeT& genome, std::mt19937& rng) {
-        { op.improve(problem, genome, rng) } -> std::convertible_to<core::Fitness>;
     };
 
 struct OperatorStats {
@@ -325,7 +321,7 @@ class AdaptiveLocalSearchSelector {
         operator_names_.reserve(num_operators);
     }
 
-    template <LocalSearchOperator<Problem> OpType>
+    template <core::LocalSearchOperator<Problem> OpType>
     void add_operator(OpType op, const std::string& name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
@@ -333,11 +329,9 @@ class AdaptiveLocalSearchSelector {
                 "selector's constructor. Extra operators will never be selected.");
         }
         operator_names_.push_back(name);
-        operators_.emplace_back([op = std::move(op)](const Problem& problem,
-                                                     typename Problem::GenomeT& genome,
-                                                     std::mt19937& rng) mutable {
-            return op.improve(problem, genome, rng);
-        });
+        operators_.emplace_back(
+            [op = std::move(op)](const Problem& problem, typename Problem::GenomeT& genome,
+                                 std::mt19937& rng) { return op.improve(problem, genome, rng); });
     }
 
     core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,

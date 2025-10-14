@@ -33,9 +33,9 @@ struct TestTSPInstance {
 // TDD RED: Test LocalSearchOperator concept exists
 void test_local_search_operator_concept(TestResult& result) {
     // This should compile if the concept exists
-    static_assert(LocalSearchOperator<LinKernighan, TSP>);
-    static_assert(LocalSearchOperator<TwoOpt, TSP>);
-    static_assert(LocalSearchOperator<Random2Opt, TSP>);
+    static_assert(core::LocalSearchOperator<LinKernighan, TSP>);
+    static_assert(core::LocalSearchOperator<TwoOpt, TSP>);
+    static_assert(core::LocalSearchOperator<Random2Opt, TSP>);
 
     result.assert_true(true, "LocalSearchOperator concept compiles");
 }
