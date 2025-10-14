@@ -236,19 +236,25 @@ class AdaptiveOperatorSelector {
     std::vector<std::string> operator_names_;
     int current_selection_;
     double last_fitness_improvement_;
+    double last_execution_time_;
     bool tracking_improvement_;
 
   public:
     template <typename... Args>
     explicit AdaptiveOperatorSelector(size_t num_operators, Args&&... args)
         : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
-          last_fitness_improvement_(0.0), tracking_improvement_(false) {
+          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
         operators_.reserve(num_operators);
         operator_names_.reserve(num_operators);
     }
 
     template <CrossoverOperator<Problem> OpType>
     void add_operator(OpType op, std::string name) {
+        if (operators_.size() >= scheduler_.get_stats().size()) {
+            throw std::logic_error(
+                "Cannot add more crossover operators than the number specified in the "
+                "selector's constructor. Extra operators will never be selected.");
+        }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
             [op = std::move(op)](const Problem& problem, const typename Problem::GenomeT& parent1,
@@ -279,7 +285,11 @@ class AdaptiveOperatorSelector {
                 "the constructor.");
         }
 
+        auto start_time = std::chrono::steady_clock::now();
         auto result = operators_[current_selection_](problem, parent1, parent2, rng);
+        auto end_time = std::chrono::steady_clock::now();
+        last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
+
         tracking_improvement_ = true;
         return result;
     }
@@ -305,6 +315,7 @@ class AdaptiveOperatorSelector {
         scheduler_.reset();
         current_selection_ = -1;
         last_fitness_improvement_ = 0.0;
+        last_execution_time_ = 0.0;
         tracking_improvement_ = false;
     }
 
@@ -312,6 +323,7 @@ class AdaptiveOperatorSelector {
 
     int get_last_selection() const { return current_selection_; }
     double get_last_improvement() const { return last_fitness_improvement_; }
+    double get_last_execution_time() const { return last_execution_time_; }
 };
 
 template <typename Problem>
