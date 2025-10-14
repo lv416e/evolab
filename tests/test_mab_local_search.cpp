@@ -93,9 +93,9 @@ void test_apply_local_search(TestResult& result) {
     // Apply local search
     auto result_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
 
-    // Result should have improved or stayed the same (minimization)
-    result.assert_le(result_fitness.value, initial_fitness.value,
-                     "Local search improves or maintains fitness");
+    // Result should have improved (strict improvement expected for non-optimal initial tour)
+    result.assert_lt(result_fitness.value, initial_fitness.value,
+                     "Local search should improve the non-optimal initial tour");
     result.assert_ge(selector.get_last_selection(), 0, "Selected operator is non-negative");
     result.assert_lt(selector.get_last_selection(), 2, "Selected operator is within bounds");
 }
