@@ -14,6 +14,22 @@ using namespace evolab::local_search;
 using namespace evolab::operators;
 using namespace evolab::problems;
 
+// Helper function to create a small TSP instance for testing
+struct TestTSPInstance {
+    TSP tsp;
+    std::vector<int> tour;
+
+    TestTSPInstance() : tsp(create_test_cities()), tour(tsp.num_cities()) {
+        std::iota(tour.begin(), tour.end(), 0);
+    }
+
+  private:
+    static std::vector<std::pair<double, double>> create_test_cities() {
+        return {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0},
+                {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0}, {3.0, 1.0}, {4.0, 1.0}};
+    }
+};
+
 // TDD RED: Test LocalSearchOperator concept exists
 void test_local_search_operator_concept(TestResult& result) {
     // This should compile if the concept exists
@@ -70,21 +86,12 @@ void test_apply_local_search(TestResult& result) {
     selector.add_operator(lk, "LinKernighan");
     selector.add_operator(two_opt, "TwoOpt");
 
-    // Create a small TSP instance
-    std::vector<std::pair<double, double>> cities = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0},
-                                                     {4.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0},
-                                                     {3.0, 1.0}, {4.0, 1.0}};
-    TSP tsp(cities);
-    const int n = tsp.num_cities();
-
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
-
-    auto initial_fitness = tsp.evaluate(tour);
-    auto tour_copy = tour;
+    TestTSPInstance test_instance;
+    auto initial_fitness = test_instance.tsp.evaluate(test_instance.tour);
+    auto tour_copy = test_instance.tour;
 
     // Apply local search
-    auto result_fitness = selector.apply_local_search(tsp, tour_copy, rng);
+    auto result_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
 
     // Result should have improved or stayed the same (minimization)
     result.assert_le(result_fitness.value, initial_fitness.value,
@@ -104,22 +111,14 @@ void test_performance_tracking(TestResult& result) {
     selector.add_operator(lk, "LinKernighan");
     selector.add_operator(two_opt, "TwoOpt");
 
-    // Create a small TSP instance
-    std::vector<std::pair<double, double>> cities = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0},
-                                                     {4.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0},
-                                                     {3.0, 1.0}, {4.0, 1.0}};
-    TSP tsp(cities);
-    const int n = tsp.num_cities();
-
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
+    TestTSPInstance test_instance;
 
     // Perform multiple applications
     for (int i = 0; i < 10; ++i) {
-        auto tour_copy = tour;
-        auto initial_fitness = tsp.evaluate(tour_copy);
+        auto tour_copy = test_instance.tour;
+        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
 
-        auto final_fitness = selector.apply_local_search(tsp, tour_copy, rng);
+        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
 
         // Report improvement
         selector.report_fitness_improvement(initial_fitness.value - final_fitness.value);
@@ -148,17 +147,9 @@ void test_execution_time_tracking(TestResult& result) {
     selector.add_operator(lk, "LinKernighan");
     selector.add_operator(two_opt, "TwoOpt");
 
-    // Create a small TSP instance
-    std::vector<std::pair<double, double>> cities = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0},
-                                                     {4.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0},
-                                                     {3.0, 1.0}, {4.0, 1.0}};
-    TSP tsp(cities);
-    const int n = tsp.num_cities();
+    TestTSPInstance test_instance;
 
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
-
-    selector.apply_local_search(tsp, tour, rng);
+    selector.apply_local_search(test_instance.tsp, test_instance.tour, rng);
 
     // Check that execution time was recorded
     result.assert_gt(selector.get_last_execution_time(), 0.0, "Execution time is positive");
@@ -175,22 +166,14 @@ void test_improvement_rate_tracking(TestResult& result) {
     selector.add_operator(lk, "LinKernighan");
     selector.add_operator(two_opt, "TwoOpt");
 
-    // Create a small TSP instance
-    std::vector<std::pair<double, double>> cities = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0},
-                                                     {4.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0},
-                                                     {3.0, 1.0}, {4.0, 1.0}};
-    TSP tsp(cities);
-    const int n = tsp.num_cities();
-
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
+    TestTSPInstance test_instance;
 
     // Perform multiple applications and track improvements
     for (int i = 0; i < 20; ++i) {
-        auto tour_copy = tour;
-        auto initial_fitness = tsp.evaluate(tour_copy);
+        auto tour_copy = test_instance.tour;
+        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
 
-        auto final_fitness = selector.apply_local_search(tsp, tour_copy, rng);
+        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
         double improvement = initial_fitness.value - final_fitness.value;
 
         selector.report_fitness_improvement(improvement);
@@ -219,21 +202,13 @@ void test_thompson_sampling_integration(TestResult& result) {
     selector.add_operator(lk, "LinKernighan");
     selector.add_operator(two_opt, "TwoOpt");
 
-    // Create a small TSP instance
-    std::vector<std::pair<double, double>> cities = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0},
-                                                     {4.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {2.0, 1.0},
-                                                     {3.0, 1.0}, {4.0, 1.0}};
-    TSP tsp(cities);
-    const int n = tsp.num_cities();
-
-    std::vector<int> tour(n);
-    std::iota(tour.begin(), tour.end(), 0);
+    TestTSPInstance test_instance;
 
     // Run multiple iterations
     for (int i = 0; i < 10; ++i) {
-        auto tour_copy = tour;
-        auto initial_fitness = tsp.evaluate(tour_copy);
-        auto final_fitness = selector.apply_local_search(tsp, tour_copy, rng);
+        auto tour_copy = test_instance.tour;
+        auto initial_fitness = test_instance.tsp.evaluate(tour_copy);
+        auto final_fitness = selector.apply_local_search(test_instance.tsp, tour_copy, rng);
         selector.report_fitness_change(initial_fitness.value, final_fitness.value);
     }
 
