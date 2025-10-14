@@ -153,7 +153,8 @@ int test_memetic_vs_pure_ga() {
 
     // Statistical assertion: memetic should win in 70%+ of trials
     // 70% threshold balances robustness with realistic expectations
-    result.assert_true(memetic_wins >= 7,
+    const int min_wins = static_cast<int>(num_trials * 0.7);
+    result.assert_true(memetic_wins >= min_wins,
                        "Memetic GA should outperform pure GA in 70%+ of trials (got " +
                            std::to_string(memetic_wins) + "/" + std::to_string(num_trials) + ")");
 
@@ -245,8 +246,9 @@ int test_lk_improves_during_evolution() {
 
     // Statistical assertion: should improve in 90%+ of trials
     // 90% threshold reflects strong expected performance of GA+LK
+    const int min_improvements = static_cast<int>(num_trials * 0.9);
     result.assert_true(
-        improvement_count >= 9,
+        improvement_count >= min_improvements,
         "GA with LK should improve over initial random solution in 90%+ of trials (got " +
             std::to_string(improvement_count) + "/" + std::to_string(num_trials) + ")");
 
