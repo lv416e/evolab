@@ -16,6 +16,12 @@
 
 namespace evolab::schedulers {
 
+// TODO(performance): Enhance OperatorStats to include aggregate timing metrics
+// for cost-benefit analysis. Consider adding:
+// - double total_execution_time: cumulative time spent on this operator
+// - double avg_execution_time: average execution time per selection
+// This would enable direct comparison of performance vs. reward trade-offs
+// across operators in the adaptive selection process.
 struct OperatorStats {
     double total_reward = 0.0;
     size_t selection_count = 0;
