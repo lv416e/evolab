@@ -217,7 +217,8 @@ class ThompsonSamplingScheduler {
 //
 // ANALYSIS: AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~70-80
 // lines of common code (scheduler management, stats tracking, improvement reporting).
-// Gemini suggests a templated base class with OperatorSignature as a parameter.
+// A templated base class with an operator signature as a template parameter is one possible
+// approach.
 //
 // DECISION: Defer refactoring for the following reasons:
 // 1. Implementation complexity: The operator signatures differ significantly:
