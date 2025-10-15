@@ -24,9 +24,9 @@ namespace evolab::schedulers {
 inline std::mt19937& get_thread_rng() {
     static thread_local std::mt19937 gen = [] {
         std::random_device rd;
-        std::seed_seq ssq{
-            rd(), static_cast<unsigned int>(
-                      std::chrono::high_resolution_clock::now().time_since_epoch().count())};
+        auto clock_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        std::seed_seq ssq{rd(), static_cast<unsigned int>(clock_seed),
+                          static_cast<unsigned int>(clock_seed >> 32)};
         return std::mt19937(ssq);
     }();
     return gen;
