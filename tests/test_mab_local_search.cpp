@@ -221,6 +221,42 @@ void test_thompson_sampling_integration(TestResult& result) {
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 }
 
+// Test error handling: zero operators in crossover selector constructor
+void test_error_zero_operators_crossover(TestResult& result) {
+    std::mt19937 rng(42);
+
+    bool caught_exception = false;
+    try {
+        UCBOperatorSelector<TSP> selector(0, 2.0, rng);
+    } catch (const std::invalid_argument& e) {
+        caught_exception = true;
+        result.assert_true(std::string(e.what()).find("at least one operator") != std::string::npos,
+                           "Exception message mentions at least one operator requirement");
+    }
+
+    result.assert_true(
+        caught_exception,
+        "Constructing crossover selector with zero operators throws invalid_argument");
+}
+
+// Test error handling: zero operators in local search selector constructor
+void test_error_zero_operators_local_search(TestResult& result) {
+    std::mt19937 rng(42);
+
+    bool caught_exception = false;
+    try {
+        UCBLocalSearchSelector<TSP> selector(0, 2.0, rng);
+    } catch (const std::invalid_argument& e) {
+        caught_exception = true;
+        result.assert_true(std::string(e.what()).find("at least one operator") != std::string::npos,
+                           "Exception message mentions at least one operator requirement");
+    }
+
+    result.assert_true(
+        caught_exception,
+        "Constructing local search selector with zero operators throws invalid_argument");
+}
+
 // Test error handling: adding too many operators
 void test_error_too_many_operators(TestResult& result) {
     UCBSelectorFixture fixture(2);
@@ -388,6 +424,8 @@ int main() {
     test_execution_time_tracking(result);
     test_improvement_rate_tracking(result);
     test_thompson_sampling_integration(result);
+    test_error_zero_operators_crossover(result);
+    test_error_zero_operators_local_search(result);
     test_error_too_many_operators(result);
     test_error_no_operators(result);
     test_error_double_application(result);
