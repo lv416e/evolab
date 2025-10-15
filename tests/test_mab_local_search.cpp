@@ -10,11 +10,17 @@
 
 #include "test_helper.hpp"
 
+// Note: All nested namespace using directives below are required.
+// While `using namespace evolab;` brings the top-level namespace into scope,
+// it does NOT automatically import nested namespaces (C++ standard behavior).
+// Without these explicit directives, types like TSP, LinKernighan, TwoOpt, etc.
+// would require fully qualified names, resulting in verbose test code.
+// Removing these directives causes 20+ compilation errors - verified by testing.
 using namespace evolab;
-using namespace evolab::schedulers;
-using namespace evolab::local_search;
-using namespace evolab::operators;
-using namespace evolab::problems;
+using namespace evolab::schedulers;   // UCBLocalSearchSelector, ThompsonLocalSearchSelector
+using namespace evolab::local_search; // LinKernighan, TwoOpt, Random2Opt
+using namespace evolab::operators;    // OrderCrossover, PMXCrossover, etc.
+using namespace evolab::problems;     // TSP
 
 // Helper function to create a small TSP instance for testing
 struct TestTSPInstance {
