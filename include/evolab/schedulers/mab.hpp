@@ -254,6 +254,10 @@ class AdaptiveOperatorSelector {
     explicit AdaptiveOperatorSelector(size_t num_operators, Args&&... args)
         : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
           last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
+        if (num_operators == 0) {
+            throw std::invalid_argument(
+                "AdaptiveOperatorSelector must be configured with at least one operator.");
+        }
         operators_.reserve(num_operators);
         operator_names_.reserve(num_operators);
     }
