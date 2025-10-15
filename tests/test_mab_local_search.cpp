@@ -50,12 +50,6 @@ struct UCBSelectorFixture {
         selector.add_operator(LinKernighan(20, 5), "LinKernighan");
         selector.add_operator(TwoOpt(), "TwoOpt");
     }
-
-    void add_three_operators() {
-        selector.add_operator(LinKernighan(20, 5), "LinKernighan");
-        selector.add_operator(TwoOpt(), "TwoOpt");
-        selector.add_operator(Random2Opt(100), "Random2Opt");
-    }
 };
 
 // Test fixture for ThompsonLocalSearchSelector tests
