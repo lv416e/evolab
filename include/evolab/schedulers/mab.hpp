@@ -18,9 +18,17 @@
 namespace evolab::schedulers {
 
 // Thread-local random number generator for default scheduler parameters
+// Uses std::seed_seq to combine entropy from multiple sources (random_device +
+// high_resolution_clock) to avoid seed collision across threads, especially on platforms where
+// random_device may be deterministic
 inline std::mt19937& get_thread_rng() {
-    static thread_local std::random_device rd;
-    static thread_local std::mt19937 gen(rd());
+    static thread_local std::mt19937 gen = [] {
+        std::random_device rd;
+        std::seed_seq ssq{
+            rd(), static_cast<unsigned int>(
+                      std::chrono::high_resolution_clock::now().time_since_epoch().count())};
+        return std::mt19937(ssq);
+    }();
     return gen;
 }
 
