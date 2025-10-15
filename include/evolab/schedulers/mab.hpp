@@ -79,7 +79,7 @@ class UCBScheduler {
 
     int select_operator() {
         if (stats_.empty()) {
-            throw std::logic_error("UCBScheduler: no operators configured");
+            throw std::runtime_error("UCBScheduler: no operators configured");
         }
 
         total_selections_++;
@@ -170,7 +170,7 @@ class ThompsonSamplingScheduler {
 
     int select_operator() {
         if (distributions_.empty()) {
-            throw std::logic_error("ThompsonSamplingScheduler: no operators configured");
+            throw std::runtime_error("ThompsonSamplingScheduler: no operators configured");
         }
 
         std::vector<double> samples(distributions_.size());
