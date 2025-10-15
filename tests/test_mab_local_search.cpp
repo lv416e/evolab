@@ -154,11 +154,17 @@ void test_performance_tracking(TestResult& result) {
     result.assert_eq(stats.size(), static_cast<size_t>(2), "Selector has stats for both operators");
 
     size_t total_selections = 0;
+    double total_reward_sum = 0.0;
     for (const auto& stat : stats) {
         total_selections += stat.selection_count;
+        total_reward_sum += stat.total_reward;
     }
     result.assert_eq(total_selections, static_cast<size_t>(10),
                      "Total selections equals number of applications");
+
+    // Verify that rewards are properly accumulated (local search should improve fitness)
+    result.assert_gt(total_reward_sum, 0.0,
+                     "Total rewards accumulated across all operators should be positive");
 }
 
 // Test execution time tracking
@@ -193,12 +199,19 @@ void test_improvement_rate_tracking(TestResult& result) {
 
     // Check improvement rate statistics
     const auto& stats = fixture.selector.get_operator_stats();
+    bool at_least_one_operator_successful = false;
     for (const auto& stat : stats) {
         if (stat.selection_count > 0) {
             result.assert_ge(stat.success_rate, 0.0, "Success rate is non-negative");
             result.assert_le(stat.success_rate, 1.0, "Success rate is at most 1.0");
+            if (stat.success_rate > 0.0) {
+                at_least_one_operator_successful = true;
+            }
         }
     }
+    // Local search should produce improvements, so at least one operator should have success
+    result.assert_true(at_least_one_operator_successful,
+                       "At least one operator should have positive success rate");
 }
 
 // Test Thompson Sampling with local search
