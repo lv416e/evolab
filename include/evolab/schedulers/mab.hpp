@@ -220,30 +220,10 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 };
 
-// TODO(refactor): Extract common functionality into a templated base class
-// when code duplication becomes unmaintainable or a third selector type is added.
-//
-// ANALYSIS: AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~70-80
-// lines of common code (scheduler management, stats tracking, improvement reporting).
-// A templated base class with an operator signature as a template parameter is one possible
-// approach.
-//
-// DECISION: Defer refactoring for the following reasons:
-// 1. Implementation complexity: The operator signatures differ significantly:
-//    - Crossover: pair<GenomeT,GenomeT>(const Problem&, const GenomeT&, const GenomeT&, mt19937&)
-//    - LocalSearch: Fitness(const Problem&, GenomeT&, mt19937&)
-//    Unifying these requires complex template metaprogramming that reduces readability.
-//
-// 2. apply_... method differences: Subtle differences in return value handling and
-//    timing measurement placement would need complex abstraction in the base class.
-//
-// 3. Current benefits vs. complexity trade-off: Two independent, easily understandable
-//    classes are better than a complex inheritance hierarchy for this use case.
-//
-// 4. YAGNI: Only two selectors exist. Refactor when:
-//    - A third selector type is needed (clear ROI on abstraction)
-//    - The classes diverge significantly (maintenance burden increases)
-//    - A simpler abstraction pattern emerges (e.g., via concepts/requires)
+// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~70-80 lines
+// of common code. Defer base-class extraction until a third selector emerges or maintenance
+// burden increases, as unifying the differing operator signatures (crossover returns pair,
+// local-search returns Fitness) would require complex metaprogramming that reduces readability.
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
