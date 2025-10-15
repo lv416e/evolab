@@ -225,7 +225,8 @@ void test_thompson_sampling_integration(TestResult& result) {
         auto initial_fitness = fixture.tsp_instance.tsp.evaluate(tour_copy);
         auto final_fitness =
             fixture.selector.apply_local_search(fixture.tsp_instance.tsp, tour_copy, fixture.rng);
-        fixture.selector.report_fitness_change(initial_fitness.value, final_fitness.value);
+        double improvement = initial_fitness.value - final_fitness.value;
+        fixture.selector.report_fitness_improvement(improvement);
     }
 
     // Verify selector state
