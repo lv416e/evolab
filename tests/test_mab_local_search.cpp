@@ -380,7 +380,8 @@ void test_hybrid_crossover_and_local_search(TestResult& result) {
         auto [offspring1, offspring2] = crossover_selector.apply_crossover(
             test_instance.tsp, test_instance.tour, test_instance.tour, rng);
 
-        // Report crossover improvement (simplified: use fixed reward for creating offspring)
+        // Report crossover improvement (simplified: use fixed reward for this integration test.
+        // In a real memetic algorithm, this would compare offspring vs parent fitness)
         crossover_selector.report_fitness_improvement(0.0);
 
         // Evaluate offspring before local search
