@@ -32,8 +32,8 @@ inline std::mt19937& get_thread_rng() {
     return gen;
 }
 
-// TODO(performance): Enhance OperatorStats to include aggregate timing metrics
-// for cost-benefit analysis. Consider adding:
+// TODO(performance): Aggregate the per-invocation timing (already tracked in selectors
+// via last_execution_time_) into OperatorStats for cost-benefit analysis. Consider adding:
 // - double total_execution_time: cumulative time spent on this operator
 // - double avg_execution_time: average execution time per selection
 // This would enable direct comparison of performance vs. reward trade-offs
@@ -220,10 +220,11 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 };
 
-// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~70-80 lines
-// of common code. Defer base-class extraction until a third selector emerges or maintenance
-// burden increases, as unifying the differing operator signatures (crossover returns pair,
-// local-search returns Fitness) would require complex metaprogramming that reduces readability.
+// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share substantial
+// common logic (scheduler interaction, stats tracking, reporting). Defer base-class extraction
+// until a third selector emerges, as unifying the differing operator signatures (crossover
+// returns pair, local-search returns Fitness) would require complex metaprogramming that may
+// reduce readability. Revisit if common code exceeds 100 lines or a third selector is added.
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
