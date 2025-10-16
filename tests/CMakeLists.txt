@@ -45,6 +45,10 @@ add_executable(test_lk_integration test_lk_integration.cpp)
 target_link_libraries(test_lk_integration PRIVATE evolab)
 target_compile_features(test_lk_integration PRIVATE cxx_std_23)
 
+add_executable(test_mab_local_search test_mab_local_search.cpp)
+target_link_libraries(test_mab_local_search PRIVATE evolab)
+target_compile_features(test_mab_local_search PRIVATE cxx_std_23)
+
 # Register candidate list tests with CTest
 add_test(NAME CandidateListTests COMMAND test_candidate_list)
 set_tests_properties(CandidateListTests PROPERTIES LABELS "unit;tsp;candidate-list")
@@ -60,6 +64,10 @@ set_tests_properties(LinKernighanTests PROPERTIES LABELS "unit;local-search;lk")
 # Register Lin-Kernighan integration tests with CTest
 add_test(NAME LinKernighanIntegrationTests COMMAND test_lk_integration)
 set_tests_properties(LinKernighanIntegrationTests PROPERTIES LABELS "integration;local-search;lk;memetic")
+
+# Register MAB local search integration tests with CTest
+add_test(NAME MABLocalSearchTests COMMAND test_mab_local_search)
+set_tests_properties(MABLocalSearchTests PROPERTIES LABELS "integration;mab;local-search;adaptive")
 
 # Conditional TBB parallel tests
 if(TBB_FOUND)

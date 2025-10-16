@@ -1,24 +1,57 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <concepts>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <random>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
+
+#include <evolab/core/concepts.hpp>
 
 namespace evolab::schedulers {
 
-template <typename T, typename Problem>
-concept CrossoverOperator =
-    requires(T op, Problem problem, typename Problem::GenomeT genome, std::mt19937& rng) {
-        {
-            op.cross(problem, genome, genome, rng)
-        } -> std::convertible_to<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>>;
-    };
+// Thread-local random number generator for default scheduler parameters
+// Uses std::seed_seq to combine entropy from multiple sources (random_device +
+// high_resolution_clock + thread_id) to avoid seed collision across threads, especially on
+// platforms where random_device may be deterministic
+inline std::mt19937& get_thread_rng() {
+    static thread_local std::mt19937 gen = [] {
+        std::random_device rd;
+        auto clock_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        auto thread_id_hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
 
+        // Combine entropy from random_device, high-res clock, and thread ID
+        std::seed_seq ssq{rd(), static_cast<unsigned int>(clock_seed),
+                          static_cast<unsigned int>(clock_seed >> 32),
+                          static_cast<unsigned int>(thread_id_hash)};
+        return std::mt19937(ssq);
+    }();
+    return gen;
+}
+
+// TODO(performance): Aggregate the per-invocation timing (already tracked in selectors
+// via last_execution_time_) into OperatorStats for cost-benefit analysis. Consider adding:
+// - double total_execution_time: cumulative time spent on this operator
+// - double avg_execution_time: average execution time per selection
+// This would enable direct comparison of performance vs. reward trade-offs
+// across operators in the adaptive selection process.
+
+// TODO(validation): Empirical validation required before v1.0 release
+// This MAB scheduler implementation is functionally correct and unit-tested, but requires
+// comprehensive empirical validation for research-grade quality. See detailed validation
+// plan in Issue #33: https://github.com/lv416e/evolab/issues/33
+// Priority: HIGH - Blocks v1.0 release and research publications
+//
 struct OperatorStats {
     double total_reward = 0.0;
     size_t selection_count = 0;
@@ -59,6 +92,10 @@ class UCBScheduler {
           rng_(rng) {}
 
     int select_operator() {
+        if (stats_.empty()) {
+            throw std::runtime_error("UCBScheduler: no operators configured");
+        }
+
         total_selections_++;
 
         std::vector<size_t> best_operators;
@@ -107,13 +144,6 @@ class UCBScheduler {
         }
         total_selections_ = 0;
     }
-
-  private:
-    static std::mt19937& get_thread_rng() {
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen(rd());
-        return gen;
-    }
 };
 
 class ThompsonSamplingScheduler {
@@ -153,6 +183,10 @@ class ThompsonSamplingScheduler {
           reward_threshold_(reward_threshold) {}
 
     int select_operator() {
+        if (distributions_.empty()) {
+            throw std::runtime_error("ThompsonSamplingScheduler: no operators configured");
+        }
+
         std::vector<double> samples(distributions_.size());
 
         for (size_t i = 0; i < distributions_.size(); ++i) {
@@ -198,57 +232,113 @@ class ThompsonSamplingScheduler {
 
     void set_reward_threshold(double threshold) { reward_threshold_ = threshold; }
     double get_reward_threshold() const { return reward_threshold_; }
-
-  private:
-    static std::mt19937& get_thread_rng() {
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen(rd());
-        return gen;
-    }
 };
 
+// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~110 lines of
+// nearly identical code (constructor validation, reporting, getters, reset logic). The duplication
+// threshold has been reached. A templated base class or CRTP pattern could eliminate most of this
+// without complex metaprogramming - the main challenge is abstracting the different return types
+// (pair vs Fitness) and parameter lists in the apply methods. This refactoring should be
+// prioritized before adding a third selector type to avoid further code multiplication.
+// See: https://github.com/lv416e/evolab/issues/32
+
+/// @brief Adaptive crossover operator selector using multi-armed bandit algorithms
+///
+/// This class enables automatic selection of the best-performing crossover operator
+/// based on historical performance using UCB or Thompson Sampling schedulers.
+///
+/// @warning NOT THREAD-SAFE: This class maintains mutable state (current_selection_,
+///          tracking_improvement_, last_fitness_improvement_, last_execution_time_) and
+///          is NOT safe for concurrent access from multiple threads. Sharing a selector
+///          across threads will cause race conditions leading to corrupted MAB learning
+///          and potentially incorrect research results.
+///
+/// @note For parallel GAs (e.g., Island Model, parallel populations): Create one
+///       selector instance per thread/island. Each thread must have its own independent
+///       selector to ensure correct learning and avoid data races.
+///
+/// @tparam SchedulerType The MAB scheduler type (UCBScheduler or ThompsonSamplingScheduler)
+/// @tparam Problem The optimization problem type (must satisfy Problem concept)
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
+    using CrossoverFn =
+        std::function<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>(
+            const Problem&, const typename Problem::GenomeT&, const typename Problem::GenomeT&,
+            std::mt19937&)>;
+
     SchedulerType scheduler_;
-    std::vector<std::function<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>(
-        const Problem&, const typename Problem::GenomeT&, const typename Problem::GenomeT&,
-        std::mt19937&)>>
-        operators_;
+    std::vector<CrossoverFn> operators_;
     std::vector<std::string> operator_names_;
     int current_selection_;
     double last_fitness_improvement_;
+    double last_execution_time_;
     bool tracking_improvement_;
 
   public:
     template <typename... Args>
     explicit AdaptiveOperatorSelector(size_t num_operators, Args&&... args)
         : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
-          last_fitness_improvement_(0.0), tracking_improvement_(false) {
+          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
+        if (num_operators == 0) {
+            throw std::invalid_argument(
+                "AdaptiveOperatorSelector must be configured with at least one operator.");
+        }
         operators_.reserve(num_operators);
         operator_names_.reserve(num_operators);
     }
 
-    template <CrossoverOperator<Problem> OpType>
-    void add_operator(const OpType& op, const std::string& name) {
-        operator_names_.push_back(name);
+    template <core::CrossoverOperator<Problem> OpType>
+    void add_operator(OpType&& op, std::string name) {
+        if (operators_.size() >= scheduler_.get_stats().size()) {
+            std::stringstream err_msg;
+            err_msg << "Cannot add more crossover operators than the number specified in the "
+                    << "selector's constructor. Maximum allowed: " << scheduler_.get_stats().size()
+                    << ", current: " << operators_.size()
+                    << ". Extra operators will never be selected.";
+            throw std::logic_error(err_msg.str());
+        }
+        operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
-            [op](const Problem& problem, const typename Problem::GenomeT& parent1,
-                 const typename Problem::GenomeT& parent2,
-                 std::mt19937& rng) { return op.cross(problem, parent1, parent2, rng); });
+            [op = std::forward<OpType>(op)](
+                const Problem& problem, const typename Problem::GenomeT& parent1,
+                const typename Problem::GenomeT& parent2,
+                std::mt19937& rng) { return op.cross(problem, parent1, parent2, rng); });
     }
 
     std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
     apply_crossover(const Problem& problem, const typename Problem::GenomeT& parent1,
                     const typename Problem::GenomeT& parent2, std::mt19937& rng) {
-        current_selection_ = scheduler_.select_operator();
-        tracking_improvement_ = true;
-
-        if (current_selection_ >= 0 && current_selection_ < static_cast<int>(operators_.size())) {
-            return operators_[current_selection_](problem, parent1, parent2, rng);
+        if (operators_.empty()) {
+            throw std::logic_error("Cannot apply crossover: no operators have been added.");
         }
 
-        return {parent1, parent2};
+        if (tracking_improvement_) {
+            throw std::logic_error(
+                "apply_crossover called again before report_fitness_improvement was called for the "
+                "previous operation.");
+        }
+
+        current_selection_ = scheduler_.select_operator();
+
+        if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
+            std::stringstream err_msg;
+            err_msg << "Selected crossover operator index " << current_selection_
+                    << " is out of bounds. This can happen if the number of "
+                    << "operators added via add_operator() does not match the num_operators "
+                       "argument in "
+                    << "the constructor. Expected " << scheduler_.get_stats().size()
+                    << " operators, but only " << operators_.size() << " were added.";
+            throw std::out_of_range(err_msg.str());
+        }
+
+        auto start_time = std::chrono::steady_clock::now();
+        auto result = operators_[current_selection_](problem, parent1, parent2, rng);
+        auto end_time = std::chrono::steady_clock::now();
+        last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
+
+        tracking_improvement_ = true;
+        return result;
     }
 
     void report_fitness_improvement(double improvement) {
@@ -259,8 +349,30 @@ class AdaptiveOperatorSelector {
         }
     }
 
+    /// @brief Report fitness improvement using old and new fitness values
+    ///
+    /// This is a convenience method for MINIMIZATION problems (TSP, VRP, CVRP, QAP, etc.)
+    /// where improvement = old_fitness - new_fitness (lower fitness is better).
+    ///
+    /// @warning MINIMIZATION PROBLEMS ONLY: This method assumes minimization objectives.
+    ///          For maximization problems, you must calculate improvement manually and use
+    ///          report_fitness_improvement() directly:
+    ///          @code
+    ///          double improvement = new_fitness - old_fitness;  // For maximization
+    ///          selector.report_fitness_improvement(improvement);
+    ///          @endcode
+    ///
+    /// @param old_fitness Fitness value before crossover operation
+    /// @param new_fitness Fitness value after crossover operation
+    ///
+    /// @example
+    /// @code
+    /// // For minimization problems (TSP):
+    /// selector.report_fitness_change(100.0, 90.0);   // improvement = 10.0 (better)
+    /// selector.report_fitness_change(90.0, 100.0);   // improvement = -10.0 (worse)
+    /// @endcode
     void report_fitness_change(double old_fitness, double new_fitness) {
-        double improvement = old_fitness - new_fitness; // Assuming minimization
+        double improvement = old_fitness - new_fitness; // Minimization: lower is better
         report_fitness_improvement(improvement);
     }
 
@@ -272,6 +384,7 @@ class AdaptiveOperatorSelector {
         scheduler_.reset();
         current_selection_ = -1;
         last_fitness_improvement_ = 0.0;
+        last_execution_time_ = 0.0;
         tracking_improvement_ = false;
     }
 
@@ -279,6 +392,7 @@ class AdaptiveOperatorSelector {
 
     int get_last_selection() const { return current_selection_; }
     double get_last_improvement() const { return last_fitness_improvement_; }
+    double get_last_execution_time() const { return last_execution_time_; }
 };
 
 template <typename Problem>
@@ -286,5 +400,168 @@ using UCBOperatorSelector = AdaptiveOperatorSelector<UCBScheduler, Problem>;
 
 template <typename Problem>
 using ThompsonOperatorSelector = AdaptiveOperatorSelector<ThompsonSamplingScheduler, Problem>;
+
+/// @brief Adaptive local search operator selector using multi-armed bandit algorithms
+///
+/// This class enables automatic selection of the best-performing local search operator
+/// based on historical performance using UCB or Thompson Sampling schedulers.
+///
+/// @warning NOT THREAD-SAFE: This class maintains mutable state (current_selection_,
+///          tracking_improvement_, last_fitness_improvement_, last_execution_time_) and
+///          is NOT safe for concurrent access from multiple threads. Sharing a selector
+///          across threads will cause race conditions leading to corrupted MAB learning
+///          and potentially incorrect research results.
+///
+/// @note For parallel GAs (e.g., Island Model, parallel populations): Create one
+///       selector instance per thread/island. Each thread must have its own independent
+///       selector to ensure correct learning and avoid data races.
+///
+/// @tparam SchedulerType The MAB scheduler type (UCBScheduler or ThompsonSamplingScheduler)
+/// @tparam Problem The optimization problem type (must satisfy Problem concept)
+template <typename SchedulerType, typename Problem>
+class AdaptiveLocalSearchSelector {
+  private:
+    using LocalSearchFn =
+        std::function<core::Fitness(const Problem&, typename Problem::GenomeT&, std::mt19937&)>;
+
+    SchedulerType scheduler_;
+    std::vector<LocalSearchFn> operators_;
+    std::vector<std::string> operator_names_;
+    int current_selection_;
+    double last_fitness_improvement_;
+    double last_execution_time_;
+    bool tracking_improvement_;
+
+  public:
+    template <typename... Args>
+    explicit AdaptiveLocalSearchSelector(size_t num_operators, Args&&... args)
+        : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
+          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
+        if (num_operators == 0) {
+            throw std::invalid_argument(
+                "AdaptiveLocalSearchSelector must be configured with at least one operator.");
+        }
+        operators_.reserve(num_operators);
+        operator_names_.reserve(num_operators);
+    }
+
+    // TODO(design): Consider relaxing LocalSearchOperator concept to support
+    // stateful algorithms (e.g., Tabu Search) by accepting non-const operators.
+    // This would require making the lambda mutable:
+    //   [op = std::move(op)](...) mutable { return op.improve(...); }
+    // The concept in core/concepts.hpp would need to accept non-const L&.
+    // This would improve extensibility for stateful local search algorithms.
+    template <core::LocalSearchOperator<Problem> OpType>
+    void add_operator(OpType&& op, std::string name) {
+        if (operators_.size() >= scheduler_.get_stats().size()) {
+            std::stringstream err_msg;
+            err_msg << "Cannot add more local search operators than the number specified in the "
+                    << "selector's constructor. Maximum allowed: " << scheduler_.get_stats().size()
+                    << ", current: " << operators_.size()
+                    << ". Extra operators will never be selected.";
+            throw std::logic_error(err_msg.str());
+        }
+        operator_names_.emplace_back(std::move(name));
+        operators_.emplace_back([op = std::forward<OpType>(op)](const Problem& problem,
+                                                                typename Problem::GenomeT& genome,
+                                                                std::mt19937& rng) {
+            return op.improve(problem, genome, rng);
+        });
+    }
+
+    core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
+                                     std::mt19937& rng) {
+        if (operators_.empty()) {
+            throw std::logic_error("Cannot apply local search: no operators have been added.");
+        }
+
+        if (tracking_improvement_) {
+            throw std::logic_error(
+                "apply_local_search called again before report_fitness_improvement was called for "
+                "the previous operation.");
+        }
+
+        current_selection_ = scheduler_.select_operator();
+
+        if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
+            std::stringstream err_msg;
+            err_msg << "Selected local search operator index " << current_selection_
+                    << " is out of bounds. This can happen if the number of "
+                    << "operators added via add_operator() does not match the num_operators "
+                       "argument in "
+                    << "the constructor. Expected " << scheduler_.get_stats().size()
+                    << " operators, but only " << operators_.size() << " were added.";
+            throw std::out_of_range(err_msg.str());
+        }
+
+        auto start_time = std::chrono::steady_clock::now();
+        core::Fitness result = operators_[current_selection_](problem, genome, rng);
+
+        auto end_time = std::chrono::steady_clock::now();
+        last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
+
+        tracking_improvement_ = true;
+        return result;
+    }
+
+    void report_fitness_improvement(double improvement) {
+        if (tracking_improvement_ && current_selection_ >= 0) {
+            last_fitness_improvement_ = improvement;
+            scheduler_.update_reward(current_selection_, improvement);
+            tracking_improvement_ = false;
+        }
+    }
+
+    /// @brief Report fitness improvement using old and new fitness values
+    ///
+    /// This is a convenience method for MINIMIZATION problems (TSP, VRP, CVRP, QAP, etc.)
+    /// where improvement = old_fitness - new_fitness (lower fitness is better).
+    ///
+    /// @warning MINIMIZATION PROBLEMS ONLY: This method assumes minimization objectives.
+    ///          For maximization problems, you must calculate improvement manually and use
+    ///          report_fitness_improvement() directly:
+    ///          @code
+    ///          double improvement = new_fitness - old_fitness;  // For maximization
+    ///          selector.report_fitness_improvement(improvement);
+    ///          @endcode
+    ///
+    /// @param old_fitness Fitness value before local search operation
+    /// @param new_fitness Fitness value after local search operation
+    ///
+    /// @example
+    /// @code
+    /// // For minimization problems (TSP):
+    /// selector.report_fitness_change(100.0, 90.0);   // improvement = 10.0 (better)
+    /// selector.report_fitness_change(90.0, 100.0);   // improvement = -10.0 (worse)
+    /// @endcode
+    void report_fitness_change(double old_fitness, double new_fitness) {
+        double improvement = old_fitness - new_fitness; // Minimization: lower is better
+        report_fitness_improvement(improvement);
+    }
+
+    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+
+    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+
+    void reset_stats() {
+        scheduler_.reset();
+        current_selection_ = -1;
+        last_fitness_improvement_ = 0.0;
+        last_execution_time_ = 0.0;
+        tracking_improvement_ = false;
+    }
+
+    size_t get_operator_count() const { return operators_.size(); }
+
+    int get_last_selection() const { return current_selection_; }
+    double get_last_improvement() const { return last_fitness_improvement_; }
+    double get_last_execution_time() const { return last_execution_time_; }
+};
+
+template <typename Problem>
+using UCBLocalSearchSelector = AdaptiveLocalSearchSelector<UCBScheduler, Problem>;
+
+template <typename Problem>
+using ThompsonLocalSearchSelector = AdaptiveLocalSearchSelector<ThompsonSamplingScheduler, Problem>;
 
 } // namespace evolab::schedulers

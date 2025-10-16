@@ -61,6 +61,7 @@
 #include <evolab/operators/selection.hpp>
 
 // Local search algorithms - memetic algorithm components
+#include <evolab/local_search/lk.hpp>
 #include <evolab/local_search/two_opt.hpp>
 
 // Adaptive operator scheduling - multi-armed bandit approaches
