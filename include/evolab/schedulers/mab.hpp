@@ -452,7 +452,7 @@ class AdaptiveLocalSearchSelector {
     // The concept in core/concepts.hpp would need to accept non-const L&.
     // This would improve extensibility for stateful local search algorithms.
     template <core::LocalSearchOperator<Problem> OpType>
-    void add_operator(OpType op, std::string name) {
+    void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             std::stringstream err_msg;
             err_msg << "Cannot add more local search operators than the number specified in the "
@@ -462,9 +462,11 @@ class AdaptiveLocalSearchSelector {
             throw std::logic_error(err_msg.str());
         }
         operator_names_.emplace_back(std::move(name));
-        operators_.emplace_back(
-            [op = std::move(op)](const Problem& problem, typename Problem::GenomeT& genome,
-                                 std::mt19937& rng) { return op.improve(problem, genome, rng); });
+        operators_.emplace_back([op = std::forward<OpType>(op)](const Problem& problem,
+                                                                typename Problem::GenomeT& genome,
+                                                                std::mt19937& rng) {
+            return op.improve(problem, genome, rng);
+        });
     }
 
     core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
