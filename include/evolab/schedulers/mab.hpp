@@ -227,6 +227,7 @@ class ThompsonSamplingScheduler {
 // without complex metaprogramming - the main challenge is abstracting the different return types
 // (pair vs Fitness) and parameter lists in the apply methods. This refactoring should be
 // prioritized before adding a third selector type to avoid further code multiplication.
+// See: https://github.com/lv416e/evolab/issues/32
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
