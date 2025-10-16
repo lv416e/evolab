@@ -42,62 +42,10 @@ inline std::mt19937& get_thread_rng() {
 // across operators in the adaptive selection process.
 
 // TODO(validation): Empirical validation required before v1.0 release
-//
-// This MAB scheduler implementation requires comprehensive empirical validation to confirm
-// research-grade quality and scientific rigor. The implementation is functionally correct
-// and unit-tested, but lacks the experimental validation necessary for research publications.
-//
-// Required validation experiments:
-//
-// 1. Convergence Validation:
-//    - Verify MAB learns operator quality over extended runs (1000+ generations)
-//    - Test with operators of known quality differences (e.g., Lin-Kernighan vs 2-opt vs random)
-//    - Measure: generations until best operator selected >80% of time
-//    - Expected: Convergence within 100-200 generations for clear quality differences
-//
-// 2. Performance Overhead Characterization:
-//    - Quantify MAB selection cost vs operator execution cost
-//    - Benchmark: UCB selection time, Thompson sampling time
-//    - Test problem sizes: 50, 100, 200, 500, 1000 cities (TSP)
-//    - Expected: <1% overhead for typical local search operations (>10ms execution)
-//    - Document when overhead becomes significant (very fast operators <1ms)
-//
-// 3. Solution Quality Comparison:
-//    - Compare final solution quality: MAB vs random selection vs round-robin vs best-only
-//    - Statistical rigor: 50+ independent runs per configuration
-//    - Significance testing: Mann-Whitney U test, effect size (Cohen's d)
-//    - Expected: MAB should match or exceed fixed strategies, especially for heterogeneous
-//    operators
-//
-// 4. Multi-Operator Scenarios:
-//    - Test with 3-5 operators of varying quality and computational cost
-//    - Validate UCB exploration constant sensitivity (test c=0.5, 1.0, 2.0, 4.0)
-//    - Validate Thompson Sampling reward threshold sensitivity (test multiple thresholds)
-//    - Measure operator selection distribution over time (should favor better operators)
-//
-// 5. Real-World GA Integration:
-//    - Run complete memetic GA with MAB for 50+ independent runs
-//    - Test problems: TSP instances from TSPLIB (att48, eil76, kroA100, lin318, pcb442)
-//    - Compare with literature baselines (fixed operator strategies, other adaptive methods)
-//    - Document: best fitness, mean fitness, std deviation, convergence curves
-//
-// 6. Research Publication Readiness:
-//    - Reproducible experimental setup (document all parameters, seeds, hardware)
-//    - Statistical analysis with confidence intervals
-//    - Comparison table with literature baselines
-//    - Performance profiles and convergence plots
-//    - Technical report or paper draft with methodology and results
-//
-// Acceptance Criteria:
-// - All validation experiments implemented and documented
-// - Results demonstrate MAB provides value (matches or exceeds baselines)
-// - Statistical significance confirmed where applicable
-// - Reproducible benchmarks with fixed seeds in benchmarks/ directory
-// - Ready for submission to research venues (EA conferences/journals)
-//
+// This MAB scheduler implementation is functionally correct and unit-tested, but requires
+// comprehensive empirical validation for research-grade quality. See detailed validation
+// plan in Issue #33: https://github.com/lv416e/evolab/issues/33
 // Priority: HIGH - Blocks v1.0 release and research publications
-// Estimated Effort: 2-3 days of focused experimental work + analysis + documentation
-// See: https://github.com/lv416e/evolab/issues/33
 //
 struct OperatorStats {
     double total_reward = 0.0;
