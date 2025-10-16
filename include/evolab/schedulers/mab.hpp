@@ -26,6 +26,7 @@ inline std::mt19937& get_thread_rng() {
     static thread_local std::mt19937 gen = [] {
         std::random_device rd;
         auto clock_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        // Split 64-bit clock_seed into two 32-bit values for better entropy distribution
         std::seed_seq ssq{rd(), static_cast<unsigned int>(clock_seed),
                           static_cast<unsigned int>(clock_seed >> 32)};
         return std::mt19937(ssq);
