@@ -60,9 +60,10 @@ struct TestResult {
                                             " >= " + std::to_string(min_value) + ")");
     }
 
-    void assert_ge(double value, double min_value, const std::string& message) {
-        assert_true(value >= min_value, message + " (" + std::to_string(value) +
-                                            " >= " + std::to_string(min_value) + ")");
+    void assert_ge(double value, double min_value, const std::string& message, double eps = 0.0) {
+        assert_true(value >= min_value - eps, message + " (" + std::to_string(value) +
+                                                  " >= " + std::to_string(min_value) + " - " +
+                                                  std::to_string(eps) + ")");
     }
 
     void assert_lt(int value, int max_value, const std::string& message) {
@@ -75,19 +76,24 @@ struct TestResult {
                                            std::to_string(min_value) + ")");
     }
 
-    void assert_gt(double value, double min_value, const std::string& message) {
-        assert_true(value > min_value, message + " (" + std::to_string(value) + " > " +
-                                           std::to_string(min_value) + ")");
+    void assert_gt(double value, double min_value, const std::string& message, double eps = 1e-9) {
+        assert_true(value > min_value + eps,
+                    message + " (" + std::to_string(value) + " > " + std::to_string(min_value) +
+                        " + " + std::to_string(eps) +
+                        ", diff: " + std::to_string(value - min_value) + ")");
     }
 
-    void assert_le(double value, double max_value, const std::string& message) {
-        assert_true(value <= max_value, message + " (" + std::to_string(value) +
-                                            " <= " + std::to_string(max_value) + ")");
+    void assert_le(double value, double max_value, const std::string& message, double tol = 1e-9) {
+        assert_true(value <= max_value + tol, message + " (" + std::to_string(value) +
+                                                  " <= " + std::to_string(max_value) + " + " +
+                                                  std::to_string(tol) + ")");
     }
 
-    void assert_lt(double value, double max_value, const std::string& message) {
-        assert_true(value < max_value, message + " (" + std::to_string(value) + " < " +
-                                           std::to_string(max_value) + ")");
+    void assert_lt(double value, double max_value, const std::string& message, double tol = 1e-9) {
+        assert_true(value < max_value - tol,
+                    message + " (" + std::to_string(value) + " < " + std::to_string(max_value) +
+                        " - " + std::to_string(tol) +
+                        ", diff: " + std::to_string(max_value - value) + ")");
     }
 
     void print_summary() {
