@@ -318,13 +318,14 @@ class AdaptiveOperatorSelector {
         current_selection_ = scheduler_.select_operator();
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
-            throw std::out_of_range(
-                "Selected crossover operator index " + std::to_string(current_selection_) +
-                " is out of bounds. This can happen if the number of "
-                "operators added via add_operator() does not match the num_operators argument in "
-                "the constructor. Expected " +
-                std::to_string(scheduler_.get_stats().size()) + " operators, but only " +
-                std::to_string(operators_.size()) + " were added.");
+            std::stringstream err_msg;
+            err_msg << "Selected crossover operator index " << current_selection_
+                    << " is out of bounds. This can happen if the number of "
+                    << "operators added via add_operator() does not match the num_operators "
+                       "argument in "
+                    << "the constructor. Expected " << scheduler_.get_stats().size()
+                    << " operators, but only " << operators_.size() << " were added.";
+            throw std::out_of_range(err_msg.str());
         }
 
         auto start_time = std::chrono::steady_clock::now();
