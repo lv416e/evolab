@@ -341,10 +341,11 @@ using ThompsonOperatorSelector = AdaptiveOperatorSelector<ThompsonSamplingSchedu
 template <typename SchedulerType, typename Problem>
 class AdaptiveLocalSearchSelector {
   private:
+    using LocalSearchFn =
+        std::function<core::Fitness(const Problem&, typename Problem::GenomeT&, std::mt19937&)>;
+
     SchedulerType scheduler_;
-    std::vector<
-        std::function<core::Fitness(const Problem&, typename Problem::GenomeT&, std::mt19937&)>>
-        operators_;
+    std::vector<LocalSearchFn> operators_;
     std::vector<std::string> operator_names_;
     int current_selection_;
     double last_fitness_improvement_;
