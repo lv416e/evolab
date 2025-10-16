@@ -289,7 +289,7 @@ class AdaptiveOperatorSelector {
     }
 
     template <core::CrossoverOperator<Problem> OpType>
-    void add_operator(OpType op, std::string name) {
+    void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             std::stringstream err_msg;
             err_msg << "Cannot add more crossover operators than the number specified in the "
@@ -300,10 +300,10 @@ class AdaptiveOperatorSelector {
         }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
-            [op = std::move(op)](const Problem& problem, const typename Problem::GenomeT& parent1,
-                                 const typename Problem::GenomeT& parent2, std::mt19937& rng) {
-                return op.cross(problem, parent1, parent2, rng);
-            });
+            [op = std::forward<OpType>(op)](
+                const Problem& problem, const typename Problem::GenomeT& parent1,
+                const typename Problem::GenomeT& parent2,
+                std::mt19937& rng) { return op.cross(problem, parent1, parent2, rng); });
     }
 
     std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
