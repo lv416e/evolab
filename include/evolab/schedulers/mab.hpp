@@ -450,11 +450,12 @@ class AdaptiveLocalSearchSelector {
     template <core::LocalSearchOperator<Problem> OpType>
     void add_operator(OpType op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
-            throw std::logic_error(
-                "Cannot add more local search operators than the number specified in the "
-                "selector's constructor. Maximum allowed: " +
-                std::to_string(scheduler_.get_stats().size()) + ", current: " +
-                std::to_string(operators_.size()) + ". Extra operators will never be selected.");
+            std::stringstream err_msg;
+            err_msg << "Cannot add more local search operators than the number specified in the "
+                    << "selector's constructor. Maximum allowed: " << scheduler_.get_stats().size()
+                    << ", current: " << operators_.size()
+                    << ". Extra operators will never be selected.";
+            throw std::logic_error(err_msg.str());
         }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
