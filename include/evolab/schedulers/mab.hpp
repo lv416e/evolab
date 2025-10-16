@@ -221,11 +221,12 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 };
 
-// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share substantial
-// common logic (scheduler interaction, stats tracking, reporting). Defer base-class extraction
-// until a third selector emerges, as unifying the differing operator signatures (crossover
-// returns pair, local-search returns Fitness) would require complex metaprogramming that may
-// reduce readability. Revisit if common code exceeds 100 lines or a third selector is added.
+// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~110 lines of
+// nearly identical code (constructor validation, reporting, getters, reset logic). The duplication
+// threshold has been reached. A templated base class or CRTP pattern could eliminate most of this
+// without complex metaprogramming - the main challenge is abstracting the different return types
+// (pair vs Fitness) and parameter lists in the apply methods. This refactoring should be
+// prioritized before adding a third selector type to avoid further code multiplication.
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
