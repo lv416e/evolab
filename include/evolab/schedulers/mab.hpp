@@ -262,7 +262,9 @@ class AdaptiveOperatorSelector {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
                 "Cannot add more crossover operators than the number specified in the "
-                "selector's constructor. Extra operators will never be selected.");
+                "selector's constructor. Maximum allowed: " +
+                std::to_string(scheduler_.get_stats().size()) + ", current: " +
+                std::to_string(operators_.size()) + ". Extra operators will never be selected.");
         }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
@@ -289,7 +291,8 @@ class AdaptiveOperatorSelector {
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
             throw std::out_of_range(
-                "Selected operator index is out of bounds. This can happen if the number of "
+                "Selected crossover operator index " + std::to_string(current_selection_) +
+                " is out of bounds. This can happen if the number of "
                 "operators added via add_operator() does not match the num_operators argument in "
                 "the constructor. Expected " +
                 std::to_string(scheduler_.get_stats().size()) + " operators, but only " +
@@ -381,7 +384,9 @@ class AdaptiveLocalSearchSelector {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             throw std::logic_error(
                 "Cannot add more local search operators than the number specified in the "
-                "selector's constructor. Extra operators will never be selected.");
+                "selector's constructor. Maximum allowed: " +
+                std::to_string(scheduler_.get_stats().size()) + ", current: " +
+                std::to_string(operators_.size()) + ". Extra operators will never be selected.");
         }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(
@@ -405,7 +410,8 @@ class AdaptiveLocalSearchSelector {
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
             throw std::out_of_range(
-                "Selected operator index is out of bounds. This can happen if the number of "
+                "Selected local search operator index " + std::to_string(current_selection_) +
+                " is out of bounds. This can happen if the number of "
                 "operators added via add_operator() does not match the num_operators argument in "
                 "the constructor. Expected " +
                 std::to_string(scheduler_.get_stats().size()) + " operators, but only " +
