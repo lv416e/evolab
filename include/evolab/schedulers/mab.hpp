@@ -228,11 +228,13 @@ class ThompsonSamplingScheduler {
 template <typename SchedulerType, typename Problem>
 class AdaptiveOperatorSelector {
   private:
+    using CrossoverFn =
+        std::function<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>(
+            const Problem&, const typename Problem::GenomeT&, const typename Problem::GenomeT&,
+            std::mt19937&)>;
+
     SchedulerType scheduler_;
-    std::vector<std::function<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>(
-        const Problem&, const typename Problem::GenomeT&, const typename Problem::GenomeT&,
-        std::mt19937&)>>
-        operators_;
+    std::vector<CrossoverFn> operators_;
     std::vector<std::string> operator_names_;
     int current_selection_;
     double last_fitness_improvement_;
