@@ -398,12 +398,15 @@ class AdaptiveSelector {
     /// @brief Add an operator to the selector
     ///
     /// The operator type is validated against the concept defined in Traits
-    /// (CrossoverOperator or LocalSearchOperator) via Traits::wrap_operator().
+    /// (CrossoverOperator or LocalSearchOperator) via explicit requires clause.
     ///
-    /// @tparam OpType Operator type (validated by Traits)
+    /// @tparam OpType Operator type (must be wrappable by Traits)
     /// @param op Operator instance to add
     /// @param name Human-readable name for the operator
     template <typename OpType>
+        requires requires(OpType&& o) {
+            { Traits::template wrap_operator<OpType>(std::forward<OpType>(o)) } -> std::convertible_to<typename Traits::OperatorFn>;
+        }
     void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             std::stringstream err_msg;
