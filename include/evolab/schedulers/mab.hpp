@@ -102,7 +102,7 @@ struct CrossoverOperatorTraits {
         requires core::CrossoverOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
-                                               const GenomeT& parent2, std::mt19937& rng) {
+                                               const GenomeT& parent2, std::mt19937& rng) const {
             return op.cross(problem, parent1, parent2, rng);
         };
     }
@@ -131,7 +131,7 @@ struct LocalSearchOperatorTraits {
         requires core::LocalSearchOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, GenomeT& genome,
-                                               std::mt19937& rng) {
+                                               std::mt19937& rng) const {
             return op.improve(problem, genome, rng);
         };
     }
