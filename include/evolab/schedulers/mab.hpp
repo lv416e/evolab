@@ -88,8 +88,8 @@ template <typename Problem>
 struct CrossoverOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = std::pair<GenomeT, GenomeT>;
-    using OperatorFn = std::function<ResultType(const Problem&, const GenomeT&,
-                                                          const GenomeT&, std::mt19937&)>;
+    using OperatorFn =
+        std::function<ResultType(const Problem&, const GenomeT&, const GenomeT&, std::mt19937&)>;
 
     static constexpr const char* selector_type_name = "crossover";
 
@@ -118,8 +118,7 @@ template <typename Problem>
 struct LocalSearchOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = core::Fitness;
-    using OperatorFn =
-        std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
+    using OperatorFn = std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
 
     static constexpr const char* selector_type_name = "local search";
 
@@ -405,7 +404,9 @@ class AdaptiveSelector {
     /// @param name Human-readable name for the operator
     template <typename OpType>
         requires requires(OpType&& o) {
-            { Traits::template wrap_operator<OpType>(std::forward<OpType>(o)) } -> std::convertible_to<typename Traits::OperatorFn>;
+            {
+                Traits::template wrap_operator<OpType>(std::forward<OpType>(o))
+            } -> std::convertible_to<typename Traits::OperatorFn>;
         }
     void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
@@ -459,11 +460,13 @@ class AdaptiveSelector {
             throw std::invalid_argument(
                 "report_fitness_improvement: improvement must be finite (not NaN or Inf)");
         }
-        if (tracking_improvement_ && current_selection_ >= 0) {
-            last_fitness_improvement_ = improvement;
-            scheduler_.update_reward(current_selection_, improvement);
-            tracking_improvement_ = false;
+        if (!tracking_improvement_ || current_selection_ < 0) {
+            throw std::logic_error(
+                "report_fitness_improvement called without a pending apply_* operation.");
         }
+        last_fitness_improvement_ = improvement;
+        scheduler_.update_reward(current_selection_, improvement);
+        tracking_improvement_ = false;
     }
 
     /// @brief Report fitness improvement using old and new fitness values
@@ -482,6 +485,10 @@ class AdaptiveSelector {
     /// @param old_fitness Fitness value before operator application
     /// @param new_fitness Fitness value after operator application
     void report_fitness_change(double old_fitness, double new_fitness) {
+        if (!std::isfinite(old_fitness) || !std::isfinite(new_fitness)) {
+            throw std::invalid_argument(
+                "report_fitness_change: fitness values must be finite (not NaN or Inf)");
+        }
         double improvement = old_fitness - new_fitness; // Minimization: lower is better
         report_fitness_improvement(improvement);
     }
