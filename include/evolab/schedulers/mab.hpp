@@ -88,8 +88,8 @@ template <typename Problem>
 struct CrossoverOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = std::pair<GenomeT, GenomeT>;
-    using OperatorFn = std::move_only_function<ResultType(const Problem&, const GenomeT&,
-                                                          const GenomeT&, std::mt19937&) const>;
+    using OperatorFn = std::function<ResultType(const Problem&, const GenomeT&,
+                                                          const GenomeT&, std::mt19937&)>;
 
     static constexpr const char* selector_type_name = "crossover";
 
@@ -102,7 +102,7 @@ struct CrossoverOperatorTraits {
         requires core::CrossoverOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
-                                               const GenomeT& parent2, std::mt19937& rng) const {
+                                               const GenomeT& parent2, std::mt19937& rng) {
             return op.cross(problem, parent1, parent2, rng);
         };
     }
@@ -119,7 +119,7 @@ struct LocalSearchOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = core::Fitness;
     using OperatorFn =
-        std::move_only_function<ResultType(const Problem&, GenomeT&, std::mt19937&) const>;
+        std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
 
     static constexpr const char* selector_type_name = "local search";
 
@@ -132,7 +132,7 @@ struct LocalSearchOperatorTraits {
         requires core::LocalSearchOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, GenomeT& genome,
-                                               std::mt19937& rng) const {
+                                               std::mt19937& rng) {
             return op.improve(problem, genome, rng);
         };
     }
