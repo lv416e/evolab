@@ -4,11 +4,11 @@
 #include <chrono>
 #include <cmath>
 #include <concepts>
+#include <format>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <random>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -353,30 +353,27 @@ class AdaptiveSelector {
     template <typename... Args>
     auto apply_operator_impl(const Problem& problem, Args&&... args) {
         if (operators_.empty()) {
-            std::stringstream err_msg;
-            err_msg << "Cannot apply " << Traits::selector_type_name
-                    << " operator: no operators have been added.";
-            throw std::logic_error(err_msg.str());
+            throw std::logic_error(
+                std::format("Cannot apply {} operator: no operators have been added.",
+                            Traits::selector_type_name));
         }
 
         if (tracking_improvement_) {
-            std::stringstream err_msg;
-            err_msg << "apply method called again before report_fitness_improvement was called "
-                    << "for the previous " << Traits::selector_type_name << " operation.";
-            throw std::logic_error(err_msg.str());
+            throw std::logic_error(std::format(
+                "apply method called again before report_fitness_improvement was called for the "
+                "previous {} operation.",
+                Traits::selector_type_name));
         }
 
         current_selection_ = scheduler_.select_operator();
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
-            std::stringstream err_msg;
-            err_msg << "Selected " << Traits::selector_type_name << " operator index "
-                    << current_selection_ << " is out of bounds. This can happen if the number of "
-                    << "operators added via add_operator() does not match the num_operators "
-                       "argument in "
-                    << "the constructor. Expected " << scheduler_.get_stats().size()
-                    << " operators, but only " << operators_.size() << " were added.";
-            throw std::out_of_range(err_msg.str());
+            throw std::out_of_range(std::format(
+                "Selected {} operator index {} is out of bounds. This can happen if the number of "
+                "operators added via add_operator() does not match the num_operators argument in "
+                "the constructor. Expected {} operators, but only {} were added.",
+                Traits::selector_type_name, current_selection_, scheduler_.get_stats().size(),
+                operators_.size()));
         }
 
         auto start_time = std::chrono::steady_clock::now();
@@ -399,10 +396,9 @@ class AdaptiveSelector {
         : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
           last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
         if (num_operators == 0) {
-            std::stringstream err_msg;
-            err_msg << "AdaptiveSelector for " << Traits::selector_type_name
-                    << " must be configured with at least one operator.";
-            throw std::invalid_argument(err_msg.str());
+            throw std::invalid_argument(std::format(
+                "AdaptiveSelector for {} must be configured with at least one operator.",
+                Traits::selector_type_name));
         }
         operators_.reserve(num_operators);
         operator_names_.reserve(num_operators);
@@ -420,13 +416,11 @@ class AdaptiveSelector {
         requires WrappableBy<OpType, Traits>
     void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
-            std::stringstream err_msg;
-            err_msg << "Cannot add more " << Traits::selector_type_name
-                    << " operators than the number specified in the selector's constructor. "
-                    << "Maximum allowed: " << scheduler_.get_stats().size()
-                    << ", current: " << operators_.size()
-                    << ". Extra operators will never be selected.";
-            throw std::logic_error(err_msg.str());
+            throw std::logic_error(std::format(
+                "Cannot add more {} operators than the number specified in the selector's "
+                "constructor. "
+                "Maximum allowed: {}, current: {}. Extra operators will never be selected.",
+                Traits::selector_type_name, scheduler_.get_stats().size(), operators_.size()));
         }
         operator_names_.emplace_back(std::move(name));
         operators_.emplace_back(Traits::wrap_operator(std::forward<OpType>(op)));
