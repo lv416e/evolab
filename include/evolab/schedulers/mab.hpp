@@ -293,6 +293,20 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 };
 
+/// @brief Concept for operator types that can be wrapped by a traits policy
+///
+/// This concept validates that an operator type can be wrapped by the traits'
+/// wrap_operator function and produces a compatible OperatorFn type.
+///
+/// @tparam Op The operator type to check
+/// @tparam Tr The traits type (CrossoverOperatorTraits or LocalSearchOperatorTraits)
+template <typename Op, typename Tr>
+concept WrappableBy = requires(Op&& o) {
+    {
+        Tr::template wrap_operator<Op>(std::forward<Op>(o))
+    } -> std::convertible_to<typename Tr::OperatorFn>;
+};
+
 /// @brief Unified adaptive operator selector using policy-based design
 ///
 /// This class provides a type-safe, unified implementation for both crossover
@@ -403,11 +417,7 @@ class AdaptiveSelector {
     /// @param op Operator instance to add
     /// @param name Human-readable name for the operator
     template <typename OpType>
-        requires requires(OpType&& o) {
-            {
-                Traits::template wrap_operator<OpType>(std::forward<OpType>(o))
-            } -> std::convertible_to<typename Traits::OperatorFn>;
-        }
+        requires WrappableBy<OpType, Traits>
     void add_operator(OpType&& op, std::string name) {
         if (operators_.size() >= scheduler_.get_stats().size()) {
             std::stringstream err_msg;
