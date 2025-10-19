@@ -88,8 +88,8 @@ template <typename Problem>
 struct CrossoverOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = std::pair<GenomeT, GenomeT>;
-    using OperatorFn =
-        std::function<ResultType(const Problem&, const GenomeT&, const GenomeT&, std::mt19937&)>;
+    using OperatorFn = std::move_only_function<ResultType(const Problem&, const GenomeT&,
+                                                          const GenomeT&, std::mt19937&) const>;
 
     static constexpr const char* selector_type_name = "crossover";
 
@@ -118,7 +118,8 @@ template <typename Problem>
 struct LocalSearchOperatorTraits {
     using GenomeT = typename Problem::GenomeT;
     using ResultType = core::Fitness;
-    using OperatorFn = std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
+    using OperatorFn =
+        std::move_only_function<ResultType(const Problem&, GenomeT&, std::mt19937&) const>;
 
     static constexpr const char* selector_type_name = "local search";
 
