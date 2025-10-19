@@ -470,7 +470,7 @@ class AdaptiveSelector {
             throw std::invalid_argument(
                 "report_fitness_improvement: improvement must be finite (not NaN or Inf)");
         }
-        if (!tracking_improvement_ || current_selection_ < 0) {
+        if (!tracking_improvement_) {
             throw std::logic_error(
                 "report_fitness_improvement called without a pending apply_* operation.");
         }
