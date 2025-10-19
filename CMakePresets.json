@@ -33,8 +33,7 @@
       "binaryDir": "build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "EVOLAB_BUILD_BENCHMARKS": "ON",
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1"
+        "EVOLAB_BUILD_BENCHMARKS": "ON"
       }
     },
     {
@@ -55,7 +54,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -fsanitize=address,undefined -g3 -O0 -fno-omit-frame-pointer"
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -g3 -O0 -fno-omit-frame-pointer"
       }
     },
     {
@@ -66,7 +65,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "EVOLAB_BUILD_BENCHMARKS": "ON",
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -O3 -march=native -DNDEBUG"
+        "CMAKE_CXX_FLAGS": "-O3 -march=native -DNDEBUG"
       }
     },
     {
@@ -77,7 +76,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-asan",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -fsanitize=address -g3 -O1 -fno-omit-frame-pointer"
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
@@ -88,7 +87,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-ubsan",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -fsanitize=undefined -g3 -O1 -fno-omit-frame-pointer"
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
@@ -99,7 +98,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-tsan",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -fsanitize=thread -g3 -O1 -fno-omit-frame-pointer"
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
@@ -110,7 +109,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "build/debug-msan",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -fsanitize=memory -g3 -O1 -fno-omit-frame-pointer"
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -g3 -O1 -fno-omit-frame-pointer"
       }
     },
     {
