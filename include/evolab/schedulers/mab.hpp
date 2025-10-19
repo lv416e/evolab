@@ -78,6 +78,65 @@ struct OperatorStats {
     }
 };
 
+/// @brief Operator traits for crossover operators in adaptive selector
+///
+/// Defines the interface and type requirements for crossover operators,
+/// enabling policy-based design for AdaptiveSelector.
+///
+/// @tparam Problem The optimization problem type
+template <typename Problem>
+struct CrossoverOperatorTraits {
+    using GenomeT = typename Problem::GenomeT;
+    using ResultType = std::pair<GenomeT, GenomeT>;
+    using OperatorFn =
+        std::function<ResultType(const Problem&, const GenomeT&, const GenomeT&, std::mt19937&)>;
+
+    static constexpr const char* selector_type_name = "crossover";
+
+    /// @brief Wraps a crossover operator into a type-erased function object
+    ///
+    /// @tparam OpType Crossover operator type (must satisfy CrossoverOperator concept)
+    /// @param op Crossover operator to wrap
+    /// @return Type-erased function object compatible with OperatorFn signature
+    template <typename OpType>
+        requires core::CrossoverOperator<OpType, Problem>
+    static OperatorFn wrap_operator(OpType&& op) {
+        return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
+                                               const GenomeT& parent2, std::mt19937& rng) {
+            return op.cross(problem, parent1, parent2, rng);
+        };
+    }
+};
+
+/// @brief Operator traits for local search operators in adaptive selector
+///
+/// Defines the interface and type requirements for local search operators,
+/// enabling policy-based design for AdaptiveSelector.
+///
+/// @tparam Problem The optimization problem type
+template <typename Problem>
+struct LocalSearchOperatorTraits {
+    using GenomeT = typename Problem::GenomeT;
+    using ResultType = core::Fitness;
+    using OperatorFn = std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
+
+    static constexpr const char* selector_type_name = "local search";
+
+    /// @brief Wraps a local search operator into a type-erased function object
+    ///
+    /// @tparam OpType Local search operator type (must satisfy LocalSearchOperator concept)
+    /// @param op Local search operator to wrap
+    /// @return Type-erased function object compatible with OperatorFn signature
+    template <typename OpType>
+        requires core::LocalSearchOperator<OpType, Problem>
+    static OperatorFn wrap_operator(OpType&& op) {
+        return [op = std::forward<OpType>(op)](const Problem& problem, GenomeT& genome,
+                                               std::mt19937& rng) {
+            return op.improve(problem, genome, rng);
+        };
+    }
+};
+
 class UCBScheduler {
   private:
     std::vector<OperatorStats> stats_;
