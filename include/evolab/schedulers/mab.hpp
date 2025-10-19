@@ -452,8 +452,13 @@ class AdaptiveSelector {
     /// Must be called after each apply_crossover() or apply_local_search() call
     /// to update the MAB learning statistics.
     ///
-    /// @param improvement Fitness improvement value (positive = better)
+    /// @param improvement Fitness improvement value (positive = better, must be finite)
+    /// @throws std::invalid_argument if improvement is NaN or infinite
     void report_fitness_improvement(double improvement) {
+        if (!std::isfinite(improvement)) {
+            throw std::invalid_argument(
+                "report_fitness_improvement: improvement must be finite (not NaN or Inf)");
+        }
         if (tracking_improvement_ && current_selection_ >= 0) {
             last_fitness_improvement_ = improvement;
             scheduler_.update_reward(current_selection_, improvement);
