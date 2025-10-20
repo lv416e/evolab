@@ -498,7 +498,7 @@ class AdaptiveSelector {
     void report_fitness_change(double old_fitness, double new_fitness) {
         if (!std::isfinite(old_fitness) || !std::isfinite(new_fitness)) {
             throw std::invalid_argument(
-                "report_fitness_change: fitness values must be finite (not NaN or Inf)");
+                "report_fitness_change: fitness values must be finite numbers (not NaN or Infinity)");
         }
         double improvement = old_fitness - new_fitness; // Minimization: lower is better
         report_fitness_improvement(improvement);
