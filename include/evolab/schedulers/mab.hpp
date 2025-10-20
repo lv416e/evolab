@@ -113,6 +113,13 @@ struct CrossoverOperatorTraits {
 /// Defines the interface and type requirements for local search operators,
 /// enabling policy-based design for AdaptiveSelector.
 ///
+/// TODO(feature): Support stateful local search operators (e.g., Tabu Search)
+/// The lambda is marked mutable to allow stateful operators. To fully enable this:
+/// 1. Relax core::LocalSearchOperator concept to accept non-const improve() methods
+/// 2. Update all local search operator implementations to support mutable state
+/// This would enable advanced algorithms like Tabu Search, Simulated Annealing variants,
+/// and adaptive neighborhood search that maintain internal state across invocations.
+///
 /// @tparam Problem The optimization problem type
 template <typename Problem>
 struct LocalSearchOperatorTraits {
@@ -131,7 +138,7 @@ struct LocalSearchOperatorTraits {
         requires core::LocalSearchOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, GenomeT& genome,
-                                               std::mt19937& rng) {
+                                               std::mt19937& rng) mutable {
             return op.improve(problem, genome, rng);
         };
     }
