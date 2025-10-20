@@ -102,7 +102,7 @@ struct CrossoverOperatorTraits {
         requires core::CrossoverOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
-                                               const GenomeT& parent2, std::mt19937& rng) const {
+                                               const GenomeT& parent2, std::mt19937& rng) {
             return op.cross(problem, parent1, parent2, rng);
         };
     }
@@ -440,8 +440,8 @@ class AdaptiveSelector {
     /// @param parent2 Second parent genome
     /// @param rng Random number generator
     /// @return Pair of offspring genomes
-    [[nodiscard]] auto apply_crossover(const Problem& problem, const GenomeT& parent1, const GenomeT& parent2,
-                         std::mt19937& rng)
+    [[nodiscard]] auto apply_crossover(const Problem& problem, const GenomeT& parent1,
+                                       const GenomeT& parent2, std::mt19937& rng)
         requires std::same_as<Traits, CrossoverOperatorTraits<Problem>>
     {
         return apply_operator_impl(problem, parent1, parent2, rng);
@@ -453,7 +453,8 @@ class AdaptiveSelector {
     /// @param genome Genome to improve (modified in-place)
     /// @param rng Random number generator
     /// @return Fitness after local search
-    [[nodiscard]] auto apply_local_search(const Problem& problem, GenomeT& genome, std::mt19937& rng)
+    [[nodiscard]] auto apply_local_search(const Problem& problem, GenomeT& genome,
+                                          std::mt19937& rng)
         requires std::same_as<Traits, LocalSearchOperatorTraits<Problem>>
     {
         return apply_operator_impl(problem, genome, rng);
@@ -468,12 +469,12 @@ class AdaptiveSelector {
     /// @throws std::invalid_argument if improvement is NaN or infinite
     void report_fitness_improvement(double improvement) {
         if (!std::isfinite(improvement)) {
-            throw std::invalid_argument(
-                "report_fitness_improvement: improvement must be a finite number (not NaN or Infinity)");
+            throw std::invalid_argument("report_fitness_improvement: improvement must be a finite "
+                                        "number (not NaN or Infinity)");
         }
         if (!tracking_improvement_) {
-            throw std::logic_error(
-                "report_fitness_improvement called without a pending apply_crossover or apply_local_search operation.");
+            throw std::logic_error("report_fitness_improvement called without a pending "
+                                   "apply_crossover or apply_local_search operation.");
         }
         last_fitness_improvement_ = improvement;
         scheduler_.update_reward(current_selection_, improvement);
@@ -497,18 +498,22 @@ class AdaptiveSelector {
     /// @param new_fitness Fitness value after operator application
     void report_fitness_change(double old_fitness, double new_fitness) {
         if (!std::isfinite(old_fitness) || !std::isfinite(new_fitness)) {
-            throw std::invalid_argument(
-                "report_fitness_change: fitness values must be finite numbers (not NaN or Infinity)");
+            throw std::invalid_argument("report_fitness_change: fitness values must be finite "
+                                        "numbers (not NaN or Infinity)");
         }
         double improvement = old_fitness - new_fitness; // Minimization: lower is better
         report_fitness_improvement(improvement);
     }
 
     /// @brief Get statistics for all operators
-    [[nodiscard]] const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+    [[nodiscard]] const std::vector<OperatorStats>& get_operator_stats() const {
+        return scheduler_.get_stats();
+    }
 
     /// @brief Get names of all operators
-    [[nodiscard]] const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+    [[nodiscard]] const std::vector<std::string>& get_operator_names() const {
+        return operator_names_;
+    }
 
     /// @brief Reset all statistics and state
     void reset_stats() {
