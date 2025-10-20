@@ -513,16 +513,16 @@ class AdaptiveSelector {
     }
 
     /// @brief Get number of operators added
-    size_t get_operator_count() const { return operators_.size(); }
+    [[nodiscard]] size_t get_operator_count() const { return operators_.size(); }
 
     /// @brief Get index of last selected operator
-    int get_last_selection() const { return current_selection_; }
+    [[nodiscard]] int get_last_selection() const { return current_selection_; }
 
     /// @brief Get fitness improvement from last operator application
-    double get_last_improvement() const { return last_fitness_improvement_; }
+    [[nodiscard]] double get_last_improvement() const { return last_fitness_improvement_; }
 
     /// @brief Get execution time of last operator application (in seconds)
-    double get_last_execution_time() const { return last_execution_time_; }
+    [[nodiscard]] double get_last_execution_time() const { return last_execution_time_; }
 };
 
 // ============================================================================
