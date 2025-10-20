@@ -102,7 +102,7 @@ struct CrossoverOperatorTraits {
         requires core::CrossoverOperator<OpType, Problem>
     static OperatorFn wrap_operator(OpType&& op) {
         return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
-                                               const GenomeT& parent2, std::mt19937& rng) {
+                                               const GenomeT& parent2, std::mt19937& rng) const {
             return op.cross(problem, parent1, parent2, rng);
         };
     }
