@@ -433,7 +433,7 @@ class AdaptiveSelector {
     /// @param parent2 Second parent genome
     /// @param rng Random number generator
     /// @return Pair of offspring genomes
-    auto apply_crossover(const Problem& problem, const GenomeT& parent1, const GenomeT& parent2,
+    [[nodiscard]] auto apply_crossover(const Problem& problem, const GenomeT& parent1, const GenomeT& parent2,
                          std::mt19937& rng)
         requires std::same_as<Traits, CrossoverOperatorTraits<Problem>>
     {
