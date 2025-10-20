@@ -498,10 +498,10 @@ class AdaptiveSelector {
     }
 
     /// @brief Get statistics for all operators
-    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+    [[nodiscard]] const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
 
     /// @brief Get names of all operators
-    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+    [[nodiscard]] const std::vector<std::string>& get_operator_names() const { return operator_names_; }
 
     /// @brief Reset all statistics and state
     void reset_stats() {
