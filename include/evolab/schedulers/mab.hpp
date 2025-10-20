@@ -473,7 +473,7 @@ class AdaptiveSelector {
         }
         if (!tracking_improvement_) {
             throw std::logic_error(
-                "report_fitness_improvement called without a pending apply_* operation.");
+                "report_fitness_improvement called without a pending apply_crossover or apply_local_search operation.");
         }
         last_fitness_improvement_ = improvement;
         scheduler_.update_reward(current_selection_, improvement);
