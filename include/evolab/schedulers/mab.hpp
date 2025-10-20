@@ -446,7 +446,7 @@ class AdaptiveSelector {
     /// @param genome Genome to improve (modified in-place)
     /// @param rng Random number generator
     /// @return Fitness after local search
-    auto apply_local_search(const Problem& problem, GenomeT& genome, std::mt19937& rng)
+    [[nodiscard]] auto apply_local_search(const Problem& problem, GenomeT& genome, std::mt19937& rng)
         requires std::same_as<Traits, LocalSearchOperatorTraits<Problem>>
     {
         return apply_operator_impl(problem, genome, rng);
