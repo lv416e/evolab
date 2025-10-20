@@ -361,8 +361,8 @@ class AdaptiveSelector {
     auto apply_operator_impl(const Problem& problem, Args&&... args) {
         if (operators_.empty()) {
             throw std::logic_error(
-                std::format("Cannot apply {} operator: no operators have been added.",
-                            Traits::selector_type_name));
+                std::format("Cannot apply {} operator: no operators have been added. Added {}",
+                            Traits::selector_type_name, operators_.size()));
         }
 
         if (tracking_improvement_) {
