@@ -4,11 +4,11 @@
 #include <chrono>
 #include <cmath>
 #include <concepts>
+#include <format>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <random>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -75,6 +75,72 @@ struct OperatorStats {
         avg_reward = 0.0;
         success_rate = 0.0;
         success_count = 0;
+    }
+};
+
+/// @brief Operator traits for crossover operators in adaptive selector
+///
+/// Defines the interface and type requirements for crossover operators,
+/// enabling policy-based design for AdaptiveSelector.
+///
+/// @tparam Problem The optimization problem type
+template <typename Problem>
+struct CrossoverOperatorTraits {
+    using GenomeT = typename Problem::GenomeT;
+    using ResultType = std::pair<GenomeT, GenomeT>;
+    using OperatorFn =
+        std::function<ResultType(const Problem&, const GenomeT&, const GenomeT&, std::mt19937&)>;
+
+    static constexpr const char* selector_type_name = "crossover";
+
+    /// @brief Wraps a crossover operator into a type-erased function object
+    ///
+    /// @tparam OpType Crossover operator type (must satisfy CrossoverOperator concept)
+    /// @param op Crossover operator to wrap
+    /// @return Type-erased function object compatible with OperatorFn signature
+    template <typename OpType>
+        requires core::CrossoverOperator<OpType, Problem>
+    static OperatorFn wrap_operator(OpType&& op) {
+        return [op = std::forward<OpType>(op)](const Problem& problem, const GenomeT& parent1,
+                                               const GenomeT& parent2, std::mt19937& rng) {
+            return op.cross(problem, parent1, parent2, rng);
+        };
+    }
+};
+
+/// @brief Operator traits for local search operators in adaptive selector
+///
+/// Defines the interface and type requirements for local search operators,
+/// enabling policy-based design for AdaptiveSelector.
+///
+/// TODO(feature): Support stateful local search operators (e.g., Tabu Search)
+/// The lambda is marked mutable to allow stateful operators. To fully enable this:
+/// 1. Relax core::LocalSearchOperator concept to accept non-const improve() methods
+/// 2. Update all local search operator implementations to support mutable state
+/// This would enable advanced algorithms like Tabu Search, Simulated Annealing variants,
+/// and adaptive neighborhood search that maintain internal state across invocations.
+///
+/// @tparam Problem The optimization problem type
+template <typename Problem>
+struct LocalSearchOperatorTraits {
+    using GenomeT = typename Problem::GenomeT;
+    using ResultType = core::Fitness;
+    using OperatorFn = std::function<ResultType(const Problem&, GenomeT&, std::mt19937&)>;
+
+    static constexpr const char* selector_type_name = "local search";
+
+    /// @brief Wraps a local search operator into a type-erased function object
+    ///
+    /// @tparam OpType Local search operator type (must satisfy LocalSearchOperator concept)
+    /// @param op Local search operator to wrap
+    /// @return Type-erased function object compatible with OperatorFn signature
+    template <typename OpType>
+        requires core::LocalSearchOperator<OpType, Problem>
+    static OperatorFn wrap_operator(OpType&& op) {
+        return [op = std::forward<OpType>(op)](const Problem& problem, GenomeT& genome,
+                                               std::mt19937& rng) mutable {
+            return op.improve(problem, genome, rng);
+        };
     }
 };
 
@@ -234,18 +300,26 @@ class ThompsonSamplingScheduler {
     double get_reward_threshold() const { return reward_threshold_; }
 };
 
-// TODO(refactor): AdaptiveOperatorSelector and AdaptiveLocalSearchSelector share ~110 lines of
-// nearly identical code (constructor validation, reporting, getters, reset logic). The duplication
-// threshold has been reached. A templated base class or CRTP pattern could eliminate most of this
-// without complex metaprogramming - the main challenge is abstracting the different return types
-// (pair vs Fitness) and parameter lists in the apply methods. This refactoring should be
-// prioritized before adding a third selector type to avoid further code multiplication.
-// See: https://github.com/lv416e/evolab/issues/32
-
-/// @brief Adaptive crossover operator selector using multi-armed bandit algorithms
+/// @brief Concept for operator types that can be wrapped by a traits policy
 ///
-/// This class enables automatic selection of the best-performing crossover operator
-/// based on historical performance using UCB or Thompson Sampling schedulers.
+/// This concept validates that an operator type can be wrapped by the traits'
+/// wrap_operator function and produces a compatible OperatorFn type.
+///
+/// @tparam Op The operator type to check
+/// @tparam Tr The traits type (CrossoverOperatorTraits or LocalSearchOperatorTraits)
+template <typename Op, typename Tr>
+concept WrappableBy = requires(Op&& o) {
+    {
+        Tr::template wrap_operator<Op>(std::forward<Op>(o))
+    } -> std::convertible_to<typename Tr::OperatorFn>;
+};
+
+/// @brief Unified adaptive operator selector using policy-based design
+///
+/// This class provides a type-safe, unified implementation for both crossover
+/// and local search operator selection using multi-armed bandit algorithms.
+/// The policy-based design with operator traits eliminates ~110 lines of code
+/// duplication while maintaining full type safety through C++20 concepts.
 ///
 /// @warning NOT THREAD-SAFE: This class maintains mutable state (current_selection_,
 ///          tracking_improvement_, last_fitness_improvement_, last_execution_time_) and
@@ -258,82 +332,59 @@ class ThompsonSamplingScheduler {
 ///       selector to ensure correct learning and avoid data races.
 ///
 /// @tparam SchedulerType The MAB scheduler type (UCBScheduler or ThompsonSamplingScheduler)
-/// @tparam Problem The optimization problem type (must satisfy Problem concept)
-template <typename SchedulerType, typename Problem>
-class AdaptiveOperatorSelector {
+/// @tparam Problem The optimization problem type
+/// @tparam Traits Operator traits (CrossoverOperatorTraits or LocalSearchOperatorTraits)
+template <typename SchedulerType, typename Problem, typename Traits>
+class AdaptiveSelector {
   private:
-    using CrossoverFn =
-        std::function<std::pair<typename Problem::GenomeT, typename Problem::GenomeT>(
-            const Problem&, const typename Problem::GenomeT&, const typename Problem::GenomeT&,
-            std::mt19937&)>;
+    using GenomeT = typename Problem::GenomeT;
+    using OperatorFn = typename Traits::OperatorFn;
 
     SchedulerType scheduler_;
-    std::vector<CrossoverFn> operators_;
+    std::vector<OperatorFn> operators_;
     std::vector<std::string> operator_names_;
     int current_selection_;
     double last_fitness_improvement_;
     double last_execution_time_;
     bool tracking_improvement_;
 
-  public:
+    /// @brief Internal implementation for applying operators with timing and tracking
+    ///
+    /// Uses variadic templates to support both crossover (3 genome args) and
+    /// local search (1 genome arg) signatures without code duplication.
+    ///
+    /// @tparam Args Variadic arguments forwarded to the operator function
+    /// @param problem The optimization problem instance
+    /// @param args Additional arguments (parent genomes for crossover, or genome for local search)
+    /// @return Result of operator application (depends on Traits::ResultType)
     template <typename... Args>
-    explicit AdaptiveOperatorSelector(size_t num_operators, Args&&... args)
-        : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
-          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
-        if (num_operators == 0) {
-            throw std::invalid_argument(
-                "AdaptiveOperatorSelector must be configured with at least one operator.");
-        }
-        operators_.reserve(num_operators);
-        operator_names_.reserve(num_operators);
-    }
-
-    template <core::CrossoverOperator<Problem> OpType>
-    void add_operator(OpType&& op, std::string name) {
-        if (operators_.size() >= scheduler_.get_stats().size()) {
-            std::stringstream err_msg;
-            err_msg << "Cannot add more crossover operators than the number specified in the "
-                    << "selector's constructor. Maximum allowed: " << scheduler_.get_stats().size()
-                    << ", current: " << operators_.size()
-                    << ". Extra operators will never be selected.";
-            throw std::logic_error(err_msg.str());
-        }
-        operator_names_.emplace_back(std::move(name));
-        operators_.emplace_back(
-            [op = std::forward<OpType>(op)](
-                const Problem& problem, const typename Problem::GenomeT& parent1,
-                const typename Problem::GenomeT& parent2,
-                std::mt19937& rng) { return op.cross(problem, parent1, parent2, rng); });
-    }
-
-    std::pair<typename Problem::GenomeT, typename Problem::GenomeT>
-    apply_crossover(const Problem& problem, const typename Problem::GenomeT& parent1,
-                    const typename Problem::GenomeT& parent2, std::mt19937& rng) {
+    auto apply_operator_impl(const Problem& problem, Args&&... args) {
         if (operators_.empty()) {
-            throw std::logic_error("Cannot apply crossover: no operators have been added.");
+            throw std::logic_error(
+                std::format("Cannot apply {} operator: no operators have been added.",
+                            Traits::selector_type_name));
         }
 
         if (tracking_improvement_) {
-            throw std::logic_error(
-                "apply_crossover called again before report_fitness_improvement was called for the "
-                "previous operation.");
+            throw std::logic_error(std::format(
+                "apply method called again before report_fitness_improvement was called for the "
+                "previous {} operation.",
+                Traits::selector_type_name));
         }
 
         current_selection_ = scheduler_.select_operator();
 
         if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
-            std::stringstream err_msg;
-            err_msg << "Selected crossover operator index " << current_selection_
-                    << " is out of bounds. This can happen if the number of "
-                    << "operators added via add_operator() does not match the num_operators "
-                       "argument in "
-                    << "the constructor. Expected " << scheduler_.get_stats().size()
-                    << " operators, but only " << operators_.size() << " were added.";
-            throw std::out_of_range(err_msg.str());
+            throw std::out_of_range(std::format(
+                "Selected {} operator index {} is out of bounds. This can happen if the number of "
+                "operators added via add_operator() does not match the num_operators argument in "
+                "the constructor. Expected {} operators, but only {} were added.",
+                Traits::selector_type_name, current_selection_, scheduler_.get_stats().size(),
+                operators_.size()));
         }
 
         auto start_time = std::chrono::steady_clock::now();
-        auto result = operators_[current_selection_](problem, parent1, parent2, rng);
+        auto result = operators_[current_selection_](problem, std::forward<Args>(args)...);
         auto end_time = std::chrono::steady_clock::now();
         last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
 
@@ -341,12 +392,93 @@ class AdaptiveOperatorSelector {
         return result;
     }
 
-    void report_fitness_improvement(double improvement) {
-        if (tracking_improvement_ && current_selection_ >= 0) {
-            last_fitness_improvement_ = improvement;
-            scheduler_.update_reward(current_selection_, improvement);
-            tracking_improvement_ = false;
+  public:
+    /// @brief Construct adaptive selector with specified number of operators
+    ///
+    /// @tparam Args Variadic arguments forwarded to the scheduler constructor
+    /// @param num_operators Number of operators to be added (must be > 0)
+    /// @param args Additional scheduler-specific arguments (e.g., exploration constant for UCB)
+    template <typename... Args>
+    explicit AdaptiveSelector(size_t num_operators, Args&&... args)
+        : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
+          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
+        if (num_operators == 0) {
+            throw std::invalid_argument(std::format(
+                "AdaptiveSelector for {} must be configured with at least one operator.",
+                Traits::selector_type_name));
         }
+        operators_.reserve(num_operators);
+        operator_names_.reserve(num_operators);
+    }
+
+    /// @brief Add an operator to the selector
+    ///
+    /// The operator type is validated against the concept defined in Traits
+    /// (CrossoverOperator or LocalSearchOperator) via explicit requires clause.
+    ///
+    /// @tparam OpType Operator type (must be wrappable by Traits)
+    /// @param op Operator instance to add
+    /// @param name Human-readable name for the operator
+    template <typename OpType>
+        requires WrappableBy<OpType, Traits>
+    void add_operator(OpType&& op, std::string name) {
+        if (operators_.size() >= scheduler_.get_stats().size()) {
+            throw std::logic_error(std::format(
+                "Cannot add more {} operators than the number specified in the selector's "
+                "constructor. "
+                "Maximum allowed: {}, current: {}. Extra operators will never be selected.",
+                Traits::selector_type_name, scheduler_.get_stats().size(), operators_.size()));
+        }
+        operator_names_.emplace_back(std::move(name));
+        operators_.emplace_back(Traits::wrap_operator(std::forward<OpType>(op)));
+    }
+
+    /// @brief Apply crossover operator (only available for CrossoverOperatorTraits)
+    ///
+    /// @param problem The optimization problem instance
+    /// @param parent1 First parent genome
+    /// @param parent2 Second parent genome
+    /// @param rng Random number generator
+    /// @return Pair of offspring genomes
+    [[nodiscard]] auto apply_crossover(const Problem& problem, const GenomeT& parent1,
+                                       const GenomeT& parent2, std::mt19937& rng)
+        requires std::same_as<Traits, CrossoverOperatorTraits<Problem>>
+    {
+        return apply_operator_impl(problem, parent1, parent2, rng);
+    }
+
+    /// @brief Apply local search operator (only available for LocalSearchOperatorTraits)
+    ///
+    /// @param problem The optimization problem instance
+    /// @param genome Genome to improve (modified in-place)
+    /// @param rng Random number generator
+    /// @return Fitness after local search
+    [[nodiscard]] auto apply_local_search(const Problem& problem, GenomeT& genome,
+                                          std::mt19937& rng)
+        requires std::same_as<Traits, LocalSearchOperatorTraits<Problem>>
+    {
+        return apply_operator_impl(problem, genome, rng);
+    }
+
+    /// @brief Report fitness improvement for the last operator application
+    ///
+    /// Must be called after each apply_crossover() or apply_local_search() call
+    /// to update the MAB learning statistics.
+    ///
+    /// @param improvement Fitness improvement value (positive = better, must be finite)
+    /// @throws std::invalid_argument if improvement is NaN or infinite
+    void report_fitness_improvement(double improvement) {
+        if (!std::isfinite(improvement)) {
+            throw std::invalid_argument("report_fitness_improvement: improvement must be a finite "
+                                        "number (not NaN or Infinity)");
+        }
+        if (!tracking_improvement_) {
+            throw std::logic_error("report_fitness_improvement called without a pending "
+                                   "apply_crossover or apply_local_search operation.");
+        }
+        last_fitness_improvement_ = improvement;
+        scheduler_.update_reward(current_selection_, improvement);
+        tracking_improvement_ = false;
     }
 
     /// @brief Report fitness improvement using old and new fitness values
@@ -362,24 +494,28 @@ class AdaptiveOperatorSelector {
     ///          selector.report_fitness_improvement(improvement);
     ///          @endcode
     ///
-    /// @param old_fitness Fitness value before crossover operation
-    /// @param new_fitness Fitness value after crossover operation
-    ///
-    /// @example
-    /// @code
-    /// // For minimization problems (TSP):
-    /// selector.report_fitness_change(100.0, 90.0);   // improvement = 10.0 (better)
-    /// selector.report_fitness_change(90.0, 100.0);   // improvement = -10.0 (worse)
-    /// @endcode
+    /// @param old_fitness Fitness value before operator application
+    /// @param new_fitness Fitness value after operator application
     void report_fitness_change(double old_fitness, double new_fitness) {
+        if (!std::isfinite(old_fitness) || !std::isfinite(new_fitness)) {
+            throw std::invalid_argument("report_fitness_change: fitness values must be finite "
+                                        "numbers (not NaN or Infinity)");
+        }
         double improvement = old_fitness - new_fitness; // Minimization: lower is better
         report_fitness_improvement(improvement);
     }
 
-    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
+    /// @brief Get statistics for all operators
+    [[nodiscard]] const std::vector<OperatorStats>& get_operator_stats() const {
+        return scheduler_.get_stats();
+    }
 
-    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
+    /// @brief Get names of all operators
+    [[nodiscard]] const std::vector<std::string>& get_operator_names() const {
+        return operator_names_;
+    }
 
+    /// @brief Reset all statistics and state
     void reset_stats() {
         scheduler_.reset();
         current_selection_ = -1;
@@ -388,179 +524,70 @@ class AdaptiveOperatorSelector {
         tracking_improvement_ = false;
     }
 
-    size_t get_operator_count() const { return operators_.size(); }
+    /// @brief Get number of operators added
+    [[nodiscard]] size_t get_operator_count() const { return operators_.size(); }
 
-    int get_last_selection() const { return current_selection_; }
-    double get_last_improvement() const { return last_fitness_improvement_; }
-    double get_last_execution_time() const { return last_execution_time_; }
+    /// @brief Get index of last selected operator
+    [[nodiscard]] int get_last_selection() const { return current_selection_; }
+
+    /// @brief Get fitness improvement from last operator application
+    [[nodiscard]] double get_last_improvement() const { return last_fitness_improvement_; }
+
+    /// @brief Get execution time of last operator application (in seconds)
+    [[nodiscard]] double get_last_execution_time() const { return last_execution_time_; }
 };
 
+// ============================================================================
+// Type Aliases for API Compatibility
+// ============================================================================
+// The following type aliases maintain full backward compatibility with existing
+// code while leveraging the unified AdaptiveSelector implementation.
+
+/// @brief Type alias for crossover operator selector
+///
+/// This is a convenience alias that instantiates AdaptiveSelector with
+/// CrossoverOperatorTraits. Provides the same API as the previous
+/// AdaptiveOperatorSelector class implementation.
+///
+/// @tparam SchedulerType The MAB scheduler type (UCBScheduler or ThompsonSamplingScheduler)
+/// @tparam Problem The optimization problem type
+template <typename SchedulerType, typename Problem>
+using AdaptiveOperatorSelector =
+    AdaptiveSelector<SchedulerType, Problem, CrossoverOperatorTraits<Problem>>;
+
+/// @brief UCB-based crossover operator selector
+///
+/// Convenience alias for AdaptiveOperatorSelector with UCB scheduler.
 template <typename Problem>
 using UCBOperatorSelector = AdaptiveOperatorSelector<UCBScheduler, Problem>;
 
+/// @brief Thompson Sampling-based crossover operator selector
+///
+/// Convenience alias for AdaptiveOperatorSelector with Thompson Sampling scheduler.
 template <typename Problem>
 using ThompsonOperatorSelector = AdaptiveOperatorSelector<ThompsonSamplingScheduler, Problem>;
 
-/// @brief Adaptive local search operator selector using multi-armed bandit algorithms
+/// @brief Type alias for local search operator selector
 ///
-/// This class enables automatic selection of the best-performing local search operator
-/// based on historical performance using UCB or Thompson Sampling schedulers.
-///
-/// @warning NOT THREAD-SAFE: This class maintains mutable state (current_selection_,
-///          tracking_improvement_, last_fitness_improvement_, last_execution_time_) and
-///          is NOT safe for concurrent access from multiple threads. Sharing a selector
-///          across threads will cause race conditions leading to corrupted MAB learning
-///          and potentially incorrect research results.
-///
-/// @note For parallel GAs (e.g., Island Model, parallel populations): Create one
-///       selector instance per thread/island. Each thread must have its own independent
-///       selector to ensure correct learning and avoid data races.
+/// This is a convenience alias that instantiates AdaptiveSelector with
+/// LocalSearchOperatorTraits. Provides the same API as the previous
+/// AdaptiveLocalSearchSelector class implementation.
 ///
 /// @tparam SchedulerType The MAB scheduler type (UCBScheduler or ThompsonSamplingScheduler)
-/// @tparam Problem The optimization problem type (must satisfy Problem concept)
+/// @tparam Problem The optimization problem type
 template <typename SchedulerType, typename Problem>
-class AdaptiveLocalSearchSelector {
-  private:
-    using LocalSearchFn =
-        std::function<core::Fitness(const Problem&, typename Problem::GenomeT&, std::mt19937&)>;
+using AdaptiveLocalSearchSelector =
+    AdaptiveSelector<SchedulerType, Problem, LocalSearchOperatorTraits<Problem>>;
 
-    SchedulerType scheduler_;
-    std::vector<LocalSearchFn> operators_;
-    std::vector<std::string> operator_names_;
-    int current_selection_;
-    double last_fitness_improvement_;
-    double last_execution_time_;
-    bool tracking_improvement_;
-
-  public:
-    template <typename... Args>
-    explicit AdaptiveLocalSearchSelector(size_t num_operators, Args&&... args)
-        : scheduler_(num_operators, std::forward<Args>(args)...), current_selection_(-1),
-          last_fitness_improvement_(0.0), last_execution_time_(0.0), tracking_improvement_(false) {
-        if (num_operators == 0) {
-            throw std::invalid_argument(
-                "AdaptiveLocalSearchSelector must be configured with at least one operator.");
-        }
-        operators_.reserve(num_operators);
-        operator_names_.reserve(num_operators);
-    }
-
-    // TODO(design): Consider relaxing LocalSearchOperator concept to support
-    // stateful algorithms (e.g., Tabu Search) by accepting non-const operators.
-    // This would require making the lambda mutable:
-    //   [op = std::move(op)](...) mutable { return op.improve(...); }
-    // The concept in core/concepts.hpp would need to accept non-const L&.
-    // This would improve extensibility for stateful local search algorithms.
-    template <core::LocalSearchOperator<Problem> OpType>
-    void add_operator(OpType&& op, std::string name) {
-        if (operators_.size() >= scheduler_.get_stats().size()) {
-            std::stringstream err_msg;
-            err_msg << "Cannot add more local search operators than the number specified in the "
-                    << "selector's constructor. Maximum allowed: " << scheduler_.get_stats().size()
-                    << ", current: " << operators_.size()
-                    << ". Extra operators will never be selected.";
-            throw std::logic_error(err_msg.str());
-        }
-        operator_names_.emplace_back(std::move(name));
-        operators_.emplace_back([op = std::forward<OpType>(op)](const Problem& problem,
-                                                                typename Problem::GenomeT& genome,
-                                                                std::mt19937& rng) {
-            return op.improve(problem, genome, rng);
-        });
-    }
-
-    core::Fitness apply_local_search(const Problem& problem, typename Problem::GenomeT& genome,
-                                     std::mt19937& rng) {
-        if (operators_.empty()) {
-            throw std::logic_error("Cannot apply local search: no operators have been added.");
-        }
-
-        if (tracking_improvement_) {
-            throw std::logic_error(
-                "apply_local_search called again before report_fitness_improvement was called for "
-                "the previous operation.");
-        }
-
-        current_selection_ = scheduler_.select_operator();
-
-        if (current_selection_ < 0 || current_selection_ >= static_cast<int>(operators_.size())) {
-            std::stringstream err_msg;
-            err_msg << "Selected local search operator index " << current_selection_
-                    << " is out of bounds. This can happen if the number of "
-                    << "operators added via add_operator() does not match the num_operators "
-                       "argument in "
-                    << "the constructor. Expected " << scheduler_.get_stats().size()
-                    << " operators, but only " << operators_.size() << " were added.";
-            throw std::out_of_range(err_msg.str());
-        }
-
-        auto start_time = std::chrono::steady_clock::now();
-        core::Fitness result = operators_[current_selection_](problem, genome, rng);
-
-        auto end_time = std::chrono::steady_clock::now();
-        last_execution_time_ = std::chrono::duration<double>(end_time - start_time).count();
-
-        tracking_improvement_ = true;
-        return result;
-    }
-
-    void report_fitness_improvement(double improvement) {
-        if (tracking_improvement_ && current_selection_ >= 0) {
-            last_fitness_improvement_ = improvement;
-            scheduler_.update_reward(current_selection_, improvement);
-            tracking_improvement_ = false;
-        }
-    }
-
-    /// @brief Report fitness improvement using old and new fitness values
-    ///
-    /// This is a convenience method for MINIMIZATION problems (TSP, VRP, CVRP, QAP, etc.)
-    /// where improvement = old_fitness - new_fitness (lower fitness is better).
-    ///
-    /// @warning MINIMIZATION PROBLEMS ONLY: This method assumes minimization objectives.
-    ///          For maximization problems, you must calculate improvement manually and use
-    ///          report_fitness_improvement() directly:
-    ///          @code
-    ///          double improvement = new_fitness - old_fitness;  // For maximization
-    ///          selector.report_fitness_improvement(improvement);
-    ///          @endcode
-    ///
-    /// @param old_fitness Fitness value before local search operation
-    /// @param new_fitness Fitness value after local search operation
-    ///
-    /// @example
-    /// @code
-    /// // For minimization problems (TSP):
-    /// selector.report_fitness_change(100.0, 90.0);   // improvement = 10.0 (better)
-    /// selector.report_fitness_change(90.0, 100.0);   // improvement = -10.0 (worse)
-    /// @endcode
-    void report_fitness_change(double old_fitness, double new_fitness) {
-        double improvement = old_fitness - new_fitness; // Minimization: lower is better
-        report_fitness_improvement(improvement);
-    }
-
-    const std::vector<OperatorStats>& get_operator_stats() const { return scheduler_.get_stats(); }
-
-    const std::vector<std::string>& get_operator_names() const { return operator_names_; }
-
-    void reset_stats() {
-        scheduler_.reset();
-        current_selection_ = -1;
-        last_fitness_improvement_ = 0.0;
-        last_execution_time_ = 0.0;
-        tracking_improvement_ = false;
-    }
-
-    size_t get_operator_count() const { return operators_.size(); }
-
-    int get_last_selection() const { return current_selection_; }
-    double get_last_improvement() const { return last_fitness_improvement_; }
-    double get_last_execution_time() const { return last_execution_time_; }
-};
-
+/// @brief UCB-based local search operator selector
+///
+/// Convenience alias for AdaptiveLocalSearchSelector with UCB scheduler.
 template <typename Problem>
 using UCBLocalSearchSelector = AdaptiveLocalSearchSelector<UCBScheduler, Problem>;
 
+/// @brief Thompson Sampling-based local search operator selector
+///
+/// Convenience alias for AdaptiveLocalSearchSelector with Thompson Sampling scheduler.
 template <typename Problem>
 using ThompsonLocalSearchSelector = AdaptiveLocalSearchSelector<ThompsonSamplingScheduler, Problem>;
 
